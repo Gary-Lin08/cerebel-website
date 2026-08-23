@@ -1,0 +1,58 @@
+.rb-electric-border {
+  --electric-light-color: oklch(from var(--electric-border-color) l c h);
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.rb-electric-border__canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.rb-electric-border__canvas canvas {
+  display: block;
+}
+
+.rb-electric-border__content {
+  position: relative;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.rb-electric-border__layers,
+.rb-electric-border__glow,
+.rb-electric-border__ambient {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.rb-electric-border__layers { z-index: 0; }
+
+.rb-electric-border__glow {
+  box-sizing: border-box;
+}
+
+.rb-electric-border__glow--near {
+  border: 2px solid oklch(from var(--electric-border-color) l c h / 0.58);
+  filter: blur(1px);
+}
+
+.rb-electric-border__glow--far {
+  border: 2px solid var(--electric-light-color);
+  filter: blur(4px);
+}
+
+.rb-electric-border__ambient {
+  z-index: -1;
+  transform: scale(1.1);
+  opacity: 0.28;
+  filter: blur(32px);
+  background: linear-gradient(-30deg, var(--electric-light-color), transparent 42%, var(--electric-border-color));
+}
