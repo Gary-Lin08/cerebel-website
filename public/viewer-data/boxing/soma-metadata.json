@@ -1,0 +1,22 @@
+{
+  "format": "cerebel-mesh-sequence-v1",
+  "source": "CerebelPreview mesh/mesh_sequence.pt",
+  "vertexCount": 4505,
+  "triangleCount": 9006,
+  "frameCount": 228,
+  "fps": 24.0,
+  "verticesUrl": "/viewer-data/boxing/soma-vertices.bin",
+  "facesUrl": "/viewer-data/boxing/soma-faces.bin",
+  "bounds": {
+    "min": [
+      -0.950968861579895,
+      -0.8367442488670349,
+      0.0
+    ],
+    "max": [
+      0.5394409894943237,
+      0.4944659471511841,
+      1.8116594552993774
+    ]
+  }
+}
