@@ -1,0 +1,22 @@
+{
+  "format": "cerebel-mesh-sequence-v1",
+  "source": "CerebelPreview mesh/mesh_sequence.pt",
+  "vertexCount": 4505,
+  "triangleCount": 9006,
+  "frameCount": 451,
+  "fps": 24.0,
+  "verticesUrl": "/viewer-data/golf/soma-vertices.bin",
+  "facesUrl": "/viewer-data/golf/soma-faces.bin",
+  "bounds": {
+    "min": [
+      -0.5958271026611328,
+      -0.6692455410957336,
+      0.0
+    ],
+    "max": [
+      0.2053678184747696,
+      0.7026030421257019,
+      1.9445600509643555
+    ]
+  }
+}
