@@ -1,0 +1,9 @@
+{
+  "metadata": {
+    "status": "ESTIMATED GRF",
+    "source": "Not computed for this preview session",
+    "warning": "Estimated dynamics are not available for this repository example."
+  },
+  "jointIds": ["hip_r", "knee_r", "ankle_r", "hip_l", "knee_l", "ankle_l"],
+  "frames": []
+}
