@@ -10,6 +10,7 @@ import {
 import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
 import { DemoForm } from "./components/DemoForm";
 import { BenchmarkBubbleAtlas } from "./components/BenchmarkBubbleAtlas";
+import { CerebelScrollSequence } from "./components/CerebelScrollSequence";
 import { FounderStack } from "./components/FounderStack";
 import { InstrumentBento } from "./components/InstrumentBento";
 import { LogoPage } from "./components/LogoPage";
@@ -53,6 +54,7 @@ export function App() {
         <Hero />
         <CaptureEvidence />
         <TechnologyStack />
+        <CerebelScrollSequence />
         <FieldWorlds />
         <CompanyVision />
         <Benchmark />
@@ -64,18 +66,6 @@ export function App() {
 }
 
 const heroLines = ["Capture human motion.", "Train intelligent machines."];
-const captureRibbon = [
-  "grasp",
-  "assemble",
-  "reach",
-  "walk",
-  "place",
-  "tool use",
-  "hand-object",
-  "maintenance",
-  "demonstration",
-];
-
 function Hero() {
   const reduceMotion = useReducedMotion();
   const compact = useCompact();
@@ -106,15 +96,18 @@ function Hero() {
         </h1>
 
         <p className="hero__lede">
-          We make human physical intelligence legible to machines — from
-          <HeroChip delay={0.55} icon={<Eyeglasses weight="bold" />}>
-            wearable view
-          </HeroChip>
-          to
-          <HeroChip delay={0.7} icon={<Scan weight="bold" />}>
-            articulated body
-          </HeroChip>
-          on one timeline.
+          <span className="hero__lede-copy">We make human physical intelligence legible to machines —</span>
+          <span className="hero__lede-flow">
+            from
+            <HeroChip delay={0.55} icon={<Eyeglasses weight="bold" />}>
+              wearable view
+            </HeroChip>
+            to
+            <HeroChip delay={0.7} icon={<Scan weight="bold" />}>
+              articulated body
+            </HeroChip>
+            on one timeline.
+          </span>
         </p>
 
         <div className="hero__actions">
@@ -134,17 +127,11 @@ function Hero() {
         <ParticleMorphHero />
       </motion.div>
 
-      <div className="hero__marquee" aria-label="Captured action types">
-        <div className={`hero__marquee-track${reduceMotion ? "" : " is-live"}`}>
-          {[0, 1].map((copy) => (
-            <p key={copy}>
-              {captureRibbon.map((item) => (
-                <span key={`${copy}-${item}`}>{item}</span>
-              ))}
-            </p>
-          ))}
-        </div>
-      </div>
+      <a className="hero__evidence-threshold" href="#evidence">
+        <span><em>01</em>Evidence</span>
+        <strong>One action. Two synchronized views.</strong>
+        <small>Inspect the paired capture <ArrowDown aria-hidden="true" /></small>
+      </a>
     </section>
   );
 }

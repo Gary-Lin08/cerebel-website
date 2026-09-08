@@ -6,3 +6,4 @@ dist/
 .audit/
 .snapshots/
 tmp/
+assets/raw/cerebel-scroll/

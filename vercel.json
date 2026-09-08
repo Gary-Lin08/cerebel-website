@@ -4,6 +4,12 @@
   "framework": "vite",
   "headers": [
     {
+      "source": "/media/cerebel-scroll/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
       "source": "/viewers/kinetic/assets/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
@@ -18,6 +24,9 @@
   ],
   "rewrites": [
     { "source": "/admin", "destination": "/index.html" },
-    { "source": "/admin/:path*", "destination": "/index.html" }
+    { "source": "/admin/:path*", "destination": "/index.html" },
+    { "source": "/viewer", "destination": "/index.html" },
+    { "source": "/viewer/:path*", "destination": "/index.html" },
+    { "source": "/logo", "destination": "/index.html" }
   ]
 }

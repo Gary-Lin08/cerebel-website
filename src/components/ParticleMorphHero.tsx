@@ -97,7 +97,7 @@ export function ParticleMorphHero() {
         const material = new THREE.ShaderMaterial({
           transparent: true, depthWrite: false, depthTest: true, blending: THREE.NormalBlending, uniforms,
           vertexShader: `uniform float uTime; uniform vec2 uPointer; uniform vec2 uHover; uniform float uHoverOpen; uniform float uMorph; uniform float uPixelRatio; attribute vec3 aHuman; attribute vec3 aCerebellum; attribute float aSeed; varying float vMorph; varying float vHover; varying float vSeed; void main() { vec3 point = mix(aCerebellum, aHuman, uMorph); float breath = sin(uTime * 0.72 + aSeed * 18.0) * 0.022; float drift = sin(uTime * 0.42 + aSeed * 9.0) * 0.012; point += normalize(point + vec3(0.001)) * breath; point.x += drift + uPointer.x * (0.035 + 0.02 * sin(aSeed * 11.0)); point.y += cos(uTime * 0.51 + aSeed * 13.0) * 0.01 + uPointer.y * 0.025; vec4 mvPosition = modelViewMatrix * vec4(point, 1.0); vec4 clipPosition = projectionMatrix * mvPosition; gl_Position = clipPosition; vec2 ndc = clipPosition.xy / clipPosition.w; vHover = (1.0 - smoothstep(0.075, 0.31, length(ndc - uHover))) * uHoverOpen; float sparkle = 1.45 + 0.8 * sin(aSeed * 74.0 + uTime * 0.4); gl_PointSize = max(1.25, sparkle * (1.0 + vHover * 0.24) * uPixelRatio * (11.0 / -mvPosition.z)); vMorph = uMorph; vSeed = aSeed; }`,
-          fragmentShader: `varying float vMorph; varying float vHover; varying float vSeed; void main() { float radius = length(gl_PointCoord - 0.5); float alpha = smoothstep(0.52, 0.11, radius); vec3 silver = vec3(0.92, 0.94, 0.96); vec3 violet = vec3(0.54, 0.30, 1.0); vec3 phosphor = vec3(0.22, 1.0, 0.08); vec3 color = mix(violet, silver, vMorph); float signal = step(0.986, fract(vSeed * 147.0)); color = mix(color, phosphor, signal * (0.22 + 0.34 * (1.0 - vMorph))); color = mix(color, vec3(1.0), vHover * 0.24); gl_FragColor = vec4(color, alpha * (0.66 + vHover * 0.34 + signal * 0.18)); }`,
+          fragmentShader: `varying float vMorph; varying float vHover; varying float vSeed; void main() { float radius = length(gl_PointCoord - 0.5); float alpha = smoothstep(0.52, 0.11, radius); vec3 silver = vec3(0.96, 0.97, 0.98); vec3 violet = vec3(0.54, 0.30, 1.0); vec3 phosphor = vec3(0.22, 1.0, 0.08); vec3 color = mix(violet, silver, vMorph); float signal = step(0.986, fract(vSeed * 147.0)); color = mix(color, phosphor, signal * (0.22 + 0.34 * (1.0 - vMorph))); color = mix(color, vec3(1.0), vHover * 0.24); gl_FragColor = vec4(color, alpha * (0.82 + vHover * 0.18 + signal * 0.16)); }`,
         });
         const resize = () => {
           const { width, height } = stage.getBoundingClientRect();
@@ -118,10 +118,10 @@ export function ParticleMorphHero() {
           uniforms.uMorph.value += (transition.current.target - uniforms.uMorph.value) * 0.055;
           group.rotation.y += ((-0.52 + view.current.rotationY + pointer.current.x * 0.08) - group.rotation.y) * 0.075;
           group.rotation.x += ((-0.08 + view.current.rotationX - pointer.current.y * 0.05) - group.rotation.x) * 0.075;
-          const targetScale = view.current.scale;
+          const targetScale = view.current.scale * (compact ? 1.02 : 1.82);
           group.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
-          group.position.x = 0.18 + (reduceMotion ? 0 : Math.cos(elapsed * 0.31) * 0.06);
-          group.position.y = reduceMotion ? 0 : Math.sin(elapsed * 0.48) * 0.075;
+          group.position.x = (compact ? 0.18 : -0.72) + (reduceMotion ? 0 : Math.cos(elapsed * 0.31) * 0.06);
+          group.position.y = (compact ? 0 : -0.72) + (reduceMotion ? 0 : Math.sin(elapsed * 0.48) * 0.075);
           renderer.render(scene, camera); frame = window.requestAnimationFrame(render);
         };
         observer = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; if (visible && !frame) render(); }, { threshold: 0.12 });
