@@ -10,6 +10,8 @@ globalThis.createImageBitmap ??= async () => ({ width: 1, height: 1, close() {} 
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const assetRoot = path.join(projectRoot, "public", "assets");
+// Source meshes stay out of public/ so the deploy never ships them.
+const modelRoot = path.join(projectRoot, "assets", "models");
 const sampleCount = 28_000;
 
 function seededRandom(seed) {
@@ -91,7 +93,7 @@ function sampleSurface(object, extent, seed) {
 }
 
 async function writeSurface(source, destination, extent, seed) {
-  const gltf = await loadGlb(path.join(assetRoot, source));
+  const gltf = await loadGlb(path.join(modelRoot, source));
   const points = sampleSurface(gltf.scene, extent, seed);
   await fs.writeFile(path.join(assetRoot, destination), Buffer.from(points.buffer));
   console.log(`${destination}: ${sampleCount.toLocaleString()} points`);
