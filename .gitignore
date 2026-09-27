@@ -7,3 +7,4 @@ dist/
 .snapshots/
 tmp/
 assets/raw/cerebel-scroll/
+*.blend1

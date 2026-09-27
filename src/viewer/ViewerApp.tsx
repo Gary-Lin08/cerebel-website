@@ -16,7 +16,7 @@ import type {
   ViewerSession,
 } from "./types";
 
-const REGISTRY_URL = "/viewer-data/sessions.json";
+const REGISTRY_URL = "/viewer-data/sessions.json?v=mobile-three-view-2";
 const LOCAL_SESSIONS_KEY = "cerebel.viewer.sessions.v1";
 
 const viewerCopy = {
@@ -204,7 +204,10 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
   const workspace = (
         <section ref={workspaceRef} className={`viewer-workspace${embedded ? " viewer-workspace--embedded" : ""}`} aria-label="Motion viewer workspace">
           <div className="viewer-sessionbar">
-            <label htmlFor={sessionSelectId}>Session</label>
+            <label htmlFor={sessionSelectId}>
+              <span>Choose a motion</span>
+              <small>{sessions.length} sessions · tap to switch</small>
+            </label>
             <select
               id={sessionSelectId}
               value={activeSession?.id ?? ""}
@@ -215,6 +218,25 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
                 <option key={session.id} value={session.id}>{session.label}</option>
               ))}
             </select>
+            <div className="viewer-session-pills" role="group" aria-label="Choose motion session">
+              {sessions.map((session, index) => (
+                <button
+                  key={session.id}
+                  type="button"
+                  className={session.id === activeSession?.id ? "is-active" : ""}
+                  aria-pressed={session.id === activeSession?.id}
+                  onClick={() => selectSession(session.id)}
+                >
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <strong>{session.label}</strong>
+                  <small>{session.frameCount} frames</small>
+                  {session.id === activeSession?.id ? <em>Active</em> : null}
+                </button>
+              ))}
+            </div>
+            {activeViewer === "kinetic" ? (
+              <p className="viewer-sessionbar__sync"><i aria-hidden="true" /> Video · body · trajectory / synced autoplay</p>
+            ) : null}
             <dl>
               <div><dt>Frames</dt><dd>{activeSession?.frameCount || "—"}</dd></div>
               <div><dt>Rate</dt><dd>{activeSession?.fps ? `${activeSession.fps} fps` : "—"}</dd></div>
@@ -278,6 +300,7 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
                     definition={somaDefinition}
                     title={viewerCopy.soma.title}
                     active={activeViewer === "soma"}
+                    autoPlayOnMobile={false}
                   />
                 ) : null}
               </div>
@@ -290,6 +313,7 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
                     definition={kineticDefinition}
                     title={viewerCopy.kinetic.title}
                     active={activeViewer === "kinetic"}
+                    autoPlayOnMobile={!reduceMotion}
                   />
                 ) : null}
               </div>
@@ -390,10 +414,12 @@ function ViewerFrame({
   definition,
   title,
   active,
+  autoPlayOnMobile,
 }: {
   definition: IframeViewerDefinition;
   title: string;
   active: boolean;
+  autoPlayOnMobile: boolean;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
@@ -403,9 +429,50 @@ function ViewerFrame({
     setReady(false);
   }, [definition.url]);
 
+  useEffect(() => {
+    if (!active || !ready || !autoPlayOnMobile || !isBundledKinetic) return;
+    if (!window.matchMedia("(max-width: 820px)").matches) return;
+
+    const startTimer = window.setTimeout(() => {
+      try {
+        const document = iframeRef.current?.contentDocument;
+        if (!document) return;
+
+        document.querySelectorAll<HTMLVideoElement>("video").forEach((video) => {
+          video.muted = true;
+          video.defaultMuted = true;
+          video.playsInline = true;
+          video.setAttribute("muted", "");
+          video.setAttribute("playsinline", "");
+        });
+
+        const playButton = document.querySelector<HTMLButtonElement>(".transport__play");
+        const playLabel = [
+          playButton?.getAttribute("aria-label"),
+          playButton?.getAttribute("title"),
+          playButton?.textContent,
+        ].filter(Boolean).join(" ");
+
+        if (playButton && /play/i.test(playLabel)) playButton.click();
+      } catch {
+        // Connected cross-origin viewers keep their own playback policy.
+      }
+    }, 120);
+
+    return () => window.clearTimeout(startTimer);
+  }, [active, autoPlayOnMobile, isBundledKinetic, ready]);
+
   const handleLoad = () => {
     const iframe = iframeRef.current;
     if (!iframe) return;
+
+    if (isBundledKinetic) {
+      try {
+        iframe.contentDocument?.documentElement.classList.add("cerebel-embedded");
+      } catch {
+        // External viewer endpoints remain untouched.
+      }
+    }
 
     let attempts = 0;
     const inspect = () => {
@@ -436,7 +503,7 @@ function ViewerFrame({
         key={definition.url}
         src={definition.url}
         title={`${title} interactive viewer`}
-        allow="fullscreen"
+        allow="autoplay; fullscreen"
         allowFullScreen
         loading="eager"
         referrerPolicy="no-referrer"

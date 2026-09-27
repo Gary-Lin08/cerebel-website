@@ -8,6 +8,7 @@ interface SectionHeadingProps {
   title: string | readonly string[];
   copy?: string;
   align?: "left" | "right";
+  compact?: boolean;
 }
 
 export function SectionHeading({
@@ -15,13 +16,14 @@ export function SectionHeading({
   title,
   copy,
   align = "left",
+  compact = false,
 }: SectionHeadingProps) {
   const reduceMotion = useReducedMotion();
-  const compact = useCompact();
-  const skipReveal = Boolean(reduceMotion || compact);
+  const isCompact = useCompact();
+  const skipReveal = Boolean(reduceMotion || isCompact || compact);
 
   return (
-    <header className={`section-heading section-heading--${align}`}>
+    <header className={`section-heading section-heading--${align}${compact ? " section-heading--compact" : ""}`}>
       <motion.p
         className="eyebrow"
         initial={skipReveal ? false : { y: 12, opacity: 0 }}
@@ -31,7 +33,7 @@ export function SectionHeading({
       >
         {eyebrow}
       </motion.p>
-      <Reveal as="h2" text={title} />
+      {compact ? <h2>{typeof title === "string" ? title : title.join(" ")}</h2> : <Reveal as="h2" text={title} />}
       {copy ? (
         <motion.p
           className="section-heading__copy"

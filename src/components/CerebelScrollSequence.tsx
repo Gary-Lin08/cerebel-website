@@ -30,19 +30,19 @@ const assetBase = (import.meta.env.VITE_CEREBEL_SCROLL_ASSET_BASE_URL ?? "").rep
 
 const phases = [
   {
-    label: "Perception",
-    title: "See the system before the shell.",
-    copy: "A transparent development view makes the relationship between frame, optics, sensing, and viewpoint inspectable.",
+    label: "AR concept",
+    title: "Information. In your line of sight.",
+    copy: "Designed for in-lens AR. A development concept exploring how information could enter your line of sight.",
   },
   {
-    label: "Product",
-    title: "Structure becomes wearable.",
-    copy: "The assembly resolves into one device perspective built around natural, first-person capture.",
+    label: "Capture",
+    title: "Your perspective. Captured.",
+    copy: "Designed for camera and sensor capture from a wearable perspective. Functional integration is in development.",
   },
   {
-    label: "Motion intelligence",
-    title: "Stay inside the action.",
-    copy: "The wearable keeps visual context and human motion anchored to the same real-world sequence.",
+    label: "One wearable",
+    title: "Display and capture. Together.",
+    copy: "Our goal: bring in-lens display and multimodal capture into one wearable. This visualization shows the intended architecture.",
   },
   {
     label: "Inside out",
@@ -79,7 +79,7 @@ async function decodeFrame(url: string, signal: AbortSignal): Promise<ImageBitma
   });
 }
 
-export function CerebelScrollSequence() {
+export function LegacyCerebelScrollSequence() {
   const sectionRef = useRef<HTMLElement>(null);
   const mediaRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -138,7 +138,7 @@ export function CerebelScrollSequence() {
       const height = sourceHeight * scale;
       const x = (canvas.width - width) / 2;
       const y = (canvas.height - height) / 2;
-      context.fillStyle = "#b8b8b8";
+      context.fillStyle = "#c0c0c0";
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.drawImage(source, x, y, width, height);
     };
@@ -329,11 +329,16 @@ export function CerebelScrollSequence() {
 
   return (
     <section
+      id="wearable"
       ref={sectionRef}
       className={`product-sequence product-sequence--${status}${reduceMotion ? " is-reduced" : ""}`}
       aria-label="Cerebel wearable system product sequence"
     >
       <div className="product-sequence__sticky">
+        <div className="product-sequence__identity">
+          <strong>Cerebel glasses</strong>
+          <span>Concept · In development</span>
+        </div>
         <div ref={mediaRef} className="product-sequence__media">
           <picture className="product-sequence__poster">
             <source media="(max-width: 760px)" srcSet={reduceMotion ? "/media/cerebel-scroll/mobile/frame_0359.webp" : "/media/cerebel-scroll/mobile/frame_0001.webp"} />
@@ -347,11 +352,6 @@ export function CerebelScrollSequence() {
           <canvas ref={canvasRef} aria-hidden="true" />
         </div>
 
-        <header className="product-sequence__header">
-          <p><span>Cerebel wearable system</span><i />Development configuration</p>
-          <strong><span ref={frameLabelRef}>001</span> / 520</strong>
-        </header>
-
         <div className="product-sequence__copy" aria-live="polite">
           {phases.map((item, index) => (
             <div key={item.label} className={phase === index ? "is-active" : ""} aria-hidden={phase !== index}>
@@ -362,24 +362,7 @@ export function CerebelScrollSequence() {
           ))}
         </div>
 
-        <div className="product-sequence__footer">
-          <nav aria-label="Wearable reveal chapters">
-            {phases.map((item, index) => (
-              <button
-                type="button"
-                key={item.label}
-                className={phase === index ? "is-active" : ""}
-                aria-pressed={phase === index}
-                onClick={() => jumpToPhase(index)}
-              >
-                <span>0{index + 1}</span><em>{item.label}</em>
-              </button>
-            ))}
-          </nav>
-          <div ref={progressRef} className="product-sequence__progress" aria-hidden="true"><i /></div>
-          <p>{reduceMotion ? "Static product view" : "Scroll to inspect the system"}</p>
-        </div>
-
+        <a className="product-sequence__evidence-link" href="#evidence">Explore research evidence <span aria-hidden="true">↗</span></a>
         {status === "error" ? <p className="product-sequence__fallback-note">Product sequence unavailable. Static view shown.</p> : null}
       </div>
     </section>

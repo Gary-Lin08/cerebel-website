@@ -1,36 +1,10 @@
 export const navItems = [
+  { label: "Glasses", href: "#wearable" },
   { label: "Evidence", href: "#evidence" },
+  { label: "Motion", href: "#technology" },
+  { label: "Benchmark", href: "#benchmark" },
   { label: "Field", href: "#field" },
   { label: "Company", href: "#company" },
-  { label: "Benchmark", href: "#benchmark" },
-  { label: "Technology", href: "#technology" },
-] as const;
-
-export const processSteps = [
-  {
-    number: "01",
-    name: "Capture",
-    label: "Egocentric capture",
-    copy: "Wide-field-of-view wearable cameras and multimodal sensors record natural human activity in real environments.",
-  },
-  {
-    number: "02",
-    name: "Understand",
-    label: "Interaction understanding",
-    copy: "The system reconstructs human motion, hands, body state, objects, and relevant interaction context.",
-  },
-  {
-    number: "03",
-    name: "Structure",
-    label: "Temporal alignment",
-    copy: "Visual and sensor data is synchronized and transformed into temporal motion and action representations.",
-  },
-  {
-    number: "04",
-    name: "Deploy",
-    label: "Structured output",
-    copy: "The resulting data is designed to support robotics, embodied AI, industrial intelligence, sports analysis, and research workflows.",
-  },
 ] as const;
 
 export const technologyLayers = [
@@ -78,19 +52,8 @@ export const applications = [
   },
 ] as const;
 
-export const partnerCapabilities = [
-  "Product definition",
-  "System architecture",
-  "Camera + sensor integration",
-  "Custom PCB",
-  "AI software",
-  "Optical + display systems",
-  "Prototype development",
-  "ODM coordination",
-  "Data infrastructure",
-] as const;
-
 export const interestOptions = [
+  "Sports and Coaching",
   "Robotics and Embodied AI",
   "Research Collaboration",
   "Industrial Application",

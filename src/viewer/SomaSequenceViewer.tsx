@@ -105,7 +105,7 @@ export function SomaSequenceViewer({ metadataUrl, active = true }: SomaSequenceV
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.08;
@@ -159,12 +159,41 @@ export function SomaSequenceViewer({ metadataUrl, active = true }: SomaSequenceV
     resizeObserver.observe(host);
     resize();
 
-    const render = () => {
+    // Only run the WebGL loop while the canvas is actually on-screen and the
+    // tab is visible — otherwise it burns GPU/main-thread every frame and
+    // competes with page scrolling.
+    let onScreen = true;
+    let running = false;
+    const renderScene = () => {
       controls.update();
       renderer.render(scene, camera);
-      animationFrame = requestAnimationFrame(render);
+      if (running) animationFrame = requestAnimationFrame(renderScene);
     };
-    render();
+    const startLoop = () => {
+      if (running || disposed || document.hidden || !onScreen) return;
+      running = true;
+      animationFrame = requestAnimationFrame(renderScene);
+    };
+    const stopLoop = () => {
+      running = false;
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+    };
+    const visibilityObserver = new IntersectionObserver(
+      ([entry]) => {
+        onScreen = Boolean(entry?.isIntersecting);
+        if (onScreen) startLoop();
+        else stopLoop();
+      },
+      { threshold: 0.01 },
+    );
+    visibilityObserver.observe(host);
+    const onDocVisibility = () => {
+      if (document.hidden) stopLoop();
+      else startLoop();
+    };
+    document.addEventListener("visibilitychange", onDocVisibility);
+    startLoop();
 
     loadSequence(metadataUrl, controller.signal)
       .then((sequence) => {
@@ -204,7 +233,9 @@ export function SomaSequenceViewer({ metadataUrl, active = true }: SomaSequenceV
     return () => {
       disposed = true;
       controller.abort();
-      cancelAnimationFrame(animationFrame);
+      stopLoop();
+      visibilityObserver.disconnect();
+      document.removeEventListener("visibilitychange", onDocVisibility);
       resizeObserver.disconnect();
       controls.dispose();
       geometryRef.current?.dispose();

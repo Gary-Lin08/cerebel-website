@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { AdminApp } from "./admin/AdminApp";
 import "./styles.css";
+import "./refinements.css";
 
 const ViewerApp = lazy(() =>
   import("./viewer/ViewerApp").then((module) => ({ default: module.ViewerApp })),

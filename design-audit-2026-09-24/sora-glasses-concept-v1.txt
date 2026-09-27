@@ -1,0 +1,13 @@
+Use case: premium homepage concept film for Cerebel AI glasses
+Primary request: begin with the exact black development glasses from the reference image floating in a calm cool-gray studio, then move through the right lens into a first-person alpine training environment that represents the intended future experience
+Scene/background: seamless cool-gray product studio transitions naturally into a bright overcast alpine slope, realistic snow texture, restrained atmosphere
+Subject: preserve the reference glasses silhouette, proportions, thick black frame, transparent lenses, top-mounted development module, and side hardware
+Action: the glasses remain stable while the camera makes one slow controlled push toward the right lens; crossing the lens becomes a clean optical transition into a forward-moving first-person slope view; a single thin electric-purple guidance arc and one small translucent alignment marker appear briefly as a simulated AR layer
+Camera: premium 50mm product close-up, slow precise dolly-in, continuous movement, no cuts, finish with steady first-person forward glide
+Lighting/mood: soft studio key light, subtle rim reflections on black material, calm Apple-like restraint, credible engineering prototype, cinematic but documentary-clean
+Color palette: cool gray, near-black, snow white, electric purple accent only
+Style/format: photoreal premium product film, understated material depth, smooth well-damped motion, 16:9
+Timing/beats: 0–3 seconds product close-up; 3–5 seconds approach and pass through lens; 5–8 seconds simulated first-person experience
+Audio: quiet material room tone becoming subtle alpine wind; no music, no voice
+Constraints: concept visualization only; no logos; no people or faces; no written text; no performance numbers; no claim of working hardware; AR elements must be sparse, translucent, and obviously illustrative; preserve one coherent product shape
+Avoid: futuristic HUD clutter, neon wash, cyberpunk styling, duplicated frames or temples, warped lenses, extra cameras, fast spinning, hard cuts, handheld shake, fake UI text, glossy consumer-finished appearance

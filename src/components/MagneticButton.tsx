@@ -20,14 +20,14 @@ export function MagneticButton({
   const ref = useRef<HTMLAnchorElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  const springX = useSpring(x, { stiffness: 260, damping: 16, mass: 0.35 });
-  const springY = useSpring(y, { stiffness: 260, damping: 16, mass: 0.35 });
+  const springX = useSpring(x, { stiffness: 260, damping: 26, mass: 0.35 });
+  const springY = useSpring(y, { stiffness: 260, damping: 26, mass: 0.35 });
 
   const onMove = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (reduceMotion || !ref.current) return;
+    if (reduceMotion || !ref.current || !window.matchMedia("(pointer: fine)").matches) return;
     const bounds = ref.current.getBoundingClientRect();
-    x.set((event.clientX - bounds.left - bounds.width / 2) * 0.28);
-    y.set((event.clientY - bounds.top - bounds.height / 2) * 0.28);
+    x.set(Math.max(-3, Math.min(3, (event.clientX - bounds.left - bounds.width / 2) * 0.08)));
+    y.set(Math.max(-3, Math.min(3, (event.clientY - bounds.top - bounds.height / 2) * 0.08)));
   };
 
   const onLeave = () => {
@@ -43,6 +43,7 @@ export function MagneticButton({
       className={`button button--${variant} button--magnetic`}
       href={href}
       style={reduceMotion ? undefined : { x: springX, y: springY }}
+      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
     >

@@ -1,18 +1,15 @@
 import { ArrowDown } from "@phosphor-icons/react/ArrowDown";
-import { ArrowRight } from "@phosphor-icons/react/ArrowRight";
-import { ArrowUpRight } from "@phosphor-icons/react/ArrowUpRight";
 import { Eyeglasses } from "@phosphor-icons/react/Eyeglasses";
 import { Scan } from "@phosphor-icons/react/Scan";
 import {
   motion,
   useReducedMotion,
 } from "motion/react";
-import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DemoForm } from "./components/DemoForm";
 import { BenchmarkBubbleAtlas } from "./components/BenchmarkBubbleAtlas";
-import { CerebelScrollSequence } from "./components/CerebelScrollSequence";
+import { LegacyCerebelScrollSequence as CerebelScrollSequence } from "./components/CerebelScrollSequence";
 import { FounderStack } from "./components/FounderStack";
-import { InstrumentBento } from "./components/InstrumentBento";
 import { LogoPage } from "./components/LogoPage";
 import { MagneticButton } from "./components/MagneticButton";
 import { ParticleMorphHero } from "./components/ParticleMorphHero";
@@ -20,7 +17,7 @@ import { Navigation } from "./components/Navigation";
 import { SectionHeading } from "./components/SectionHeading";
 import { WorldsBento } from "./components/WorldsBento";
 import { MotionSection } from "./components/motion/MotionSection";
-import { partnerCapabilities, processSteps, technologyLayers } from "./content";
+import { navItems, technologyLayers } from "./content";
 import { useActiveSection, useCompact } from "./hooks";
 import { useAnalytics } from "./analytics";
 
@@ -30,11 +27,12 @@ const MotionViewerWorkspace = lazy(() =>
 
 const sectionIds = [
   "top",
+  "wearable",
   "evidence",
   "technology",
+  "benchmark",
   "field",
   "company",
-  "benchmark",
   "demo",
 ];
 
@@ -47,17 +45,17 @@ export function App() {
   }
 
   return (
-    <div className="site-shell">
+    <div className="site-shell site-shell--refined">
       <Navigation activeSection={activeSection} />
       <SectionProgress activeSection={activeSection} />
       <main>
         <Hero />
+        <CerebelScrollSequence />
         <CaptureEvidence />
         <TechnologyStack />
-        <CerebelScrollSequence />
+        <Benchmark />
         <FieldWorlds />
         <CompanyVision />
-        <Benchmark />
         <Demo />
       </main>
       <Footer />
@@ -111,7 +109,7 @@ function Hero() {
         </p>
 
         <div className="hero__actions">
-          <MagneticButton href="#demo">Book a Demo</MagneticButton>
+          <MagneticButton href="#demo">Request a Demo</MagneticButton>
           <MagneticButton href="#evidence" variant="secondary" icon="down">
             See the Proof
           </MagneticButton>
@@ -128,7 +126,7 @@ function Hero() {
       </motion.div>
 
       <a className="hero__evidence-threshold" href="#evidence">
-        <span><em>01</em>Evidence</span>
+        <span>Evidence</span>
         <strong>One action. Two synchronized views.</strong>
         <small>Inspect the paired capture <ArrowDown aria-hidden="true" /></small>
       </a>
@@ -240,69 +238,37 @@ function DataGap() {
   );
 }
 
-function HowItWorks() {
-  const [activeStep, setActiveStep] = useState(0);
-
-  return (
-    <section className="how-it-works" id="how-it-works">
-      <div className="how-it-works__sticky">
-        <div className="page-grid">
-          <SectionHeading
-            eyebrow="How Cerebel works"
-            title="From human action to machine intelligence."
-          />
-
-          <div className="process-layout">
-            <div className="process-steps" role="list">
-              {processSteps.map((step, index) => (
-                <button
-                  type="button"
-                  role="listitem"
-                  key={step.number}
-                  className={
-                    index === activeStep
-                      ? "process-step is-active"
-                      : "process-step"
-                  }
-                  onClick={() => setActiveStep(index)}
-                  aria-current={index === activeStep ? "step" : undefined}
-                >
-                  <span>{step.number}</span>
-                  <div>
-                    <h3>{step.name}</h3>
-                    <p>{step.copy}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <InstrumentBento activeStep={activeStep} />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function CaptureEvidence() {
   const reduceMotion = useReducedMotion();
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || entry.intersectionRatio < 0.3 || reduceMotion || connection?.saveData) {
+        video.pause();
+      } else {
+        void video.play().catch(() => { /* Native controls remain available. */ });
+      }
+    }, { threshold: 0.3 });
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, [reduceMotion]);
 
   return (
     <section className="section evidence" id="evidence">
       <div className="page-grid">
         <SectionHeading
+          compact
           eyebrow="Reconstruction evidence"
           title="One action. Two synchronized views."
-          copy="The wearable view preserves what the operator sees. The paired reconstruction makes the same motion legible as a time-aligned articulated body-and-hand sequence."
+          copy="A real Cerebel capture, with wearable video and body reconstruction on the same timeline."
         />
 
         <figure className="evidence__figure">
           <div className="evidence__chrome">
-            <span className="hero__chrome-dots" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </span>
             <strong>Jay / 27 Jul 2026</strong>
             <small>Wearable RGB + body reconstruction</small>
           </div>
@@ -317,9 +283,9 @@ function CaptureEvidence() {
             </span>
           </div>
           <video
+            ref={videoRef}
             className="evidence__video"
             controls
-            autoPlay={!reduceMotion}
             muted
             loop
             playsInline
@@ -335,12 +301,8 @@ function CaptureEvidence() {
           </video>
 
           <figcaption>
-            <span>ORIGINAL PAIRED CAPTURE / 00:24.4</span>
-            <p>
-              The original composite preserves the reconstruction and wearable
-              view exactly as delivered. Qualitative inspection only.
-            </p>
-            <span>PLAYBACK / SYNCHRONIZED</span>
+            <span>Original paired capture · 24.4 seconds</span>
+            <p>Qualitative evidence. Original composite, as delivered.</p>
           </figcaption>
         </figure>
 
@@ -419,62 +381,19 @@ function Benchmark() {
   return (
     <section className="section benchmark" id="benchmark">
       <div className="page-grid">
-        <SectionHeading
-          eyebrow="Benchmark protocol"
-          title="Measured, not implied."
-          copy="A benchmark should make the model’s behavior comparable—not merely impressive. CeRebel is compared with published reference methods on aggregate AMASS sequences. FLOPs and reference-model parameter encodings remain locked until those counts are verified on the same basis."
-        />
-
-        <aside
-          className="benchmark__protocol-strip"
-          aria-label="Evaluation protocol"
-        >
-          <div className="benchmark__protocol-label">
-            <span>Evaluation frame</span>
-            <strong>AMASS</strong>
+        <header className="benchmark-intro">
+          <div>
+            <p className="eyebrow">AMASS · aggregate sequence evaluation</p>
+            <h2>Measured, not implied.</h2>
           </div>
-          <dl>
-            <div>
-              <dt>Protocol</dt>
-              <dd>Aggregate sequences</dd>
-            </div>
-            <div>
-              <dt>Reference field</dt>
-              <dd>Published reference methods</dd>
-            </div>
-            <div>
-              <dt>Named model</dt>
-              <dd>CeRebel</dd>
-            </div>
-          </dl>
-        </aside>
-
+          <p>Compare CeRebel with reference methods. Explore one metric, then inspect the complete result.</p>
+        </header>
         <div className="benchmark__explorer">
-          <div className="benchmark__explorer-head">
-            <div>
-              <span>AMASS / INTERACTIVE COMPARISON</span>
-              <strong>
-                <span>{overallLeader.method}</span> leads the listed field.
-                <small>
-                  {overallLeader.wins} of {benchmarkMetrics.length} metrics
-                </small>
-              </strong>
-              <p>
-                The field splits on head trajectory, not a blended score.
-                T-head is plotted from zero so the gap stays in millimetres.
-              </p>
-            </div>
-            <div className="benchmark__toggle" aria-label="Sequence length">
+          <div className="benchmark-toolbar">
+            <p><strong>{overallLeader.method}</strong> leads the listed methods <span>in {overallLeader.wins} of {benchmarkMetrics.length} metrics</span></p>
+            <div className="benchmark__toggle" role="group" aria-label="Sequence length">
               {(["32", "128"] as const).map((length) => (
-                <button
-                  key={length}
-                  type="button"
-                  className={sequenceLength === length ? "is-active" : ""}
-                  aria-pressed={sequenceLength === length}
-                  onClick={() => setSequenceLength(length)}
-                >
-                  SEQ {length}
-                </button>
+                <button key={length} type="button" className={sequenceLength === length ? "is-active" : ""} aria-pressed={sequenceLength === length} onClick={() => setSequenceLength(length)}>SEQ {length}</button>
               ))}
             </div>
           </div>
@@ -488,30 +407,18 @@ function Benchmark() {
             }
           />
 
-          <div className="benchmark__pending">
-            <span>CR</span>
-            <div>
-              <strong>CeRebel metadata</strong>
-              <p>
-                50.45M parameters, team-confirmed. FLOPs and comparable
-                reference-model parameter counts remain locked.
-              </p>
-            </div>
-            <i>50.45M PARAMS · FLOPs PENDING</i>
-          </div>
-
           <details className="benchmark__source-view">
             <summary>
               <span>
                 <small>Source table</small>
-                View exact published values
+                Evaluation notes & exact values
               </span>
               <ArrowDown aria-hidden="true" />
             </summary>
 
             <table className="benchmark__table">
               <caption className="sr-only">
-                Published AMASS body-estimation values for sequence length{" "}
+                Team-supplied AMASS body-estimation values for sequence length{" "}
                 {sequenceLength}, including CeRebel and published reference
                 methods.
               </caption>
@@ -556,9 +463,10 @@ function Benchmark() {
 
             <div className="benchmark__source">
               <p>
-                AMASS published comparison, including CeRebel. Values
-                transcribed from the evaluation excerpt supplied by the Cerebel
-                team.
+                AMASS aggregate evaluation supplied by the Cerebel team. Values
+                and uncertainty are transcribed from the supplied excerpt.
+                CeRebel: 50.45M parameters, team-confirmed. FLOPs and comparable
+                reference-model parameter counts are not yet verified.
               </p>
               <p>
                 ↓ lower is better &nbsp;·&nbsp; ↑ higher is better &nbsp;·&nbsp;
@@ -581,9 +489,10 @@ function TechnologyStack() {
     <section className="section technology" id="technology">
       <div className="page-grid">
         <SectionHeading
+          compact
           eyebrow="CeRebel motion representation"
           title="From movement signals to physical intelligence."
-          copy="A real action is retained as a synchronized sequence, then made inspectable as body, hands, spatial context, and time—not reduced to a pose overlay."
+          copy="Choose an action. Explore its surface or inspect the video, body model, and joint motion."
         />
 
         <Suspense
@@ -596,54 +505,9 @@ function TechnologyStack() {
           <MotionViewerWorkspace embedded />
         </Suspense>
 
-        <ol className="technology__layers">
-          {remainingLayers.map(([index, title, copy]) => (
-            <li key={title}>
-              <span>{index}</span>
-              <strong>{title}</strong>
-              <p>{copy}</p>
-              <ArrowRight aria-hidden="true" />
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
-  );
-}
-
-function Robotics() {
-  const uses = [
-    "Human demonstration datasets",
-    "Robot imitation learning",
-    "Manipulation-task collection",
-    "Human-to-robot motion alignment",
-    "Teleoperation data",
-    "Real-world embodied AI research",
-  ];
-
-  return (
-    <section className="section robotics" id="robotics">
-      <div className="page-grid robotics__content">
-        <SectionHeading
-          eyebrow="Robotics + embodied AI"
-          title="Teach machines through natural human demonstration."
-          copy="Cerebel is designed to collect actions from the operator’s natural point of view and transform the body, hand, object, and temporal context into structured representations."
-        />
-        <div
-          className="robotics__flow"
-          aria-label="Transferable information flow"
-        >
-          <span>Human action</span>
-          <ArrowRight aria-hidden="true" />
-          <span>Body + hands</span>
-          <ArrowRight aria-hidden="true" />
-          <span>Object state</span>
-          <ArrowRight aria-hidden="true" />
-          <span>Action sequence</span>
-        </div>
-        <ul className="robotics__uses">
-          {uses.map((use) => (
-            <li key={use}>{use}</li>
+        <ul className="technology__layers">
+          {remainingLayers.map(([, title, copy]) => (
+            <li key={title}><strong>{title}</strong><p>{copy}</p></li>
           ))}
         </ul>
       </div>
@@ -656,39 +520,12 @@ function FieldWorlds() {
     <section className="section field-worlds" id="field">
       <div className="page-grid">
         <SectionHeading
+          compact
           eyebrow="In the field"
           title="Humanoids, athletes, and the brands that train them."
-          copy="The same wearable capture serves demonstration datasets and coaching — named partners appear only when they are real."
+          copy="Working with Apocynthion and Overide to explore human motion in robotics and sport."
         />
         <WorldsBento />
-      </div>
-    </section>
-  );
-}
-
-function PartnerSolutions() {
-  return (
-    <section className="section partners" id="partners">
-      <div className="page-grid partners__grid">
-        <SectionHeading
-          eyebrow="Partner solutions"
-          title="From concept to integrated wearable system."
-          copy="Cerebel supports consumer, industrial, research, and action-sports partners across product, hardware, perception, and data infrastructure."
-        />
-
-        <div className="partners__capabilities">
-          {partnerCapabilities.map((capability, index) => (
-            <div key={capability}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <p>{capability}</p>
-            </div>
-          ))}
-        </div>
-
-        <a className="button button--primary partners__cta" href="#demo">
-          Discuss a Partnership
-          <ArrowUpRight aria-hidden="true" />
-        </a>
       </div>
     </section>
   );
@@ -709,13 +546,13 @@ function Demo() {
         <div className="demo__intro">
           <p className="eyebrow">
             <span aria-hidden="true" />
-            Book a demo
+            Request a demo
           </p>
           <h2>Bring real-world human intelligence into your system.</h2>
           <p>
             Tell us what you are building. We can discuss capture requirements,
-            research collaboration, product integration, or a custom wearable
-            configuration.
+            sports coaching, research collaboration, product integration, or a custom wearable
+            configuration. Share your requirements and our team will follow up.
           </p>
           <div className="demo__contact">
             <span>Direct contact</span>
@@ -763,11 +600,7 @@ function Footer() {
           </p>
         </div>
         <div className="footer__links">
-          <a href="#evidence">Evidence</a>
-          <a href="#benchmark">Benchmark</a>
-          <a href="#field">Field</a>
-          <a href="#company">Company</a>
-          <a href="#technology">Technology</a>
+          {navItems.map(item => <a key={item.href} href={item.href}>{item.label}</a>)}
           <a href="#demo">Contact</a>
         </div>
         <div className="footer__links">

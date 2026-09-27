@@ -59,7 +59,7 @@ export function Navigation({ activeSection }: NavigationProps) {
         </nav>
 
         <a className="nav-cta" href="#demo">
-          Book a Demo
+          Request a Demo
           <ArrowUpRight aria-hidden="true" weight="bold" />
         </a>
 
@@ -114,7 +114,7 @@ export function Navigation({ activeSection }: NavigationProps) {
                 </a>
               ))}
               <a className="mobile-menu__cta" href="#demo" onClick={closeMenu}>
-                Book a Demo
+                Request a Demo
                 <ArrowUpRight aria-hidden="true" />
               </a>
             </nav>

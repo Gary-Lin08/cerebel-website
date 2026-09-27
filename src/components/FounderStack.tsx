@@ -141,17 +141,14 @@ export function FounderStack() {
   const deskOpacity = useTransform(progress, [0.22, 0.3, 0.44, 0.52], [0, 1, 1, 0]);
   const deskScale = useTransform(progress, [0.22, 0.32, 0.52], [1.04, 1, 1]);
 
-  const teamOpacity = useTransform(progress, [0.44, 0.52, 0.8, 0.9], [0, 1, 1, 0]);
+  const teamOpacity = useTransform(progress, [0.44, 0.52], [0, 1]);
   const teamScale = useTransform(progress, [0.44, 0.54, 0.9], [1.03, 1, 1]);
   const teamBlur = useTransform(progress, [0.44, 0.54], [6, 0]);
   const teamFilter = useMotionTemplate`blur(${teamBlur}px)`;
 
-  const frameOpacity = useTransform(progress, [0, 0.8, 0.9], [1, 1, 0]);
-  const creditsOpacity = useTransform(progress, [0.5, 0.58, 0.8, 0.9], [0, 1, 1, 0]);
-  const researchOpacity = useTransform(progress, [0.86, 0.93, 1], [0, 1, 1]);
-  const researchY = useTransform(progress, [0.86, 0.94], [20, 0]);
+  const creditsOpacity = useTransform(progress, [0.5, 0.58], [0, 1]);
   const blobX = useTransform(progress, [0, 1], ["18%", "72%"]);
-  const blobOpacity = useTransform(progress, [0, 0.4, 0.8, 0.92], [0.16, 0.28, 0.22, 0]);
+  const blobOpacity = useTransform(progress, [0, 0.4, 1], [0.16, 0.28, 0.22]);
   const mobileBlobX = useTransform(mobileProgress, [0, 1], ["-12%", "18%"]);
   const mobileBlobOpacity = useTransform(
     mobileProgress,
@@ -181,10 +178,7 @@ export function FounderStack() {
           }
         />
 
-        <motion.div
-          className="founder-stack__frame"
-          style={cinematic ? { opacity: frameOpacity } : undefined}
-        >
+        <div className="founder-stack__frame">
           <motion.div
             className="founder-stack__copy"
             data-mobile-motion={compact ? "copy" : undefined}
@@ -193,11 +187,9 @@ export function FounderStack() {
                 ? { opacity: 0, y: 28, filter: "blur(10px)" }
                 : false
             }
-            whileInView={
-              compact && !reduceMotion
-                ? { opacity: 1, y: 0, filter: "blur(0px)" }
-                : undefined
-            }
+            // Always resolve to the visible state: a compact first render can
+            // leave the hidden initial styles applied after the viewport widens.
+            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             viewport={{ once: true, amount: 0.32 }}
             transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
           >
@@ -347,17 +339,7 @@ export function FounderStack() {
               <AffiliationBoard />
             </motion.div>
           )}
-        </motion.div>
-
-        {compact ? null : (
-          <motion.p
-            className="founder-stack__research"
-            aria-hidden="true"
-            style={{ opacity: researchOpacity, y: researchY }}
-          >
-            Motion Intelligence Research
-          </motion.p>
-        )}
+        </div>
       </div>
 
       {compact ? (
