@@ -645,7 +645,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
 
           <div className="golf-swing__insights">
             <div>
-              <h3>Muscle groups to train</h3>
+              <h3>Muscles to work on</h3>
               <ul className="golf-swing__groups">
                 {bundle.muscleGroups.map((group) => (
                   <li key={group.id}>
@@ -667,7 +667,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
             <div className="golf-swing__legend">
               {bundle.highlights.length ? (
                 <>
-                  <h3>What went well</h3>
+                  <h3>What you're doing well</h3>
                   <ul className="golf-swing__highlights">
                     {bundle.highlights.map((item) => <li key={item}>{item}</li>)}
                   </ul>

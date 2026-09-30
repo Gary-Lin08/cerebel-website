@@ -317,44 +317,44 @@ def config_1872() -> dict:
         "annotations": [
             {
                 "id": "sway",
-                "title": "Backswing sway",
-                "detail": f"The pelvis drifts about {m['sway_cm']:.0f} cm away from the target, loading the outside of the trail foot.",
+                "title": "Sliding off the ball",
+                "detail": f"Your hips slide about {m['sway_cm']:.0f} cm away from the target on the way back. Turn around your right hip instead of drifting off it.",
                 "start": 62, "end": 79, "anchor": "pelvis", "group": "trail-hip",
             },
             {
                 "id": "trail-knee",
-                "title": "Trail knee straightens",
-                "detail": f"Right-knee flexion drops from {m['knee_addr']:.0f}° to about {m['knee_min']:.0f}°, so the trail hip loses support.",
+                "title": "Right knee locks out",
+                "detail": f"Your right knee straightens from {m['knee_addr']:.0f}° to about {m['knee_min']:.0f}°. Keep a little flex in it so your hips have something to turn against.",
                 "start": 80, "end": 91, "anchor": "tibia_r", "group": "trail-hip",
             },
             {
                 "id": "lead-arm",
-                "title": "Lead arm bends",
-                "detail": f"Left-elbow flexion reaches about {m['elbow_top']:.0f}° at the top ({m['elbow_addr']:.0f}° at address), shortening the swing arc. Upper-body muscles are not in this model.",
+                "title": "Left arm collapses",
+                "detail": f"Your left arm folds to about {m['elbow_top']:.0f}° at the top (it started at {m['elbow_addr']:.0f}°). Keep it a bit wider and your swing arc gets bigger.",
                 "start": 92, "end": 101, "anchor": "ulna_l", "group": None,
             },
             {
                 "id": "hang-back",
-                "title": "No shift to the lead side",
+                "title": "Stuck on the back foot",
                 "detail": (
-                    f"At impact the pelvis is back near its address position ({m['impact_cm']:+.0f} cm toward the target) instead of shifting onto the lead foot."
+                    "At impact your hips are right back where they started. Get them moving toward the target so your weight ends up on your front foot."
                 ),
                 "start": 103, "end": 114, "anchor": "pelvis", "group": "lead-hip",
             },
         ],
         "highlights": [
-            f"About {m['separation']:.0f}° of hip–shoulder separation with {m['pelvis_turn']:.0f}° of pelvis turn",
-            f"The pelvis drops only about {m['drop_cm']:.0f} cm in the downswing, holding posture",
-            "No early extension toward the ball",
+            f"Great coil: your shoulders turn about {m['separation']:.0f}° more than your hips.",
+            f"You stay in your posture. Your hips only drop about {m['drop_cm']:.0f} cm coming down.",
+            "No early extension. Your hips don't thrust toward the ball.",
         ],
         "muscle_groups": [
             {
                 "id": "trail-hip", "label": "Right glute medius · minimus", "color": "#ff6b5a",
-                "role": "Stabilise the trail hip to reduce sway and hold knee flex", "match": right_hip,
+                "role": "Helps you turn into your right hip instead of sliding off it", "match": right_hip,
             },
             {
                 "id": "lead-hip", "label": "Left glute max · adductors", "color": "#f2a93b",
-                "role": "Drive the shift onto the lead side and finish the turn", "match": left_drive,
+                "role": "Pushes you onto your front foot and finishes the turn", "match": left_drive,
             },
         ],
         "disclosure": {
