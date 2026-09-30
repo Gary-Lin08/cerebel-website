@@ -13866,7 +13866,7 @@ body[data-viewer-drawer="true"] {
   .viewer-panel__head > div { align-items: flex-start; flex-direction: column; gap: 4px; }
   .viewer-panel__head p { font-size: 0.65rem; }
   .viewer-panel__head > a { width: 35px; min-height: 35px; justify-content: center; padding: 0; font-size: 0; }
-  .viewer-frame { height: 800px; min-height: 800px; }
+  .viewer-frame { height: 620px; min-height: 620px; }
   .soma-viewer { min-height: 520px; }
   .soma-viewer__stage { min-height: 520px; }
   .soma-viewer__stage-meta { inset: 18px 20px auto; }

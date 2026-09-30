@@ -7,6 +7,7 @@ import { UploadSimple } from "@phosphor-icons/react/UploadSimple";
 import { X } from "@phosphor-icons/react/X";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { GolfSwingAnalysis } from "./GolfSwingAnalysis";
 import { OpenSimPreview } from "./OpenSimPreview";
 import { SomaSequenceViewer } from "./SomaSequenceViewer";
 import type {
@@ -16,16 +17,17 @@ import type {
   ViewerSession,
 } from "./types";
 
-const REGISTRY_URL = "/viewer-data/sessions.json?v=mobile-three-view-2";
+const REGISTRY_URL = "/viewer-data/sessions.json?v=golf-1872-1";
 const LOCAL_SESSIONS_KEY = "cerebel.viewer.sessions.v1";
 
 const viewerCopy = {
+  swing: {
+    title: "Swing analysis",
+  },
   soma: {
-    index: "01",
     title: "Surface",
   },
   kinetic: {
-    index: "02",
     title: "Joint motion",
   },
 } as const;
@@ -45,6 +47,9 @@ function isViewerDefinition(value: unknown): value is ViewerDefinition {
   if (candidate.kind === "iframe") {
     return typeof candidate.url === "string" && isSafeUrl(candidate.url);
   }
+  if (candidate.kind === "swing-analysis") {
+    return typeof candidate.dataUrl === "string" && isSafeUrl(candidate.dataUrl);
+  }
   return (
     candidate.kind === "mesh-sequence"
     && typeof candidate.metadataUrl === "string"
@@ -57,7 +62,8 @@ function isViewerSession(value: unknown): value is ViewerSession {
   const candidate = value as Partial<ViewerSession>;
   const viewers = candidate.viewers as ViewerSession["viewers"] | undefined;
   const hasViewer = Boolean(
-    (viewers?.soma && isViewerDefinition(viewers.soma))
+    (viewers?.swing && isViewerDefinition(viewers.swing))
+    || (viewers?.soma && isViewerDefinition(viewers.soma))
     || (viewers?.kinetic && isViewerDefinition(viewers.kinetic)),
   );
   return (
@@ -88,6 +94,7 @@ function mergeSessions(...groups: ViewerSession[][]): ViewerSession[] {
 }
 
 function firstViewer(session: ViewerSession): ViewerKey {
+  if (session.viewers.swing) return "swing";
   return session.viewers.soma ? "soma" : "kinetic";
 }
 
@@ -104,6 +111,8 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
   const [addOpen, setAddOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [warmKinetic, setWarmKinetic] = useState(false);
+  // The full surface sequence is ~24 MB; only fetch it once Surface is actually opened.
+  const [warmSoma, setWarmSoma] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -145,11 +154,15 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
     };
   }, [addOpen]);
 
+  // Adjusting state during render (not in an effect) keeps Surface warm once it has been opened.
+  if (activeViewer === "soma" && !warmSoma) setWarmSoma(true);
+
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId) ?? sessions[0],
     [activeSessionId, sessions],
   );
   const activeDefinition = activeSession?.viewers[activeViewer];
+  const swingDefinition = activeSession?.viewers.swing;
   const somaDefinition = activeSession?.viewers.soma;
   const kineticDefinition = activeSession?.viewers.kinetic;
 
@@ -244,7 +257,10 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
           </div>
 
           <div className="viewer-switcher" role="tablist" aria-label="Viewer mode">
-            {(Object.keys(viewerCopy) as ViewerKey[]).map((key) => {
+            {(Object.keys(viewerCopy) as ViewerKey[])
+              // Session-specific views (Swing analysis) only appear where they exist.
+              .filter((key) => key !== "swing" || Boolean(activeSession?.viewers.swing))
+              .map((key, index) => {
               const item = viewerCopy[key];
               const available = Boolean(activeSession?.viewers[key]);
               return (
@@ -261,7 +277,7 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
                     setActiveViewer(key);
                   }}
                 >
-                  <span>{item.index}</span>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
                   <div><strong>{item.title}</strong></div>
                   <i aria-hidden="true" />
                 </button>
@@ -285,11 +301,19 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
             ) : null}
 
             <div className="viewer-mode-stack">
+              {swingDefinition ? (
+                <div
+                  className={`viewer-mode-layer${activeViewer === "swing" ? " is-active" : ""}`}
+                  aria-hidden={activeViewer !== "swing"}
+                >
+                  <GolfSwingAnalysis dataUrl={swingDefinition.dataUrl} active={activeViewer === "swing"} />
+                </div>
+              ) : null}
               <div
                 className={`viewer-mode-layer${activeViewer === "soma" ? " is-active" : ""}`}
                 aria-hidden={activeViewer !== "soma"}
               >
-                {somaDefinition?.kind === "mesh-sequence" ? (
+                {warmSoma && somaDefinition?.kind === "mesh-sequence" ? (
                   <SomaSequenceViewer
                     metadataUrl={somaDefinition.metadataUrl}
                     active={activeViewer === "soma"}

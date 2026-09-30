@@ -138,7 +138,7 @@ export function LegacyCerebelScrollSequence() {
       const height = sourceHeight * scale;
       const x = (canvas.width - width) / 2;
       const y = (canvas.height - height) / 2;
-      context.fillStyle = "#c0c0c0";
+      context.fillStyle = "#bebebe";
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.drawImage(source, x, y, width, height);
     };

@@ -253,16 +253,18 @@ main {
   .evidence-panel--curves { grid-column: auto; grid-row: 3; }
   .transport { grid-row: 4; }
 
+  /* Portrait capture and body model share one row so the source video keeps a
+     usable size and both views of the same action can be compared directly. */
   html.cerebel-embedded .workspace {
-    height: 800px;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 58px 190px 370px 182px;
+    height: 620px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 58px 360px minmax(0, 1fr);
   }
 
-  html.cerebel-embedded .transport { grid-column: 1; grid-row: 1; }
+  html.cerebel-embedded .transport { grid-column: 1 / -1; grid-row: 1; }
   html.cerebel-embedded .evidence-panel--video { grid-column: 1; grid-row: 2; }
-  html.cerebel-embedded .evidence-panel--model { grid-column: 1; grid-row: 3; }
-  html.cerebel-embedded .evidence-panel--curves { grid-column: 1; grid-row: 4; }
+  html.cerebel-embedded .evidence-panel--model { grid-column: 2; grid-row: 2; }
+  html.cerebel-embedded .evidence-panel--curves { grid-column: 1 / -1; grid-row: 3; }
 
   html.cerebel-embedded .panel-header {
     min-height: 34px;

@@ -28,8 +28,8 @@ const MotionViewerWorkspace = lazy(() =>
 const sectionIds = [
   "top",
   "wearable",
-  "evidence",
   "technology",
+  "evidence",
   "benchmark",
   "field",
   "company",
@@ -51,8 +51,8 @@ export function App() {
       <main>
         <Hero />
         <CerebelScrollSequence />
-        <CaptureEvidence />
         <TechnologyStack />
+        <CaptureEvidence />
         <Benchmark />
         <FieldWorlds />
         <CompanyVision />

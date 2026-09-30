@@ -1,7 +1,7 @@
 export const navItems = [
   { label: "Glasses", href: "#wearable" },
-  { label: "Evidence", href: "#evidence" },
   { label: "Motion", href: "#technology" },
+  { label: "Evidence", href: "#evidence" },
   { label: "Benchmark", href: "#benchmark" },
   { label: "Field", href: "#field" },
   { label: "Company", href: "#company" },

@@ -1,0 +1,352 @@
+.golf-swing {
+  container-type: inline-size;
+  display: grid;
+  gap: 0;
+  color: #eeeaf3;
+  background: #060508;
+}
+
+.golf-swing__stage {
+  position: relative;
+  height: 620px;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.golf-swing__stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.golf-swing__stage canvas:active { cursor: grabbing; }
+
+.golf-swing__badge {
+  position: absolute;
+  z-index: 3;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border: 1px solid rgba(185, 155, 255, 0.45);
+  border-radius: 999px;
+  color: #d9ccff;
+  background: rgba(10, 8, 14, 0.72);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+.golf-swing__label {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  margin: 0;
+  color: #a9a2b4;
+  font-family: var(--mono, "IBM Plex Mono", monospace);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.golf-swing__label--surface { left: 18px; }
+.golf-swing__label--skeleton { left: calc(50% + 18px); }
+
+.golf-swing__stage::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 50%;
+  width: 1px;
+  background: #1c1922;
+  pointer-events: none;
+}
+
+.golf-callout {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+  will-change: transform;
+}
+
+.golf-callout.is-active { opacity: 1; }
+
+.golf-callout > i {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--callout-color);
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--callout-color) 22%, transparent);
+}
+
+.golf-callout > div {
+  position: absolute;
+  top: -12px;
+  left: 18px;
+  width: 196px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--callout-color) 55%, transparent);
+  border-radius: 10px;
+  background: rgba(12, 10, 16, 0.86);
+  backdrop-filter: blur(6px);
+}
+
+.golf-callout strong {
+  display: block;
+  color: var(--callout-color);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.golf-callout p {
+  margin: 3px 0 0;
+  color: #cfc9d8;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.golf-swing__status {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  color: #a9a2b4;
+  font-size: 0.8rem;
+  background: #060508;
+}
+
+.golf-swing__spinner {
+  width: 22px;
+  height: 22px;
+  animation: golf-swing-spin 900ms linear infinite;
+}
+
+@keyframes golf-swing-spin { to { transform: rotate(360deg); } }
+
+.golf-swing__console {
+  display: grid;
+  gap: 18px;
+  padding: 16px 18px 20px;
+  border-top: 1px solid #1c1922;
+}
+
+.golf-swing__transport {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.golf-swing__transport > button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  color: #0a0610;
+  background: #a17aff;
+  cursor: pointer;
+}
+
+.golf-swing__timeline input {
+  width: 100%;
+  margin: 0;
+  accent-color: #52e07c;
+}
+
+.golf-swing__phases {
+  display: flex;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.golf-swing__phases li {
+  flex-basis: 0;
+  min-width: 0;
+  overflow: hidden;
+  color: #6f687a;
+  font-size: 0.66rem;
+  text-align: center;
+  white-space: nowrap;
+  border-top: 2px solid #1f1c26;
+  padding-top: 5px;
+  transition: color 200ms ease, border-color 200ms ease;
+}
+
+.golf-swing__phases li.is-active {
+  color: #f1ecf7;
+  border-top-color: #52e07c;
+}
+
+.golf-swing__speed {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #141219;
+}
+
+.golf-swing__speed button {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 999px;
+  color: #bcb5c6;
+  background: transparent;
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.golf-swing__speed button[aria-pressed="true"] {
+  color: #0a0610;
+  background: #d9d4df;
+}
+
+.golf-swing__insights {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 28px;
+}
+
+.golf-swing__insights h3 {
+  margin: 0 0 10px;
+  color: #a9a2b4;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.golf-swing__groups {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.golf-swing__groups button {
+  display: grid;
+  grid-template-columns: 10px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #221f29;
+  border-radius: 10px;
+  color: #eeeaf3;
+  background: #0c0b10;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+
+.golf-swing__groups button i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--group-color);
+}
+
+.golf-swing__groups button strong {
+  font-size: 0.8rem;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.golf-swing__groups button span {
+  color: #9d96a8;
+  font-size: 0.72rem;
+}
+
+.golf-swing__groups button.is-live,
+.golf-swing__groups button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--group-color) 60%, transparent);
+  background: color-mix(in srgb, var(--group-color) 9%, #0c0b10);
+}
+
+.golf-swing__highlights {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.golf-swing__highlights li {
+  position: relative;
+  padding-left: 18px;
+  color: #d9d4df;
+  font-size: 0.74rem;
+}
+
+.golf-swing__highlights li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.45em;
+  width: 8px;
+  height: 5px;
+  border-left: 2px solid #52e07c;
+  border-bottom: 2px solid #52e07c;
+  transform: rotate(-45deg);
+}
+
+.golf-swing__legend p {
+  margin: 0 0 8px;
+  font-size: 0.74rem;
+  color: #d9d4df;
+}
+
+.golf-swing__swatch {
+  display: inline-block;
+  width: 22px;
+  height: 3px;
+  margin-right: 8px;
+  vertical-align: middle;
+  border-radius: 2px;
+}
+
+.golf-swing__swatch--trail {
+  background: #52e07c;
+  box-shadow: 0 0 8px rgba(82, 224, 124, 0.7);
+}
+
+.golf-swing__legend .golf-swing__disclosure {
+  color: #8d8698;
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+/* Matches STACK_BREAKPOINT in GolfSwingAnalysis.tsx, measured on the component itself. */
+@container (max-width: 719px) {
+  .golf-swing__stage { height: 780px; }
+  .golf-swing__stage::after { inset: 50% 0 auto 0; width: auto; height: 1px; }
+  .golf-swing__label--skeleton { top: calc(50% + 16px); left: 18px; }
+  .golf-callout > div { width: 158px; }
+  .golf-swing__transport { grid-template-columns: auto minmax(0, 1fr); }
+  .golf-swing__speed { grid-column: 1 / -1; justify-self: start; }
+  .golf-swing__insights { grid-template-columns: 1fr; gap: 18px; }
+  .golf-swing__phases li { font-size: 0.6rem; }
+  /* Downswing and impact last one or two frames; keep their bars, drop the text. */
+  .golf-swing__phases li.is-brief { color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .golf-callout,
+  .golf-swing__phases li { transition: none; }
+  .golf-swing__spinner { animation: none; }
+}
