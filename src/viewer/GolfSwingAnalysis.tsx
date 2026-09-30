@@ -645,7 +645,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
 
           <div className="golf-swing__insights">
             <div>
-              <h3>需要优化的发力肌群</h3>
+              <h3>Muscle groups to train</h3>
               <ul className="golf-swing__groups">
                 {bundle.muscleGroups.map((group) => (
                   <li key={group.id}>
@@ -667,13 +667,13 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
             <div className="golf-swing__legend">
               {bundle.highlights.length ? (
                 <>
-                  <h3>做得好的地方</h3>
+                  <h3>What went well</h3>
                   <ul className="golf-swing__highlights">
                     {bundle.highlights.map((item) => <li key={item}>{item}</li>)}
                   </ul>
                 </>
               ) : null}
-              <p><i className="golf-swing__swatch golf-swing__swatch--trail" aria-hidden="true" />推算杆头轨迹</p>
+              <p><i className="golf-swing__swatch golf-swing__swatch--trail" aria-hidden="true" />Estimated club-head path</p>
               <p className="golf-swing__disclosure">{bundle.disclosure.club}</p>
               <p className="golf-swing__disclosure">{bundle.disclosure.coaching}</p>
             </div>
