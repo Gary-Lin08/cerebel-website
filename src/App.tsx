@@ -10,7 +10,6 @@ import { DemoForm } from "./components/DemoForm";
 import { BenchmarkBubbleAtlas } from "./components/BenchmarkBubbleAtlas";
 import { LegacyCerebelScrollSequence as CerebelScrollSequence } from "./components/CerebelScrollSequence";
 import { FounderStack } from "./components/FounderStack";
-import { LogoPage } from "./components/LogoPage";
 import { MagneticButton } from "./components/MagneticButton";
 import { ParticleMorphHero } from "./components/ParticleMorphHero";
 import { Navigation } from "./components/Navigation";
@@ -23,6 +22,10 @@ import { useAnalytics } from "./analytics";
 
 const MotionViewerWorkspace = lazy(() =>
   import("./viewer/ViewerApp").then((module) => ({ default: module.MotionViewerWorkspace })),
+);
+// Only the /logo route uses the identity page and its GSAP grid.
+const LogoPage = lazy(() =>
+  import("./components/LogoPage").then((module) => ({ default: module.LogoPage })),
 );
 
 const sectionIds = [
@@ -41,7 +44,7 @@ export function App() {
   const activeSection = useActiveSection(sectionIds);
 
   if (typeof window !== "undefined" && window.location.pathname === "/logo") {
-    return <LogoPage />;
+    return <Suspense fallback={null}><LogoPage /></Suspense>;
   }
 
   return (
@@ -486,7 +489,7 @@ function TechnologyStack() {
   );
 
   return (
-    <section className="section technology" id="technology">
+    <section className="section technology" id="technology" data-nav-tone="dark">
       <div className="page-grid">
         <SectionHeading
           compact
@@ -548,7 +551,7 @@ function Demo() {
             <span aria-hidden="true" />
             Request a demo
           </p>
-          <h2>Bring real-world human intelligence into your system.</h2>
+          <h2>Bring real&#8209;world human intelligence into your system.</h2>
           <p>
             Tell us what you are building. We can discuss capture requirements,
             sports coaching, research collaboration, product integration, or a custom wearable
@@ -585,6 +588,7 @@ function SectionProgress({ activeSection }: { activeSection: string }) {
 function Footer() {
   return (
     <footer className="footer">
+      <FooterStatement />
       <div className="page-grid footer__grid">
         <div>
           <span className="wordmark">
@@ -608,10 +612,39 @@ function Footer() {
           <a href="mailto:hello@cerebel.tech">hello@cerebel.tech</a>
         </div>
         <div className="footer__meta">
-          <p>Built for the real world, not only the lab.</p>
           <span>© {new Date().getFullYear()} Cerebel AI</span>
         </div>
       </div>
     </footer>
+  );
+}
+
+const footerLines = ["Built for the real world,", "not only the lab."];
+
+function FooterStatement() {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <div className="footer__statement">
+      {/* The paragraph is the in-view trigger: the lines themselves start clipped, so they never intersect. */}
+      <motion.p
+        aria-label={footerLines.join(" ")}
+        initial={reduceMotion ? false : "hidden"}
+        whileInView="shown"
+        viewport={{ once: true, amount: 0.5 }}
+      >
+        {footerLines.map((line, index) => (
+          <span className="footer__statement-line" key={line} aria-hidden="true">
+            <motion.span
+              variants={{ hidden: { y: "108%" }, shown: { y: "0%" } }}
+              transition={{ duration: 1.05, delay: index * 0.12, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {line}
+            </motion.span>
+          </span>
+        ))}
+      </motion.p>
+      <MagneticButton href="#demo">Request a Demo</MagneticButton>
+    </div>
   );
 }

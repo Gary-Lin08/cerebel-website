@@ -147,6 +147,9 @@ export function FounderStack() {
   const teamFilter = useMotionTemplate`blur(${teamBlur}px)`;
 
   const creditsOpacity = useTransform(progress, [0.5, 0.58], [0, 1]);
+  // Until the affiliation rail appears, copy and photograph sit on the optical centre of the screen.
+  const frameShift = useTransform(progress, [0.42, 0.56], [88, 0]);
+  const frameShiftPx = useMotionTemplate`${frameShift}px`;
   const blobX = useTransform(progress, [0, 1], ["18%", "72%"]);
   const blobOpacity = useTransform(progress, [0, 0.4, 1], [0.16, 0.28, 0.22]);
   const mobileBlobX = useTransform(mobileProgress, [0, 1], ["-12%", "18%"]);
@@ -178,7 +181,10 @@ export function FounderStack() {
           }
         />
 
-        <div className="founder-stack__frame">
+        <motion.div
+          className="founder-stack__frame"
+          style={cinematic ? ({ "--frame-shift": frameShiftPx } as Record<string, typeof frameShiftPx>) : undefined}
+        >
           <motion.div
             className="founder-stack__copy"
             data-mobile-motion={compact ? "copy" : undefined}
@@ -339,7 +345,7 @@ export function FounderStack() {
               <AffiliationBoard />
             </motion.div>
           )}
-        </div>
+        </motion.div>
       </div>
 
       {compact ? (

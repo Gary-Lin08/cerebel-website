@@ -28,6 +28,33 @@ export function Navigation({ activeSection }: NavigationProps) {
     };
   }, [menuOpen]);
 
+  // The bar takes its tone from whatever chapter is passing underneath it.
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const line = 46;
+      let tone = "dark";
+      for (const surface of document.querySelectorAll<HTMLElement>("main [data-nav-tone]")) {
+        const bounds = surface.getBoundingClientRect();
+        if (bounds.top <= line && bounds.bottom > line) tone = surface.dataset.navTone ?? "dark";
+      }
+      if (document.body.dataset.navTone !== tone) document.body.dataset.navTone = tone;
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      delete document.body.dataset.navTone;
+    };
+  }, []);
+
   const closeMenu = () => setMenuOpen(false);
 
   return (

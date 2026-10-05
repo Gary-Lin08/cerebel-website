@@ -51,6 +51,10 @@ const phases = [
   },
 ] as const;
 
+// First logical frame of each chapter; the last chapter runs to the end of the sequence.
+// The fourth starts where the housing actually opens, not where the side view ends.
+const phaseStarts = [0, 120, 260, 384];
+
 const clamp = (value: number, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 
 function resolveAssetPath(value: string) {
@@ -83,16 +87,13 @@ export function LegacyCerebelScrollSequence() {
   const sectionRef = useRef<HTMLElement>(null);
   const mediaRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const frameLabelRef = useRef<HTMLSpanElement>(null);
-  const progressRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLElement>(null);
   const compact = useCompact("(max-width: 760px)");
   const reduceMotion = Boolean(useReducedMotion());
-  const [phase, setPhase] = useState(0);
+  const [scrollPhase, setPhase] = useState(0);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
-
-  useEffect(() => {
-    if (reduceMotion) setPhase(2);
-  }, [reduceMotion]);
+  // Reduced motion holds the static frame, which belongs to the third chapter.
+  const phase = reduceMotion ? 2 : scrollPhase;
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -114,11 +115,21 @@ export function LegacyCerebelScrollSequence() {
     let decodeCount = 0;
     const cache = new Map<number, CachedFrame>();
     const queued = new Set<number>();
+    const inflight = new Set<number>();
     const queue: number[] = [];
     const maximumCachedFrames = compact ? 30 : 48;
     const maximumConcurrentRequests = compact ? 3 : 5;
     const context = canvas.getContext("2d", { alpha: false });
     if (!context) return;
+
+    // The camera sits closer while the frame is assembled, then pulls back as it comes apart.
+    const zoomForFrame = (frame: number) => {
+      const t = clamp((frame - 376) / 80);
+      const eased = t * t * (3 - 2 * t);
+      // Phones crop the wide studio frame; the exploded view needs all of it back.
+      return compact ? 1.5 - 0.46 * eased : 1.3 - 0.16 * eased;
+    };
+    let zoom = zoomForFrame(0);
 
     const resizeCanvas = () => {
       const bounds = media.getBoundingClientRect();
@@ -133,13 +144,14 @@ export function LegacyCerebelScrollSequence() {
     const drawSource = (source: ImageBitmap | HTMLImageElement) => {
       const sourceWidth = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
       const sourceHeight = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
-      const scale = Math.min(canvas.width / sourceWidth, canvas.height / sourceHeight);
+      const scale = Math.min(canvas.width / sourceWidth, canvas.height / sourceHeight) * zoom;
       const width = sourceWidth * scale;
       const height = sourceHeight * scale;
       const x = (canvas.width - width) / 2;
       const y = (canvas.height - height) / 2;
       context.fillStyle = "#bebebe";
       context.fillRect(0, 0, canvas.width, canvas.height);
+      context.imageSmoothingQuality = "high";
       context.drawImage(source, x, y, width, height);
     };
 
@@ -184,7 +196,8 @@ export function LegacyCerebelScrollSequence() {
       while (decodeCount < maximumConcurrentRequests && queue.length) {
         const index = queue.shift()!;
         queued.delete(index);
-        if (cache.has(index)) continue;
+        if (cache.has(index) || inflight.has(index)) continue;
+        inflight.add(index);
         decodeCount += 1;
         void decodeFrame(resolveAssetPath(sequence.paths[index]), controller.signal)
           .then((source) => {
@@ -203,6 +216,7 @@ export function LegacyCerebelScrollSequence() {
             }
           })
           .finally(() => {
+            inflight.delete(index);
             decodeCount -= 1;
             pumpQueue();
           });
@@ -210,7 +224,7 @@ export function LegacyCerebelScrollSequence() {
     };
 
     const enqueue = (index: number, priority = false) => {
-      if (!sequence || index < 0 || index >= sequence.paths.length || cache.has(index) || queued.has(index)) return;
+      if (!sequence || index < 0 || index >= sequence.paths.length || cache.has(index) || queued.has(index) || inflight.has(index)) return;
       queued.add(index);
       if (priority) queue.unshift(index);
       else queue.push(index);
@@ -229,10 +243,11 @@ export function LegacyCerebelScrollSequence() {
     };
 
     const phaseForFrame = (frame: number) => {
-      if (frame < 120) return 0;
-      if (frame < 260) return 1;
-      if (frame < 360) return 2;
-      return 3;
+      let current = 0;
+      phaseStarts.forEach((startFrame, index) => {
+        if (frame >= startFrame) current = index;
+      });
+      return current;
     };
 
     const renderForScroll = () => {
@@ -249,8 +264,14 @@ export function LegacyCerebelScrollSequence() {
       lastLogicalFrame = logicalFrame;
       const logicalStep = sequence.logicalStep ?? 1;
       targetIndex = Math.min(sequence.paths.length - 1, Math.floor(logicalFrame / logicalStep));
-      if (frameLabelRef.current) frameLabelRef.current.textContent = String(logicalFrame + 1).padStart(3, "0");
-      progressRef.current?.style.setProperty("--sequence-progress", `${progress}`);
+      zoom = zoomForFrame(logicalFrame);
+      const rail = railRef.current;
+      if (rail) {
+        phaseStarts.forEach((startFrame, index) => {
+          const endFrame = phaseStarts[index + 1] ?? manifest!.logicalFrameCount - 1;
+          rail.style.setProperty(`--phase-${index}`, clamp((logicalFrame - startFrame) / (endFrame - startFrame)).toFixed(3));
+        });
+      }
       prefetchAround(targetIndex, direction);
       drawClosest();
     };
@@ -272,6 +293,7 @@ export function LegacyCerebelScrollSequence() {
         manifest = await response.json() as SequenceManifest;
         sequence = compact ? manifest.mobile : manifest.desktop;
         const logicalFrame = reduceMotion ? manifest.reducedMotionFrame - 1 : 0;
+        zoom = zoomForFrame(logicalFrame);
         const logicalStep = sequence.logicalStep ?? 1;
         targetIndex = Math.floor(logicalFrame / logicalStep);
         enqueue(targetIndex, true);
@@ -319,7 +341,8 @@ export function LegacyCerebelScrollSequence() {
   const jumpToPhase = (index: number) => {
     const section = sectionRef.current;
     if (!section) return;
-    const phaseProgress = [0, 0.24, 0.51, 0.71][index] ?? 0;
+    // Land a few frames inside the chapter so its copy is already active on arrival.
+    const phaseProgress = index ? ((phaseStarts[index] ?? 0) + 8) / 519 : 0;
     const travel = Math.max(0, section.offsetHeight - window.innerHeight);
     window.scrollTo({
       top: section.offsetTop + travel * phaseProgress,
@@ -333,6 +356,8 @@ export function LegacyCerebelScrollSequence() {
       ref={sectionRef}
       className={`product-sequence product-sequence--${status}${reduceMotion ? " is-reduced" : ""}`}
       aria-label="Cerebel wearable system product sequence"
+      data-nav-tone="light"
+      data-phase={phase}
     >
       <div className="product-sequence__sticky">
         <div className="product-sequence__identity">
@@ -351,6 +376,7 @@ export function LegacyCerebelScrollSequence() {
           </picture>
           <canvas ref={canvasRef} aria-hidden="true" />
         </div>
+        <div className="product-sequence__light" aria-hidden="true" />
 
         <div className="product-sequence__copy" aria-live="polite">
           {phases.map((item, index) => (
@@ -361,6 +387,24 @@ export function LegacyCerebelScrollSequence() {
             </div>
           ))}
         </div>
+
+        {reduceMotion ? null : (
+          <nav ref={railRef} className="product-sequence__rail" aria-label="Glasses chapters">
+            {phases.map((item, index) => (
+              <button
+                key={item.label}
+                type="button"
+                className={phase === index ? "is-active" : ""}
+                aria-current={phase === index ? "step" : undefined}
+                onClick={() => jumpToPhase(index)}
+              >
+                <i aria-hidden="true" style={{ transform: `scaleX(var(--phase-${index}, 0))` }} />
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        )}
 
         <a className="product-sequence__evidence-link" href="#evidence">Explore research evidence <span aria-hidden="true">↗</span></a>
         {status === "error" ? <p className="product-sequence__fallback-note">Product sequence unavailable. Static view shown.</p> : null}

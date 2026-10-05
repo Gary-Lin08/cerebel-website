@@ -165,7 +165,9 @@ export function ParticleMorphHero() {
       const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY) * 0.72;
       const delta = horizontal ? event.deltaX : event.deltaY;
       const current = transition.current;
-      const canConsume = horizontal || (delta > 0 && current.target < 0.995) || (delta < 0 && current.target > 0.005);
+      // Vertical wheel only scrubs while the page rests at the top, so it can never trap a reader mid-scroll.
+      const atTop = window.scrollY <= 1;
+      const canConsume = horizontal || (atTop && ((delta > 0 && current.target < 0.995) || (delta < 0 && current.target > 0.005)));
       if (!canConsume) return;
       event.preventDefault();
       current.touched = true;

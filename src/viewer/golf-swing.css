@@ -343,6 +343,13 @@
   .golf-swing__phases li { font-size: 0.6rem; }
   /* Downswing and impact last one or two frames; keep their bars, drop the text. */
   .golf-swing__phases li.is-brief { color: transparent; }
+  /* The late phases are too short to share one line: keep every bar, name only the current phase. */
+  .golf-swing__phases li:not(:first-child):not(.is-active) { color: transparent; }
+  .golf-swing__phases li.is-active { overflow: visible; }
+  .golf-swing__phases li.is-active:last-child { direction: rtl; }
+  .golf-swing__groups button { grid-template-columns: 10px minmax(0, 1fr); }
+  .golf-swing__groups button strong { white-space: normal; }
+  .golf-swing__groups button span { grid-column: 2; }
 }
 
 @media (prefers-reduced-motion: reduce) {
