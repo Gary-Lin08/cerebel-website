@@ -300,7 +300,7 @@ export function ParticleMorphHero() {
         ) : (
           <canvas ref={canvasRef} aria-label="Particle animation transitioning from cerebellar motion field to articulated body." />
         )}
-        <div className="particle-hero__measure" aria-hidden="true"><span>cerebellar field</span><i /><span>tap / scroll to traverse</span><i /><span>articulated body</span></div>
+        <div className="particle-hero__measure" aria-hidden="true"><span>cerebellum</span><i /><span>tap to morph · drag to rotate</span><i /><span>body</span></div>
       </div>
     </div>
   );

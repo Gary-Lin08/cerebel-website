@@ -2,11 +2,13 @@ import { ArrowCounterClockwise } from "@phosphor-icons/react/ArrowCounterClockwi
 import { CircleNotch } from "@phosphor-icons/react/CircleNotch";
 import { Pause } from "@phosphor-icons/react/Pause";
 import { Play } from "@phosphor-icons/react/Play";
-import { useReducedMotion } from "motion/react";
+import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useEffect, useId, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { createParticleMaterial, createShellMaterial, createSurfaceSampler } from "./particle-surface";
 import type { MeshSequenceMetadata } from "./types";
+import "./motion-stage.css";
 
 interface LoadedSequence {
   metadata: MeshSequenceMetadata;
@@ -18,6 +20,19 @@ interface SomaSequenceViewerProps {
   metadataUrl: string;
   active?: boolean;
 }
+
+type SurfaceStyle = "particles" | "topology";
+
+const STYLES: { id: SurfaceStyle; label: string }[] = [
+  { id: "particles", label: "Particles" },
+  { id: "topology", label: "Topology" },
+];
+const COMPACT_BREAKPOINT = 720;
+const BODY_SAMPLES = 24_000;
+const EXPOSURE_SAMPLES = 5_000;
+// Above this net speed the subject is going somewhere, so the camera travels with it.
+const TRAVEL_SPEED = 0.8;
+const thumbSpring = { type: "spring", stiffness: 460, damping: 32, mass: 0.8 } as const;
 
 function isMetadata(value: unknown): value is MeshSequenceMetadata {
   if (!value || typeof value !== "object") return false;
@@ -67,162 +82,321 @@ async function loadSequence(
   return { metadata: metadataValue, vertices, faces };
 }
 
+/** Mean position of a pose, read from every 24th vertex: enough to follow the body cheaply. */
+function centroidOf(pose: Float32Array, offset: number, vertexCount: number, out: THREE.Vector3) {
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  let n = 0;
+  for (let v = 0; v < vertexCount; v += 24) {
+    const o = offset + v * 3;
+    x += pose[o];
+    y += pose[o + 1];
+    z += pose[o + 2];
+    n += 1;
+  }
+  return out.set(x / n, y / n, z / n);
+}
+
 export function SomaSequenceViewer({ metadataUrl, active = true }: SomaSequenceViewerProps) {
-  const canvasHostRef = useRef<HTMLDivElement>(null);
-  const geometryRef = useRef<THREE.BufferGeometry | null>(null);
-  const materialRef = useRef<THREE.MeshStandardMaterial | null>(null);
-  const sequenceRef = useRef<LoadedSequence | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const controlsRef = useRef<OrbitControls | null>(null);
-  const rangeId = useId();
-  const reduceMotion = useReducedMotion();
+  const layoutId = useId();
+  const hostRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const scrubRef = useRef<HTMLInputElement>(null);
+  const timeRef = useRef<HTMLOutputElement>(null);
+  const frameRef = useRef(0);
+  const playingRef = useRef(false);
+  const activeRef = useRef(active);
+  const trailRef = useRef(true);
+  const styleRef = useRef<SurfaceStyle>("particles");
+  const resetRef = useRef<() => void>(() => {});
+  const reduceMotion = Boolean(useReducedMotion());
   const [metadata, setMetadata] = useState<MeshSequenceMetadata | null>(null);
-  const [frame, setFrame] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [wireframe, setWireframe] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [trail, setTrail] = useState(true);
+  const [style, setStyle] = useState<SurfaceStyle>("particles");
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
 
+  // The render loop reads these through refs so it never restarts on UI changes.
   useEffect(() => {
-    const host = canvasHostRef.current;
+    activeRef.current = active;
+    playingRef.current = playing;
+    trailRef.current = trail;
+    styleRef.current = style;
+  }, [active, playing, trail, style]);
+
+  useEffect(() => {
+    const host = hostRef.current;
     if (!host) return;
 
     const controller = new AbortController();
     let disposed = false;
-    let animationFrame = 0;
+    let raf = 0;
+    let visible = true;
     setStatus("loading");
     setError("");
-    setFrame(0);
-    setIsPlaying(false);
+    setPlaying(false);
+    frameRef.current = 0;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#050505");
-    scene.fog = new THREE.Fog("#050505", 4.5, 9);
+    scene.fog = new THREE.Fog("#050505", 6, 15);
 
-    const camera = new THREE.PerspectiveCamera(34, 1, 0.01, 40);
+    const camera = new THREE.PerspectiveCamera(34, 1, 0.05, 60);
     camera.up.set(0, 0, 1);
-    camera.position.set(3.15, -3.45, 2.25);
-    cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
-    host.replaceChildren(renderer.domElement);
+    renderer.domElement.setAttribute("aria-hidden", "true");
+    host.prepend(renderer.domElement);
 
+    // Wheel zoom is off on purpose: the page must keep scrolling when the pointer crosses the stage.
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.055;
-    controls.target.set(0, 0, 1.02);
-    controls.minDistance = 1.2;
-    controls.maxDistance = 7;
-    controlsRef.current = controls;
-
-    const ambient = new THREE.HemisphereLight("#f4f0fa", "#251934", 1.45);
-    scene.add(ambient);
-    const key = new THREE.DirectionalLight("#d9d2ff", 5.4);
-    key.position.set(2.2, -2.8, 4.4);
-    scene.add(key);
-    const rim = new THREE.DirectionalLight("#9b6cff", 4.8);
-    rim.position.set(-3.2, 2.4, 2.8);
-    scene.add(rim);
-
-    const grid = new THREE.GridHelper(8, 24, "#463856", "#1b1720");
-    grid.rotation.x = Math.PI / 2;
-    grid.position.z = -0.006;
-    const gridMaterial = grid.material as THREE.Material;
-    gridMaterial.transparent = true;
-    gridMaterial.opacity = 0.62;
-    scene.add(grid);
-
-    const horizon = new THREE.Mesh(
-      new THREE.CircleGeometry(2.7, 96),
-      new THREE.MeshBasicMaterial({
-        color: "#140f1b",
-        transparent: true,
-        opacity: 0.74,
-        side: THREE.DoubleSide,
-      }),
-    );
-    horizon.position.z = -0.012;
-    scene.add(horizon);
+    controls.dampingFactor = 0.06;
+    controls.enableZoom = false;
+    controls.enablePan = false;
+    controls.minPolarAngle = Math.PI * 0.18;
+    controls.maxPolarAngle = Math.PI * 0.56;
 
     const resize = () => {
       const width = Math.max(host.clientWidth, 1);
       const height = Math.max(host.clientHeight, 1);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
+      // Lift the picture so the floating control bar never sits on the subject's feet.
+      const lift = width < COMPACT_BREAKPOINT ? 0.15 : 0.08;
+      camera.setViewOffset(width, height, 0, Math.round(height * lift), width, height);
       renderer.setSize(width, height, false);
     };
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(host);
     resize();
 
-    // Only run the WebGL loop while the canvas is actually on-screen and the
-    // tab is visible — otherwise it burns GPU/main-thread every frame and
-    // competes with page scrolling.
-    let onScreen = true;
-    let running = false;
-    const renderScene = () => {
-      controls.update();
-      renderer.render(scene, camera);
-      if (running) animationFrame = requestAnimationFrame(renderScene);
-    };
-    const startLoop = () => {
-      if (running || disposed || document.hidden || !onScreen) return;
-      running = true;
-      animationFrame = requestAnimationFrame(renderScene);
-    };
-    const stopLoop = () => {
-      running = false;
-      if (animationFrame) cancelAnimationFrame(animationFrame);
-      animationFrame = 0;
-    };
-    const visibilityObserver = new IntersectionObserver(
-      ([entry]) => {
-        onScreen = Boolean(entry?.isIntersecting);
-        if (onScreen) startLoop();
-        else stopLoop();
-      },
-      { threshold: 0.01 },
-    );
-    visibilityObserver.observe(host);
-    const onDocVisibility = () => {
-      if (document.hidden) stopLoop();
-      else startLoop();
-    };
-    document.addEventListener("visibilitychange", onDocVisibility);
-    startLoop();
+    const observer = new IntersectionObserver(([entry]) => {
+      visible = Boolean(entry?.isIntersecting);
+    }, { threshold: 0.01 });
+    observer.observe(host);
+
+    let cleanupScene = () => {};
 
     loadSequence(metadataUrl, controller.signal)
-      .then((sequence) => {
+      .then(({ metadata: data, vertices, faces }) => {
         if (disposed) return;
-        sequenceRef.current = sequence;
-        setMetadata(sequence.metadata);
+        const count = data.frameCount;
+        const stride = data.vertexCount * 3;
+        const compact = host.clientWidth < COMPACT_BREAKPOINT;
 
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(sequence.metadata.vertexCount * 3);
-        positions.set(sequence.vertices.subarray(0, positions.length));
-        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-        geometry.setIndex(new THREE.BufferAttribute(sequence.faces, 1));
-        geometry.computeVertexNormals();
-        geometry.computeBoundingSphere();
-        geometryRef.current = geometry;
+        const pose = vertices.slice(0, stride);
+        const shellGeometry = new THREE.BufferGeometry();
+        const shellPositions = new THREE.BufferAttribute(pose, 3);
+        shellGeometry.setAttribute("position", shellPositions);
+        shellGeometry.setIndex(new THREE.BufferAttribute(faces, 1));
+        const shellMaterial = createShellMaterial();
+        const shell = new THREE.Mesh(shellGeometry, shellMaterial);
+        shell.frustumCulled = false;
+        // Topology view: the reconstructed mesh itself, drawn over the same shell.
+        const wireMaterial = new THREE.MeshBasicMaterial({ color: "#b99bff", wireframe: true, transparent: true, opacity: 0.5 });
+        const wire = new THREE.Mesh(shellGeometry, wireMaterial);
+        wire.frustumCulled = false;
+        wire.visible = false;
+        scene.add(shell, wire);
 
-        const material = new THREE.MeshStandardMaterial({
-          color: "#d9d4df",
-          roughness: 0.34,
-          metalness: 0.22,
-          side: THREE.DoubleSide,
+        const bodyCount = compact ? BODY_SAMPLES / 2 : BODY_SAMPLES;
+        const sampler = createSurfaceSampler(pose, faces, bodyCount);
+        const bodyGeometry = new THREE.BufferGeometry();
+        const bodyPositions = new THREE.BufferAttribute(new Float32Array(bodyCount * 3), 3);
+        const bodyNormals = new THREE.BufferAttribute(new Float32Array(bodyCount * 3), 3);
+        bodyGeometry.setAttribute("position", bodyPositions);
+        bodyGeometry.setAttribute("normal", bodyNormals);
+        bodyGeometry.setAttribute("aSeed", new THREE.BufferAttribute(sampler.seeds, 1));
+        const bodyMaterial = createParticleMaterial("#f2f1f7", compact ? 10 : 9, THREE.NormalBlending);
+        const body = new THREE.Points(bodyGeometry, bodyMaterial);
+        body.frustumCulled = false;
+        scene.add(body);
+
+        // Is the subject going somewhere, or working on the spot?
+        const first = centroidOf(vertices, 0, data.vertexCount, new THREE.Vector3());
+        const last = centroidOf(vertices, (count - 1) * stride, data.vertexCount, new THREE.Vector3());
+        const travel = new THREE.Vector3().subVectors(last, first).setZ(0);
+        const travelling = travel.length() / (count / data.fps) > TRAVEL_SPEED;
+        travel.normalize();
+
+        // Earlier poses stay behind as exposures, the way a stroboscopic photograph stacks them.
+        const exposureSlots = compact ? 4 : 6;
+        const exposureStep = Math.max(2, Math.round(data.fps * (travelling ? 0.25 : 0.12)));
+        const exposureStrength = travelling ? 0.9 : 0.4;
+        const exposureCount = Math.min(compact ? EXPOSURE_SAMPLES / 2 : EXPOSURE_SAMPLES, bodyCount);
+        const exposures = Array.from({ length: exposureSlots }, () => {
+          const geometry = new THREE.BufferGeometry();
+          const positions = new THREE.BufferAttribute(new Float32Array(exposureCount * 3), 3);
+          const normals = new THREE.BufferAttribute(new Float32Array(exposureCount * 3), 3);
+          geometry.setAttribute("position", positions);
+          geometry.setAttribute("normal", normals);
+          geometry.setAttribute("aSeed", new THREE.BufferAttribute(sampler.seeds.subarray(0, exposureCount), 1));
+          const material = createParticleMaterial("#b9a6ff", compact ? 8 : 7, THREE.AdditiveBlending);
+          material.uniforms.uOpacity.value = 0;
+          const points = new THREE.Points(geometry, material);
+          points.frustumCulled = false;
+          points.renderOrder = -1;
+          scene.add(points);
+          return { geometry, positions, normals, material, frame: -1, used: false };
         });
-        materialRef.current = material;
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.castShadow = false;
-        scene.add(mesh);
 
+        // A floor of dots across the whole path, so travel reads as travel.
+        let ground = Infinity;
+        for (let v = 2; v < stride; v += 3) ground = Math.min(ground, vertices[v]);
+        const [minX, minY] = data.bounds.min;
+        const [maxX, maxY] = data.bounds.max;
+        const dots: number[] = [];
+        for (let x = Math.floor(minX - 2); x <= Math.ceil(maxX + 2); x += 0.5) {
+          for (let y = Math.floor(minY - 2); y <= Math.ceil(maxY + 2); y += 0.5) dots.push(x, y, ground);
+        }
+        const floorGeometry = new THREE.BufferGeometry();
+        floorGeometry.setAttribute("position", new THREE.Float32BufferAttribute(dots, 3));
+        const floorMaterial = new THREE.PointsMaterial({ color: "#5a516b", size: 0.032, sizeAttenuation: true, transparent: true, opacity: 0.9 });
+        const floor = new THREE.Points(floorGeometry, floorMaterial);
+        scene.add(floor);
+
+        // Travelling subjects are filmed side-on with room behind them for the exposures; the rest three-quarter.
+        const up = new THREE.Vector3(0, 0, 1);
+        // Look a little behind a travelling subject; less so on a narrow stage, or it leaves the frame.
+        const lead = travelling ? travel.clone().multiplyScalar(compact ? -0.6 : -1.5) : new THREE.Vector3();
+        const offset = travelling
+          ? new THREE.Vector3().crossVectors(up, travel).multiplyScalar(compact ? 8.4 : 6.2).addScaledVector(up, 0.5).addScaledVector(travel, 0.6)
+          : new THREE.Vector3(3.15, -3.45, 1.15).setLength(compact ? 5.6 : 4.9);
+        const targetHeight = first.z;
+        const follow = new THREE.Vector3();
+        const centre = new THREE.Vector3();
+        const delta = new THREE.Vector3();
+        const frameSubject = (snap: boolean, dt: number) => {
+          centroidOf(pose, 0, data.vertexCount, centre);
+          follow.copy(centre).add(lead).setZ(targetHeight);
+          const ease = snap ? 1 : 1 - Math.exp(-dt * (travelling ? 9 : 2));
+          delta.subVectors(follow, controls.target).multiplyScalar(ease);
+          controls.target.add(delta);
+          camera.position.add(delta);
+        };
+        const placeCamera = () => {
+          centroidOf(pose, 0, data.vertexCount, centre);
+          controls.target.copy(centre).add(lead).setZ(targetHeight);
+          camera.position.copy(controls.target).add(offset);
+          controls.update();
+        };
+        placeCamera();
+        resetRef.current = placeCamera;
+
+        const applyFrame = (frame: number) => {
+          const i = Math.min(Math.floor(frame), count - 1);
+          const j = Math.min(i + 1, count - 1);
+          const a = frame - i;
+          const from = i * stride;
+          const to = j * stride;
+          for (let k = 0; k < stride; k += 1) {
+            pose[k] = vertices[from + k] + (vertices[to + k] - vertices[from + k]) * a;
+          }
+          shellPositions.needsUpdate = true;
+          shellGeometry.computeVertexNormals();
+          sampler.write(pose, bodyPositions.array as Float32Array, bodyNormals.array as Float32Array);
+          bodyPositions.needsUpdate = true;
+          bodyNormals.needsUpdate = true;
+
+          const particles = styleRef.current === "particles";
+          body.visible = particles;
+          wire.visible = !particles;
+          const scale = renderer.getPixelRatio() * (host.clientHeight / 620);
+          bodyMaterial.uniforms.uPixelRatio.value = scale;
+
+          exposures.forEach((exposure) => {
+            exposure.used = false;
+          });
+          const newest = Math.floor(frame / exposureStep);
+          for (let k = 0; k < exposureSlots; k += 1) {
+            const source = (newest - k) * exposureStep;
+            if (source < 0) break;
+            const exposure = exposures[(newest - k) % exposureSlots];
+            if (exposure.frame !== source) {
+              sampler.write(
+                vertices.subarray(source * stride, (source + 1) * stride),
+                exposure.positions.array as Float32Array,
+                exposure.normals.array as Float32Array,
+                exposureCount,
+              );
+              exposure.positions.needsUpdate = true;
+              exposure.normals.needsUpdate = true;
+              exposure.frame = source;
+            }
+            exposure.used = true;
+            const age = (frame - source) / (exposureSlots * exposureStep);
+            // Fade in as the body leaves the pose, then out with age.
+            const arrive = Math.min(1, (frame - source) / (exposureStep * 0.7));
+            exposure.material.uniforms.uOpacity.value = trailRef.current
+              ? exposureStrength * arrive * Math.max(0, 1 - age)
+              : 0;
+            exposure.material.uniforms.uPixelRatio.value = scale;
+          }
+          exposures.forEach((exposure) => {
+            if (!exposure.used) exposure.material.uniforms.uOpacity.value = 0;
+          });
+        };
+
+        const writeReadout = (frame: number) => {
+          if (scrubRef.current && playingRef.current) scrubRef.current.value = String(frame);
+          barRef.current?.style.setProperty("--playhead", `${((frame / (count - 1)) * 100).toFixed(2)}%`);
+          if (timeRef.current) timeRef.current.textContent = (frame / data.fps).toFixed(2);
+        };
+
+        let lastTime = performance.now();
+        let elapsed = 0;
+        let lastFrame = -1;
+        const tick = (now: number) => {
+          raf = requestAnimationFrame(tick);
+          const dt = Math.min(0.1, (now - lastTime) / 1000);
+          lastTime = now;
+          if (!visible || !activeRef.current || document.hidden) return;
+          elapsed += dt;
+
+          let wrapped = false;
+          if (playingRef.current) {
+            frameRef.current += dt * data.fps;
+            if (frameRef.current >= count - 1) {
+              frameRef.current = 0;
+              wrapped = true;
+            }
+          }
+          // A scrub can move the subject metres in one step; the camera cuts rather than chases.
+          const jumped = wrapped || Math.abs(frameRef.current - lastFrame) > data.fps * 0.5;
+          lastFrame = frameRef.current;
+
+          applyFrame(frameRef.current);
+          frameSubject(jumped, dt);
+          if (!travelling && !reduceMotion) {
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.5 * Math.cos(elapsed * 0.28);
+          }
+          controls.update();
+          writeReadout(frameRef.current);
+          renderer.render(scene, camera);
+        };
+
+        setMetadata(data);
         setStatus("ready");
-        if (!reduceMotion) setIsPlaying(true);
+        setPlaying(!reduceMotion);
+        raf = requestAnimationFrame(tick);
+
+        cleanupScene = () => {
+          shellGeometry.dispose();
+          shellMaterial.dispose();
+          wireMaterial.dispose();
+          bodyGeometry.dispose();
+          bodyMaterial.dispose();
+          exposures.forEach((exposure) => {
+            exposure.geometry.dispose();
+            exposure.material.dispose();
+          });
+          floorGeometry.dispose();
+          floorMaterial.dispose();
+        };
       })
       .catch((reason: unknown) => {
         if (controller.signal.aborted || disposed) return;
@@ -233,129 +407,101 @@ export function SomaSequenceViewer({ metadataUrl, active = true }: SomaSequenceV
     return () => {
       disposed = true;
       controller.abort();
-      stopLoop();
-      visibilityObserver.disconnect();
-      document.removeEventListener("visibilitychange", onDocVisibility);
+      cancelAnimationFrame(raf);
+      observer.disconnect();
       resizeObserver.disconnect();
+      cleanupScene();
       controls.dispose();
-      geometryRef.current?.dispose();
-      materialRef.current?.dispose();
       renderer.dispose();
       renderer.domElement.remove();
-      geometryRef.current = null;
-      materialRef.current = null;
-      sequenceRef.current = null;
-      cameraRef.current = null;
-      controlsRef.current = null;
+      resetRef.current = () => {};
     };
   }, [metadataUrl, reduceMotion]);
 
-  useEffect(() => {
-    const sequence = sequenceRef.current;
-    const geometry = geometryRef.current;
-    if (!sequence || !geometry) return;
-    const positions = geometry.getAttribute("position") as THREE.BufferAttribute;
-    const offset = frame * sequence.metadata.vertexCount * 3;
-    (positions.array as Float32Array).set(
-      sequence.vertices.subarray(offset, offset + sequence.metadata.vertexCount * 3),
-    );
-    positions.needsUpdate = true;
-    geometry.computeVertexNormals();
-  }, [frame]);
-
-  useEffect(() => {
-    if (!active || !isPlaying || !metadata || reduceMotion) return;
-    const timer = window.setInterval(() => {
-      setFrame((current) => (current + 1) % metadata.frameCount);
-    }, 1000 / metadata.fps);
-    return () => window.clearInterval(timer);
-  }, [active, isPlaying, metadata, reduceMotion]);
-
-  useEffect(() => {
-    if (materialRef.current) materialRef.current.wireframe = wireframe;
-  }, [wireframe]);
-
-  const resetCamera = () => {
-    const camera = cameraRef.current;
-    const controls = controlsRef.current;
-    if (!camera || !controls) return;
-    camera.position.set(3.15, -3.45, 2.25);
-    camera.up.set(0, 0, 1);
-    controls.target.set(0, 0, 1.02);
-    controls.update();
-  };
-
-  const duration = metadata ? metadata.frameCount / metadata.fps : 0;
-  const currentTime = metadata ? frame / metadata.fps : 0;
+  const duration = metadata ? (metadata.frameCount - 1) / metadata.fps : 0;
 
   return (
-    <div className="soma-viewer">
-      <div className="soma-viewer__stage" ref={canvasHostRef}>
-        <div className="soma-viewer__stage-meta" aria-hidden="true">
-          <span>SOMA / GLOBAL SURFACE</span>
-          <span>DRAG TO ORBIT · SCROLL TO ZOOM</span>
-        </div>
-        <div className={`soma-viewer__status is-${status}`} role="status">
-          {status === "loading" ? (
-            <><CircleNotch className="is-spinning" aria-hidden="true" /> Loading mesh sequence</>
-          ) : null}
-          {status === "error" ? error : null}
-        </div>
-        <div className="soma-viewer__axis" aria-hidden="true">
-          <i>X</i><i>Y</i><i>Z</i>
-        </div>
+    <div className="motion-stage">
+      <div
+        className="motion-stage__canvas"
+        ref={hostRef}
+        role="img"
+        aria-label="Reconstructed body surface replaying the captured motion as silver particles, with earlier poses left behind as fading exposures."
+      >
+        <p className="motion-stage__label">
+          Body surface
+          {metadata ? <span>{metadata.fps} fps</span> : null}
+        </p>
+        <p className="motion-stage__hint" aria-hidden="true">Drag to orbit</p>
+
+        {status !== "ready" ? (
+          <div className="motion-stage__status" role="status">
+            {status === "loading" ? (
+              <><CircleNotch className="motion-stage__spinner" aria-hidden="true" /> Loading surface sequence</>
+            ) : error}
+          </div>
+        ) : null}
       </div>
 
-      <div className="soma-viewer__console">
-        <div className="soma-viewer__transport">
-          <button
-            type="button"
-            onClick={() => setIsPlaying((current) => !current)}
-            disabled={status !== "ready" || Boolean(reduceMotion)}
-          >
-            {isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-            {isPlaying ? "Pause" : "Play"}
-          </button>
-          <button type="button" onClick={resetCamera} aria-label="Reset camera">
-            <ArrowCounterClockwise aria-hidden="true" />
-          </button>
-        </div>
+      <div className="motion-stage__bar" ref={barRef}>
+        <button
+          type="button"
+          className="motion-stage__play"
+          onClick={() => setPlaying((current) => !current)}
+          disabled={status !== "ready"}
+          aria-label={playing ? "Pause" : "Play"}
+        >
+          {playing ? <Pause weight="fill" aria-hidden="true" /> : <Play weight="fill" aria-hidden="true" />}
+        </button>
 
-        <div className="soma-viewer__timeline">
-          <label htmlFor={rangeId}>Frame {String(frame + 1).padStart(2, "0")}</label>
-          <strong>{currentTime.toFixed(2)}s</strong>
-          <input
-            id={rangeId}
-            type="range"
-            min="0"
-            max={Math.max((metadata?.frameCount ?? 1) - 1, 0)}
-            value={frame}
-            disabled={status !== "ready"}
-            onChange={(event) => {
-              setFrame(Number(event.target.value));
-              setIsPlaying(false);
-            }}
-            aria-valuetext={`Frame ${frame + 1} at ${currentTime.toFixed(2)} seconds`}
-          />
-          <div><span>0.00s</span><span>{duration.toFixed(2)}s</span></div>
-        </div>
+        <input
+          ref={scrubRef}
+          className="motion-stage__scrub"
+          type="range"
+          min={0}
+          max={Math.max((metadata?.frameCount ?? 2) - 1, 1)}
+          step={0.01}
+          defaultValue={0}
+          disabled={status !== "ready"}
+          onInput={(event) => {
+            frameRef.current = Number(event.currentTarget.value);
+            setPlaying(false);
+          }}
+          aria-label="Motion frame"
+        />
+
+        <p className="motion-stage__time">
+          <output ref={timeRef}>0.00</output>
+          <span>/ {duration.toFixed(2)} s</span>
+        </p>
+
+        <LayoutGroup id={`${layoutId}-style`}>
+          <div className="motion-stage__segment" role="group" aria-label="Surface style">
+            {STYLES.map((option) => (
+              <button key={option.id} type="button" aria-pressed={style === option.id} onClick={() => setStyle(option.id)}>
+                {style === option.id ? (
+                  <motion.i className="motion-stage__thumb" layoutId="thumb" transition={thumbSpring} aria-hidden="true" />
+                ) : null}
+                <span>{option.label}</span>
+              </button>
+            ))}
+          </div>
+        </LayoutGroup>
 
         <button
           type="button"
-          className={`soma-viewer__mode${wireframe ? " is-active" : ""}`}
-          onClick={() => setWireframe((current) => !current)}
-          aria-pressed={wireframe}
+          className="motion-stage__toggle"
+          role="switch"
+          aria-checked={trail}
+          onClick={() => setTrail((current) => !current)}
         >
-          <span>Surface mode</span>
-          <strong>{wireframe ? "Topology" : "Shaded mesh"}</strong>
+          <i aria-hidden="true" />
+          Exposures
         </button>
 
-        <dl className="soma-viewer__readout">
-          <div><dt>Vertices</dt><dd>{metadata?.vertexCount.toLocaleString() ?? "—"}</dd></div>
-          <div><dt>Triangles</dt><dd>{metadata?.triangleCount.toLocaleString() ?? "—"}</dd></div>
-          <div><dt>Rate</dt><dd>{metadata ? `${metadata.fps} fps` : "—"}</dd></div>
-          <div><dt>Sequence</dt><dd>{metadata ? `${metadata.frameCount} frames` : "—"}</dd></div>
-        </dl>
+        <button type="button" className="motion-stage__reset" onClick={() => resetRef.current()} aria-label="Reset camera">
+          <ArrowCounterClockwise aria-hidden="true" />
+        </button>
       </div>
     </div>
   );

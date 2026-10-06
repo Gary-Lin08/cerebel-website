@@ -81,6 +81,15 @@ export function Navigation({ activeSection }: NavigationProps) {
               href={item.href}
             >
               {item.label}
+              {activeSection === item.href.slice(1) ? (
+                // One underline that travels between chapters instead of blinking on and off.
+                <motion.span
+                  className="site-nav__indicator"
+                  layoutId="site-nav-indicator"
+                  transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.8 }}
+                  aria-hidden="true"
+                />
+              ) : null}
             </a>
           ))}
         </nav>
@@ -145,7 +154,7 @@ export function Navigation({ activeSection }: NavigationProps) {
                 <ArrowUpRight aria-hidden="true" />
               </a>
             </nav>
-            <p>Capture naturally. Structure precisely. Deploy anywhere.</p>
+            <p>We make human physical intelligence legible to machines.</p>
           </motion.div>
         ) : null}
       </AnimatePresence>

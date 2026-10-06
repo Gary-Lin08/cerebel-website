@@ -207,15 +207,15 @@ export function FounderStack() {
             <div className="founder-stack__titles">
               {compact ? (
                 <h2 className="founder-stack__title">
-                  Built by People
+                  Built by people
                   <br />
-                  Who Move
+                  who move.
                 </h2>
               ) : (
                 <Reveal
                   as="h2"
                   className="founder-stack__title"
-                  text={["Built by People", "Who Move"]}
+                  text={["Built by people", "who move."]}
                   delay={0.08}
                 />
               )}

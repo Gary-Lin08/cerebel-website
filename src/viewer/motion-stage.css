@@ -1,0 +1,303 @@
+/* Surface replay: one stage, one floating control bar. Shares its look with the Golf swing stage. */
+.motion-stage {
+  container-type: inline-size;
+  position: relative;
+  color: #eeeaf3;
+  background: #050505;
+  --playhead: 0%;
+  --thumb: 18px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring: cubic-bezier(0.3, 1.36, 0.5, 1);
+}
+
+@supports (transition-timing-function: linear(0, 1)) {
+  .motion-stage {
+    --spring: linear(0, 0.06 3%, 0.31 9%, 0.76 18%, 1.02 26%, 1.1 32%, 1.11 37%, 1.07 46%, 1.01 58%, 0.99 70%, 1);
+  }
+}
+
+.motion-stage__canvas {
+  position: relative;
+  height: clamp(540px, 70vh, 700px);
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.motion-stage__canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.motion-stage__canvas canvas:active { cursor: grabbing; }
+
+.motion-stage__label,
+.motion-stage__hint {
+  position: absolute;
+  z-index: 2;
+  top: 18px;
+  margin: 0;
+  color: #9a93a6;
+  font-family: var(--mono, "IBM Plex Mono", monospace);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.motion-stage__label { left: 22px; }
+.motion-stage__label span { margin-left: 14px; color: #6d6679; }
+.motion-stage__hint { right: 22px; color: #6d6679; }
+
+.motion-stage__status {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #a9a2b4;
+  font-size: 0.8rem;
+  background: #050505;
+}
+
+.motion-stage__spinner {
+  width: 20px;
+  height: 20px;
+  animation: motion-stage-spin 900ms linear infinite;
+}
+
+@keyframes motion-stage-spin { to { transform: rotate(360deg); } }
+
+/* Glass capsule that floats over the bottom of the stage. */
+.motion-stage__bar {
+  position: absolute;
+  z-index: 4;
+  right: 22px;
+  bottom: 22px;
+  left: 22px;
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto auto auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px 10px 10px;
+  border: 1px solid rgba(244, 240, 250, 0.09);
+  border-radius: 999px;
+  background: rgba(14, 12, 19, 0.6);
+  backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.motion-stage__bar button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.motion-stage__play {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  color: #0a0610;
+  background: #a17aff;
+  transition: transform 420ms var(--spring), background-color 200ms ease;
+}
+
+.motion-stage__play:hover { background: #b594ff; }
+.motion-stage__play:active { transform: scale(0.88); transition-duration: 120ms; }
+.motion-stage__play:disabled { opacity: 0.4; cursor: default; }
+
+.motion-stage__scrub {
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.motion-stage__scrub::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #f4f0fa var(--playhead), rgba(244, 240, 250, 0.16) var(--playhead));
+}
+
+.motion-stage__scrub::-moz-range-track {
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(244, 240, 250, 0.16);
+}
+
+.motion-stage__scrub::-moz-range-progress {
+  height: 3px;
+  border-radius: 3px;
+  background: #f4f0fa;
+}
+
+.motion-stage__scrub::-webkit-slider-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc((3px - var(--thumb)) / 2);
+  border: 0;
+  border-radius: 50%;
+  background: #f4f0fa;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 0 0 rgba(161, 122, 255, 0.3);
+  appearance: none;
+  -webkit-appearance: none;
+  transition: transform 420ms var(--spring), box-shadow 240ms ease;
+}
+
+.motion-stage__scrub::-moz-range-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  border: 0;
+  border-radius: 50%;
+  background: #f4f0fa;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  transition: transform 420ms var(--spring);
+}
+
+.motion-stage__scrub:active::-webkit-slider-thumb {
+  transform: scale(1.35);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 0 8px rgba(161, 122, 255, 0.2);
+}
+
+.motion-stage__scrub:active::-moz-range-thumb { transform: scale(1.35); }
+
+.motion-stage__time {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin: 0;
+  color: #f4f0fa;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.motion-stage__time output { min-width: 3.2ch; text-align: right; }
+.motion-stage__time span { color: #8a8296; font-size: 0.72rem; }
+
+.motion-stage__segment {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(244, 240, 250, 0.07);
+}
+
+.motion-stage__segment button {
+  position: relative;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  color: #bcb5c6;
+  background: transparent;
+  font-size: 0.76rem;
+  transition: color 220ms ease, transform 200ms var(--ease-out);
+}
+
+.motion-stage__segment button:active { transform: scale(0.94); }
+.motion-stage__segment button[aria-pressed="true"] { color: #0a0610; }
+.motion-stage__segment button > span { position: relative; z-index: 1; }
+
+.motion-stage__thumb {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: #e2dde8;
+}
+
+/* An iOS-style switch: the knob slides on a spring. */
+.motion-stage__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  color: #bcb5c6;
+  background: transparent;
+  font-size: 0.76rem;
+  transition: color 220ms ease;
+}
+
+.motion-stage__toggle i {
+  position: relative;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 23px;
+  border-radius: 999px;
+  background: rgba(244, 240, 250, 0.16);
+  transition: background-color 260ms ease;
+}
+
+.motion-stage__toggle i::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #f4f0fa;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  transition: transform 460ms var(--spring), width 200ms ease;
+}
+
+.motion-stage__toggle:active i::after { width: 23px; }
+.motion-stage__toggle[aria-checked="true"] { color: #f4f0fa; }
+.motion-stage__toggle[aria-checked="true"] i { background: #a17aff; }
+.motion-stage__toggle[aria-checked="true"] i::after { transform: translateX(15px); }
+.motion-stage__toggle[aria-checked="true"]:active i::after { transform: translateX(11px); }
+
+.motion-stage__reset {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  color: #cfc8da;
+  background: rgba(244, 240, 250, 0.07);
+  transition: transform 520ms var(--spring), background-color 200ms ease;
+}
+
+.motion-stage__reset:hover { background: rgba(244, 240, 250, 0.14); }
+.motion-stage__reset:active { transform: rotate(-90deg) scale(0.9); transition-duration: 140ms; }
+.motion-stage__reset svg { width: 16px; height: 16px; }
+
+/* Matches COMPACT_BREAKPOINT in SomaSequenceViewer.tsx. */
+@container (max-width: 719px) {
+  .motion-stage__canvas { height: 560px; }
+  .motion-stage__label { left: 16px; }
+  .motion-stage__label span { display: block; margin: 5px 0 0; }
+  .motion-stage__hint { right: 16px; }
+  .motion-stage__bar {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px 12px;
+    padding: 10px 14px 12px 10px;
+    border-radius: 26px;
+  }
+  .motion-stage__segment { grid-column: 1 / 3; width: fit-content; }
+  .motion-stage__toggle { grid-column: 1 / 3; grid-row: 3; }
+  .motion-stage__reset { grid-column: 3; grid-row: 2 / 4; align-self: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-stage__play,
+  .motion-stage__segment button,
+  .motion-stage__toggle i,
+  .motion-stage__toggle i::after,
+  .motion-stage__reset { transition: none; }
+  .motion-stage__spinner { animation: none; }
+}

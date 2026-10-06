@@ -16,7 +16,7 @@ import { Navigation } from "./components/Navigation";
 import { SectionHeading } from "./components/SectionHeading";
 import { WorldsBento } from "./components/WorldsBento";
 import { MotionSection } from "./components/motion/MotionSection";
-import { navItems, technologyLayers } from "./content";
+import { navItems } from "./content";
 import { useActiveSection, useCompact } from "./hooks";
 import { useAnalytics } from "./analytics";
 
@@ -273,7 +273,6 @@ function CaptureEvidence() {
         <figure className="evidence__figure">
           <div className="evidence__chrome">
             <strong>Jay / 27 Jul 2026</strong>
-            <small>Wearable RGB + body reconstruction</small>
           </div>
           <div className="evidence__labels" aria-hidden="true">
             <span>
@@ -304,8 +303,8 @@ function CaptureEvidence() {
           </video>
 
           <figcaption>
-            <span>Original paired capture · 24.4 seconds</span>
-            <p>Qualitative evidence. Original composite, as delivered.</p>
+            <span>Original composite, as delivered · 24.4 seconds</span>
+            <p>Qualitative evidence, not a benchmark.</p>
           </figcaption>
         </figure>
 
@@ -389,14 +388,19 @@ function Benchmark() {
             <p className="eyebrow">AMASS · aggregate sequence evaluation</p>
             <h2>Measured, not implied.</h2>
           </div>
-          <p>Compare CeRebel with reference methods. Explore one metric, then inspect the complete result.</p>
+          <p>CeRebel beside published reference methods on AMASS. Drag the marker to measure the gap.</p>
         </header>
         <div className="benchmark__explorer">
           <div className="benchmark-toolbar">
             <p><strong>{overallLeader.method}</strong> leads the listed methods <span>in {overallLeader.wins} of {benchmarkMetrics.length} metrics</span></p>
             <div className="benchmark__toggle" role="group" aria-label="Sequence length">
               {(["32", "128"] as const).map((length) => (
-                <button key={length} type="button" className={sequenceLength === length ? "is-active" : ""} aria-pressed={sequenceLength === length} onClick={() => setSequenceLength(length)}>SEQ {length}</button>
+                <button key={length} type="button" className={sequenceLength === length ? "is-active" : ""} aria-pressed={sequenceLength === length} onClick={() => setSequenceLength(length)}>
+                  {sequenceLength === length ? (
+                    <motion.i className="benchmark__toggle-thumb" layoutId="benchmark-seq-thumb" transition={{ type: "spring", stiffness: 460, damping: 32, mass: 0.8 }} aria-hidden="true" />
+                  ) : null}
+                  <span>SEQ {length}</span>
+                </button>
               ))}
             </div>
           </div>
@@ -421,9 +425,8 @@ function Benchmark() {
 
             <table className="benchmark__table">
               <caption className="sr-only">
-                Team-supplied AMASS body-estimation values for sequence length{" "}
-                {sequenceLength}, including CeRebel and published reference
-                methods.
+                AMASS body-estimation results for sequence length{" "}
+                {sequenceLength}: CeRebel and published reference methods.
               </caption>
               <thead>
                 <tr>
@@ -466,10 +469,9 @@ function Benchmark() {
 
             <div className="benchmark__source">
               <p>
-                AMASS aggregate evaluation supplied by the Cerebel team. Values
-                and uncertainty are transcribed from the supplied excerpt.
-                CeRebel: 50.45M parameters, team-confirmed. FLOPs and comparable
-                reference-model parameter counts are not yet verified.
+                Aggregate AMASS evaluation from the Cerebel team, shown with
+                its reported uncertainty. CeRebel has 50.45M parameters.
+                Compute cost and reference-model sizes are not compared here.
               </p>
               <p>
                 ↓ lower is better &nbsp;·&nbsp; ↑ higher is better &nbsp;·&nbsp;
@@ -484,10 +486,6 @@ function Benchmark() {
 }
 
 function TechnologyStack() {
-  const remainingLayers = technologyLayers.filter(
-    ([index]) => index !== "04" && index !== "05" && index !== "06",
-  );
-
   return (
     <section className="section technology" id="technology" data-nav-tone="dark">
       <div className="page-grid">
@@ -495,7 +493,7 @@ function TechnologyStack() {
           compact
           eyebrow="CeRebel motion representation"
           title="From movement signals to physical intelligence."
-          copy="Choose an action. Explore its surface or inspect the video, body model, and joint motion."
+          copy="Pick a movement and inspect what Cerebel recovered from it: the body surface, the joints and, for golf, a measured swing."
         />
 
         <Suspense
@@ -507,12 +505,6 @@ function TechnologyStack() {
         >
           <MotionViewerWorkspace embedded />
         </Suspense>
-
-        <ul className="technology__layers">
-          {remainingLayers.map(([, title, copy]) => (
-            <li key={title}><strong>{title}</strong><p>{copy}</p></li>
-          ))}
-        </ul>
       </div>
     </section>
   );
@@ -553,9 +545,9 @@ function Demo() {
           </p>
           <h2>Bring real&#8209;world human intelligence into your system.</h2>
           <p>
-            Tell us what you are building. We can discuss capture requirements,
-            sports coaching, research collaboration, product integration, or a custom wearable
-            configuration. Share your requirements and our team will follow up.
+            Tell us what you are building. We can talk through capture needs,
+            sports coaching, research collaboration, product integration or a
+            custom wearable build, and we will follow up.
           </p>
           <div className="demo__contact">
             <span>Direct contact</span>

@@ -6,7 +6,8 @@
 Inputs per session: a GENMO surface sequence (soma-metadata.json + soma-vertices.bin) and an
 OpenSim motion (opensim-motion.json + rajagopal-bones.glb). Outputs next to the surface:
   swing-mesh.bin        int16-quantised vertices for the swing window
-  swing-analysis.json   club, ball, skeleton, muscles, annotations
+  swing-analysis.json   club, ball, skeleton, muscles, annotations, measured traces
+  source-swing.mp4      the capture's own footage for the same window (only when GOLF_SOURCE_VIDEO is set)
 
 No capture contains a club. The club is estimated from hand pose, held by both hands (the
 skeleton's right arm is solved onto the grip), and eased onto the ball at impact. Facing and
@@ -14,11 +15,15 @@ target directions are measured from each capture rather than assumed.
 """
 
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
 import numpy as np
 from scipy.spatial.transform import Rotation
+
+import golf_grip
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBLIC = ROOT / "public"
@@ -133,6 +138,26 @@ def build(cfg: dict) -> None:
     local_dirs = [body(i, "hand_l")[1].inv().apply(unit(os_ball - hand_l[i])) for i in address]
     local_dir = unit(np.mean(local_dirs, 0))
 
+    grip_pose = cfg.get("grip", False)
+    if grip_pose:
+        golf_grip.bake_grip_hands(cfg["bones_source"], cfg["bones_baked"])
+        # The club now leaves the lead palm instead of the wrist, so the ball and the club's
+        # direction in the hand frame are settled against that point. Each depends on the other.
+        for _ in range(4):
+            palms = []
+            for i in address:
+                wrist, hand = body(i, "hand_l")
+                club = hand.apply(local_dir)
+                across = golf_grip.lean(unit(wrist - body(i, "ulna_l")[0]), club)
+                palms.append(wrist + golf_grip.grip_rotation(club, across, "l").apply(golf_grip.PALM_POINT))
+            grip_os = np.mean(palms, 0)
+            drop_os = grip_os[1] - (os_ground + BALL_RADIUS)
+            os_ball = grip_os + o_forward * np.sqrt(max(os_club_length**2 - drop_os**2, 0.01))
+            os_ball[1] = os_ground + BALL_RADIUS
+            local_dir = unit(np.mean(
+                [body(i, "hand_l")[1].inv().apply(unit(os_ball - palm)) for i, palm in zip(address, palms)], 0
+            ))
+
     mesh_club_length = os_club_length * scale_to_surface
     drop = grip_ref[2] - (ground + BALL_RADIUS)
     mesh_ball = grip_ref + s_forward * np.sqrt(max(mesh_club_length**2 - drop**2, 0.01))
@@ -150,20 +175,22 @@ def build(cfg: dict) -> None:
         direction = eased_direction(smooth_dir, unit(mesh_ball - grip), impact_weight(frame))
         head = grip + mesh_club_length * direction
         head[2] = max(head[2], ground + 0.004)  # never sweep through the turf
-        mesh_club.append(np.concatenate([grip, head]))
+        # The grip is the centre of both hands; draw the shaft from a butt end above them so it
+        # passes through the hands instead of starting inside them.
+        top = grip - direction * (golf_grip.BUTT_LENGTH + golf_grip.HAND_SPACING / 2) if grip_pose else grip
+        mesh_club.append(np.concatenate([top, head]))
 
     lo, hi = window.reshape(-1, 3).min(0), window.reshape(-1, 3).max(0)
     q_scale = (hi - lo) / 65535.0
     np.round((window - lo) / q_scale - 32768).astype(np.int16).tofile(mesh_dir / "swing-mesh.bin")
 
-    def solve_right_arm(grip: np.ndarray, shaft: np.ndarray, poses: dict):
-        """Two-bone IK: put the right wrist on the shaft just below the lead hand."""
+    def solve_right_arm(target: np.ndarray, poses: dict):
+        """Two-bone IK: bring the right wrist to `target`, beside the shaft below the lead hand."""
         shoulder, humerus_q = poses["humerus_r"]
         elbow, ulna_q = poses["ulna_r"]
         radius_p, radius_q = poses["radius_r"]
         wrist, hand_q = poses["hand_r"]
         upper, fore = np.linalg.norm(elbow - shoulder), np.linalg.norm(wrist - elbow)
-        target = grip + shaft * 0.09
         reach = target - shoulder
         dist = min(np.linalg.norm(reach), upper + fore - 1e-3)
         axis = unit(reach)
@@ -185,14 +212,47 @@ def build(cfg: dict) -> None:
         np.array([body(frame, "hand_l")[1].apply(local_dir) for frame in range(start, end + 1)]), smoothing
     )
     skeleton_frames, skeleton_club, muscle_frames = [], [], []
+    leans: dict = {"l": None, "r": None}
+    shoulder_slack = 0.0
     for frame, smooth_dir in zip(range(start, end + 1), skeleton_dirs):
         poses = {name: body(frame, name) for name in body_names}
-        grip, _ = poses["hand_l"]
-        direction = eased_direction(smooth_dir, unit(os_ball - grip), impact_weight(frame))
-        solve_right_arm(grip, direction, poses)
+        wrist, _ = poses["hand_l"]
+        if grip_pose:
+            # Lead hand: keep the measured wrist position, turn the hand so the club crosses its palm.
+            # The club's direction eases toward the ball from the palm, hence the short iteration.
+            forearm = unit(wrist - poses["ulna_l"][0])
+            grip = wrist
+            for _ in range(3):
+                direction = eased_direction(smooth_dir, unit(os_ball - grip), impact_weight(frame))
+                across = golf_grip.lean(forearm, direction, leans["l"])
+                lead = golf_grip.grip_rotation(direction, across, "l")
+                grip = wrist + lead.apply(golf_grip.PALM_POINT)
+            leans["l"] = across
+            poses["hand_l"] = (wrist, lead)
+            # Trail hand: its palm sits on the shaft below the lead hand; the arm is solved to reach it.
+            trail_palm = grip + direction * golf_grip.HAND_SPACING
+            for _ in range(8):
+                forearm = unit(poses["hand_r"][0] - poses["ulna_r"][0])
+                across = golf_grip.lean(forearm, direction, leans["r"])
+                trail = golf_grip.grip_rotation(direction, across, "r")
+                target = trail_palm - trail.apply(golf_grip.PALM_POINT)
+                solve_right_arm(target, poses)
+            leans["r"] = across
+            # The fitted right shoulder sits a few centimetres too far back for a straight arm to
+            # reach the club. Carry the whole arm the remaining distance rather than leave the hand off it.
+            slack = target - poses["hand_r"][0]
+            shoulder_slack = max(shoulder_slack, float(np.linalg.norm(slack)))
+            for name in ("humerus_r", "ulna_r", "radius_r", "hand_r"):
+                poses[name] = (poses[name][0] + slack, poses[name][1])
+            poses["hand_r"] = (poses["hand_r"][0], trail)
+            top = grip - direction * golf_grip.BUTT_LENGTH
+        else:
+            grip = top = wrist
+            direction = eased_direction(smooth_dir, unit(os_ball - grip), impact_weight(frame))
+            solve_right_arm(grip + direction * 0.09, poses)
         head = grip + os_club_length * direction
         head[1] = max(head[1], os_ground + 0.004)
-        skeleton_club.append(np.concatenate([grip, head]))
+        skeleton_club.append(np.concatenate([top, head]))
         skeleton_frames.append([round(float(v), 4) for name in body_names for v in (*poses[name][0], *poses[name][1].as_quat())])
         muscle_frames.append([[[round(float(c), 4) for c in point] for point in m["points"]] for m in frames[frame]["muscles"]])
     muscle_names = [m["name"] for m in frames[start]["muscles"]]
@@ -202,7 +262,14 @@ def build(cfg: dict) -> None:
 
     local = lambda f: f - start  # noqa: E731
     phases = [{**p, "start": local(p["start"]), "end": local(p["end"])} for p in cfg["phases"]]
-    annotations = [{**a, "start": local(a["start"]), "end": local(a["end"])} for a in cfg["annotations"]]
+    annotations = [
+        {**a, "start": local(a["start"]), "end": local(a["end"]), **({"hold": local(a["hold"])} if "hold" in a else {})}
+        for a in cfg["annotations"]
+    ]
+    series = [
+        {**trace, "values": [round(float(v), 1) for v in trace["values"][start:end + 1]]}
+        for trace in cfg.get("series", [])
+    ]
 
     bundle = {
         "format": "cerebel-swing-analysis-v1",
@@ -213,8 +280,10 @@ def build(cfg: dict) -> None:
         "phases": phases,
         "disclosure": cfg["disclosure"],
         "highlights": cfg.get("highlights", []),
+        "series": series,
         "surface": {
-            "label": "GENMO surface",
+            # Public labels name what the visitor sees, not the models behind it.
+            "label": "Body surface",
             "vertexCount": vertex_count,
             "facesUrl": cfg["faces_url"],
             "verticesUrl": cfg["swing_mesh_url"],
@@ -227,7 +296,7 @@ def build(cfg: dict) -> None:
             "club": rounded(mesh_club),
         },
         "skeleton": {
-            "label": "OpenSim skeleton + muscles",
+            "label": "Skeleton + muscles",
             "boneModelUrl": cfg["bones_url"],
             "toSurfaceAxes": [[round(float(v), 5) for v in row] for row in to_surface],
             "scaleToSurface": round(scale_to_surface, 4),
@@ -249,12 +318,39 @@ def build(cfg: dict) -> None:
     for group in bundle["muscleGroups"]:
         del group["match"]
 
+    # The footage the reconstruction was made from, trimmed to the same window so frame n is frame n.
+    video = cfg.get("source_video")
+    if video:
+        original = os.environ.get("GOLF_SOURCE_VIDEO")
+        if original:
+            encode_source_video(Path(original), video["file"], start, end, video["crop"], video["width"])
+        if video["file"].exists():
+            bundle["sourceVideo"] = {"url": video["url"], "label": video["label"], "aspect": video["aspect"]}
+
     (mesh_dir / "swing-analysis.json").write_text(json.dumps(bundle, ensure_ascii=False, separators=(",", ":")))
     head_err_m = np.linalg.norm(np.array(mesh_club[impact - start][3:]) - mesh_ball)
     head_err_s = np.linalg.norm(np.array(skeleton_club[impact - start][3:]) - os_ball)
     print(f"{cfg['name']}: {len(hand_vertices)} hand vertices, head→ball at impact {head_err_m:.3f} / {head_err_s:.3f} m, "
-          f"scale {scale_to_surface:.3f}, mesh {(mesh_dir / 'swing-mesh.bin').stat().st_size / 1e6:.2f} MB, "
+          f"scale {scale_to_surface:.3f}, right shoulder carried up to {shoulder_slack * 100:.1f} cm, mesh {(mesh_dir / 'swing-mesh.bin').stat().st_size / 1e6:.2f} MB, "
           f"json {(mesh_dir / 'swing-analysis.json').stat().st_size / 1e6:.2f} MB")
+
+
+def encode_source_video(original: Path, target: Path, start: int, end: int, crop: str, width: int) -> None:
+    """Trim the capture's footage to the swing window for frame-accurate scrubbing.
+
+    Every frame is a keyframe, so the viewer can seek to any frame as the playhead moves. Audio,
+    location and device metadata are dropped.
+    """
+    subprocess.run(
+        [
+            "ffmpeg", "-v", "error", "-y", "-i", str(original),
+            "-vf", f"trim=start_frame={start}:end_frame={end + 1},setpts=PTS-STARTPTS,crop={crop},scale={width}:-2",
+            "-map", "0:v:0", "-an", "-map_metadata", "-1", "-map_chapters", "-1",
+            "-c:v", "libx264", "-preset", "slow", "-crf", "25", "-g", "1", "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart", str(target),
+        ],
+        check=True,
+    )
 
 
 # --------------------------------------------------------------------------- measured metrics
@@ -268,7 +364,16 @@ def measure_1872(motion_path: Path, address: range, top: int, impact: int, backs
     fwd = unit((hand[list(address)].mean(0) - base) * [1, 0, 1])
     target = -np.cross(fwd, [0, 1, 0])
     toward_target = (pel - base) @ target * 100
+    all_frames = range(len(frames))
+    coil = np.array([deg("lumbar_rotation", i) - mean("lumbar_rotation") for i in all_frames])
     return {
+        # Whole-capture traces of the same quantities the findings quote.
+        "series": {
+            "sway": toward_target,
+            "trail-knee": np.array([deg("knee_angle_r", i) for i in all_frames]),
+            "lead-arm": np.array([deg("elbow_flex_l", i) for i in all_frames]),
+            "separation": coil * np.sign(coil[top]),
+        },
         "knee_addr": mean("knee_angle_r"),
         "knee_min": min(deg("knee_angle_r", i) for i in backswing),
         "elbow_addr": mean("elbow_flex_l"),
@@ -285,7 +390,11 @@ def config_1872() -> dict:
     mesh_dir = PUBLIC / "viewer-data" / "golf-1872"
     motion = mesh_dir / "opensim" / "opensim-motion.json"
     m = measure_1872(motion, range(0, 45), top=94, impact=108, backswing=range(48, 98))
-    print("golf-1872 metrics:", {k: round(v, 1) for k, v in m.items()})
+    print("golf-1872 metrics:", {k: round(v, 1) for k, v in m.items() if k != "series"})
+    traces = m["series"]
+    # Each finding freezes on the frame where its own trace is most extreme.
+    sway_hold = 62 + int(np.argmin(traces["sway"][62:80]))
+    knee_hold = 80 + int(np.argmin(traces["trail-knee"][80:92]))
     right_hip = lambda n: n.startswith(("glmed", "glmin")) and n.endswith("_r")  # noqa: E731
     left_drive = lambda n: n.startswith(("glmax", "addmag", "addlong", "addbrev")) and n.endswith("_l")  # noqa: E731
     return {
@@ -304,7 +413,20 @@ def config_1872() -> dict:
         "motion": motion,
         "faces_url": "/viewer-data/golf-1872/soma-faces.bin",
         "swing_mesh_url": "/viewer-data/golf-1872/swing-mesh.bin",
-        "bones_url": "/viewer-data/golf-1872/opensim/rajagopal-bones.glb",
+        # The hands are posed around the club: fingers curled in a baked copy of the bone model.
+        "grip": True,
+        "bones_source": mesh_dir / "opensim" / "rajagopal-bones.glb",
+        "bones_baked": mesh_dir / "opensim" / "rajagopal-bones-grip.glb",
+        "bones_url": "/viewer-data/golf-1872/opensim/rajagopal-bones-grip.glb",
+        # Re-encode with GOLF_SOURCE_VIDEO=<path to the 1080×1920 60 fps clip>; the crop keeps the player and club.
+        "source_video": {
+            "file": mesh_dir / "source-swing.mp4",
+            "url": "/viewer-data/golf-1872/source-swing.mp4",
+            "label": "Source video",
+            "crop": "1080:1520:0:60",
+            "width": 432,
+            "aspect": round(1080 / 1520, 4),
+        },
         "phases": [
             {"id": "address", "label": "Address", "start": 30, "end": 47},
             {"id": "backswing", "label": "Backswing", "start": 48, "end": 91},
@@ -318,34 +440,73 @@ def config_1872() -> dict:
             {
                 "id": "sway",
                 "title": "Sliding off the ball",
-                "detail": f"Your hips slide about {m['sway_cm']:.0f} cm away from the target on the way back. Turn around your right hip instead of drifting off it.",
+                # Five parts per finding. "detail" is the measurement only; the advice lives in cue and drill.
+                "detail": f"On the way back your hips slide about {m['sway_cm']:.0f} cm away from the target instead of turning in place.",
                 "start": 62, "end": 79, "anchor": "pelvis", "group": "trail-hip",
+                # What the close-up lights up, and where it stands: degrees from face-on, positive toward the lead side.
+                "bones": ["pelvis", "femur_r"], "viewYaw": -35,
+                "series": "sway", "hold": sway_hold,
+                "metric": {"value": f"{m['sway_cm']:.0f} cm", "caption": "hip slide away from the target"},
+                "why": "The low point of your swing moves back with your hips. To strike the ball first you have to slide forward by the same amount, at full speed. Miss that timing and you hit the ground early or catch the ball thin.",
+                "cue": "Turn your right hip pocket straight back. Keep the pressure on the inside of your right foot.",
+                "drill": "Wall drill. Set up with your right hip a hand's width from a wall or an upright alignment stick. Make ten slow backswings without touching it, then ten half shots with the same feel.",
+                "check": f"The hip trace stays on the address line through the backswing, not {m['sway_cm']:.0f} cm behind it.",
+                "goal": {"value": 0.0, "label": "address line"},
             },
             {
                 "id": "trail-knee",
                 "title": "Right knee locks out",
-                "detail": f"Your right knee straightens from {m['knee_addr']:.0f}° to about {m['knee_min']:.0f}°. Keep a little flex in it so your hips have something to turn against.",
+                "detail": f"Your right knee straightens from {m['knee_addr']:.0f}° at address to about {m['knee_min']:.0f}° before the top of the backswing.",
                 "start": 80, "end": 91, "anchor": "tibia_r", "group": "trail-hip",
+                "bones": ["femur_r", "tibia_r", "patella_r"], "viewYaw": -60,
+                "series": "trail-knee", "hold": knee_hold,
+                "metric": {"value": f"{m['knee_addr']:.0f}° → {m['knee_min']:.0f}°", "caption": "right knee flex, address to backswing"},
+                "why": "Your hips turn against the right leg. Once the knee locks, the hip rides up, the turn stops loading, and the downswing tends to start from the arms instead of the ground.",
+                "cue": "Hold the knee flex you set at address all the way to the top. The right thigh should feel loaded.",
+                "drill": "Pause drill. Swing to the top in three counts and hold for two. Look down: the right knee is still bent. Ten holds, then ten shots with a one-count pause at the top.",
+                "check": f"Right knee flex stays close to {m['knee_addr']:.0f}° to the top of the backswing instead of dropping to {m['knee_min']:.0f}°.",
+                "goal": {"value": round(m["knee_addr"], 1), "label": "address flex"},
             },
             {
                 "id": "lead-arm",
                 "title": "Left arm collapses",
-                "detail": f"Your left arm folds to about {m['elbow_top']:.0f}° at the top (it started at {m['elbow_addr']:.0f}°). Keep it a bit wider and your swing arc gets bigger.",
+                "detail": f"Your left arm bends from {m['elbow_addr']:.0f}° at address to about {m['elbow_top']:.0f}° at the top of the backswing.",
                 "start": 92, "end": 101, "anchor": "ulna_l", "group": None,
+                # No upper-body muscles in this model: the arm is highlighted on the bones only.
+                "bones": ["humerus_l", "ulna_l", "radius_l"], "viewYaw": 0,
+                "series": "lead-arm", "hold": 94,
+                "metric": {"value": f"{m['elbow_top']:.0f}°", "caption": "left arm bend at the top"},
+                "why": "The left arm sets the radius of your swing. When it folds, the club travels a shorter arc and has to be straightened again on the way down, which costs speed and makes contact harder to repeat.",
+                "cue": "Reach your left hand away from your chest as you turn. End the backswing when the arm wants to fold.",
+                "drill": "Three-quarter swings. Hit ten shots stopping the backswing when your left arm is level with the ground, arm long. Lengthen only as far as your shoulder turn carries it.",
+                "check": f"Left arm bend at the top stays near {m['elbow_addr']:.0f}° instead of reaching {m['elbow_top']:.0f}°.",
+                "goal": {"value": round(m["elbow_addr"], 1), "label": "address bend"},
             },
             {
                 "id": "hang-back",
                 "title": "Stuck on the back foot",
-                "detail": (
-                    "At impact your hips are right back where they started. Get them moving toward the target so your weight ends up on your front foot."
-                ),
+                "detail": f"At impact your hips are still where they stood at address: {m['impact_cm']:.0f} cm toward the target.",
                 "start": 103, "end": 114, "anchor": "pelvis", "group": "lead-hip",
+                "bones": ["pelvis", "femur_l"], "viewYaw": 140,
+                "series": "sway", "hold": 108,
+                "metric": {"value": f"{m['impact_cm']:.0f} cm", "caption": "hip shift toward the target at impact"},
+                "why": "Weight that stays back puts the bottom of the swing behind the ball. The club meets the turf first or catches the ball on the way up: heavy and thin strikes, and less distance.",
+                "cue": "Start down with your left hip moving toward the target. The arms follow.",
+                "drill": "Step-through drill. Swing through and let your right foot step past the ball toward the target. Ten reps, then ten shots keeping that feel with both feet planted.",
+                "check": "The hip trace is ahead of the address line at impact, not level with it.",
+                "goal": {"value": 0.0, "label": "address line"},
             },
         ],
         "highlights": [
             f"Great coil: your shoulders turn about {m['separation']:.0f}° more than your hips.",
             f"You stay in your posture. Your hips only drop about {m['drop_cm']:.0f} cm coming down.",
             "No early extension. Your hips don't thrust toward the ball.",
+        ],
+        "series": [
+            {"id": "sway", "label": "Hip shift toward target", "unit": "cm", "values": traces["sway"]},
+            {"id": "trail-knee", "label": "Right knee flex", "unit": "°", "values": traces["trail-knee"]},
+            {"id": "lead-arm", "label": "Left arm bend", "unit": "°", "values": traces["lead-arm"]},
+            {"id": "separation", "label": "Shoulder–hip separation", "unit": "°", "values": traces["separation"]},
         ],
         "muscle_groups": [
             {
@@ -359,8 +520,8 @@ def config_1872() -> dict:
         ],
         "disclosure": {
             "badge": "Preview measurement · 60 fps",
-            "club": "Estimated club: derived from hand pose, held by both hands and eased onto the ball at impact. Not club tracking.",
-            "coaching": "Preview reconstruction from a single 60 fps phone video (OpenSim IK mean marker error 2.3 cm), not lab-calibrated. Muscle suggestions are inferred from the detected faults, not measured with EMG.",
+            "club": "Estimated club: derived from hand pose and eased onto the ball at impact. The grip is posed around it; fingers and wrist roll are not measured. Not club tracking.",
+            "coaching": "Preview reconstruction from a single 60 fps phone video (mean marker error 2.3 cm), not lab-calibrated. Muscle suggestions are inferred from the detected faults, not measured with EMG; muscle shapes are drawn around the model's muscle paths, not scanned. Cues and drills are general coaching for each fault, not a personal programme.",
         },
     }
 

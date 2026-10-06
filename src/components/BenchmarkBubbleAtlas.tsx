@@ -1,5 +1,5 @@
 import { animate, motion, useInView, useMotionValue, useReducedMotion, useTransform } from "motion/react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { benchmarkMetrics, buildComparison, type BenchmarkAtlasReference } from "./benchmark-model";
 export type { BenchmarkAtlasReference, BenchmarkAtlasRow } from "./benchmark-model";
 
@@ -9,6 +9,8 @@ interface BenchmarkBubbleAtlasProps {
   activeMethod: string;
   onMethodChange: (method: string) => void;
 }
+
+const jawSpring = { type: "spring", stiffness: 340, damping: 30, mass: 0.8 } as const;
 
 function Reading({ value, decimals, enabled }: { value: number; decimals: number; enabled: boolean }) {
   const reduced = useReducedMotion();
@@ -31,8 +33,50 @@ export function BenchmarkBubbleAtlas({ sequenceLength, reference, activeMethod, 
   const inView = useInView(ref, { once: true, amount: 0.15 });
   const reduced = useReducedMotion();
   const selectionId = useId();
-  const leaderPercent = comparison.leader.value / comparison.scale * 100;
-  const nextPercent = comparison.next.value / comparison.scale * 100;
+
+  // The caliper: one jaw fixed on the leader, one the visitor drags to any other method.
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [trackWidth, setTrackWidth] = useState(0);
+  const dragging = useRef(false);
+  const jaw = useMotionValue(0);
+  const compared = comparison.ranked.find(row => row.method === selected[0]) ?? comparison.leader;
+  const comparedIndex = comparison.ranked.indexOf(compared);
+  const isLeader = compared.method === comparison.leader.method;
+  const leaderX = (comparison.leader.value / comparison.scale) * trackWidth;
+  const jawTarget = (compared.value / comparison.scale) * trackWidth;
+  const difference = Math.abs(compared.value - comparison.leader.value);
+  const unitLabel = metric.unit === "score" ? "points" : metric.unit;
+  const bandLeft = useTransform(jaw, position => Math.min(position, leaderX));
+  const bandWidth = useTransform(jaw, position => Math.abs(position - leaderX));
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const observer = new ResizeObserver(([entry]) => setTrackWidth(entry.contentRect.width));
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (dragging.current) return;
+    const controls = animate(jaw, jawTarget, reduced ? { duration: 0 } : jawSpring);
+    return () => controls.stop();
+  }, [jaw, jawTarget, reduced]);
+
+  const selectNearest = () => {
+    if (!trackWidth) return;
+    const value = (jaw.get() / trackWidth) * comparison.scale;
+    const nearest = comparison.ranked.reduce((best, row) => (Math.abs(row.value - value) < Math.abs(best.value - value) ? row : best));
+    if (nearest.method !== compared.method) onMethodChange(nearest.method);
+  };
+
+  const stepWithKeys = (event: KeyboardEvent<HTMLDivElement>) => {
+    const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+    if (!step) return;
+    event.preventDefault();
+    const next = comparison.ranked[Math.max(0, Math.min(comparison.ranked.length - 1, comparedIndex + step))];
+    onMethodChange(next.method);
+  };
 
   return (
     <figure ref={ref} className="benchmark-instrument" aria-label="AMASS metric comparison">
@@ -59,19 +103,74 @@ export function BenchmarkBubbleAtlas({ sequenceLength, reference, activeMethod, 
           </header>
           <div className="benchmark-instrument__lanes">
             <div className="benchmark-instrument__grid" aria-hidden="true">
-              <span style={{ left: `${Math.min(leaderPercent, nextPercent)}%`, width: `${Math.abs(nextPercent - leaderPercent)}%` }} />
               {inView && !reduced && <motion.i initial={{ scaleX: 0, opacity: 0.6 }} animate={{ scaleX: 1, opacity: 0 }} transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }} />}
             </div>
             {comparison.ranked.map((row, index) => (
-              <button type="button" key={row.method} className={`benchmark-instrument__lane${selected[0] === row.method ? " is-selected" : ""}${row.method === comparison.leader.method ? " is-leader" : ""}`} aria-pressed={selected[0] === row.method} aria-label={`${row.method} ${metric.label} ${row.exact}`} onClick={() => onMethodChange(row.method)}>
+              <motion.button
+                // Rows glide to their new rank when the metric changes instead of swapping in place.
+                layout="position"
+                transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 30 }}
+                type="button"
+                key={row.method}
+                className={`benchmark-instrument__lane${selected[0] === row.method ? " is-selected" : ""}${row.method === comparison.leader.method ? " is-leader" : ""}`}
+                aria-pressed={selected[0] === row.method}
+                aria-label={`${row.method} ${metric.label} ${row.exact}`}
+                onClick={() => onMethodChange(row.method)}
+              >
                 <span>{row.method}{row.method === comparison.leader.method && <i aria-label="Metric leader" />}</span>
                 <span className="benchmark-instrument__track"><motion.i initial={false} animate={{ scaleX: inView || reduced ? row.value / comparison.scale : 0 }} transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 180, damping: 28, delay: index * 0.035 }} /></span>
-                <b>{row.display}</b>
-              </button>
+                <b><Reading value={row.value} decimals={metric.decimals} enabled={inView} /></b>
+              </motion.button>
             ))}
+            <div className="benchmark-caliper" ref={trackRef}>
+              <motion.span className="benchmark-caliper__band" style={{ x: bandLeft, width: bandWidth }} aria-hidden="true" />
+              <motion.div
+                className="benchmark-caliper__jaw"
+                style={{ x: jaw }}
+                drag="x"
+                dragConstraints={{ left: 0, right: trackWidth }}
+                dragElastic={0.06}
+                dragMomentum={false}
+                onDragStart={() => {
+                  dragging.current = true;
+                }}
+                onDrag={selectNearest}
+                onDragEnd={() => {
+                  dragging.current = false;
+                  // Settle on the method the jaw came nearest to.
+                  animate(jaw, jawTarget, reduced ? { duration: 0 } : jawSpring);
+                }}
+                role="slider"
+                tabIndex={0}
+                aria-label="Compare a method with the leader"
+                aria-valuemin={1}
+                aria-valuemax={comparison.ranked.length}
+                aria-valuenow={comparedIndex + 1}
+                aria-valuetext={isLeader ? `${compared.method}, the leader` : `${compared.method}, ${difference.toFixed(metric.decimals)} ${unitLabel} from ${comparison.leader.method}`}
+                onKeyDown={stepWithKeys}
+              >
+                <span className="benchmark-caliper__tag">
+                  {isLeader ? (
+                    <>Drag to compare <i aria-hidden="true">→</i></>
+                  ) : (
+                    <>
+                      <strong>{compared.method}</strong>
+                      {compared.value > comparison.leader.value ? "+" : "−"}
+                      <Reading value={difference} decimals={metric.decimals} enabled />
+                      <small>{unitLabel}</small>
+                    </>
+                  )}
+                </span>
+                <i className="benchmark-caliper__grip" aria-hidden="true" />
+              </motion.div>
+            </div>
           </div>
           <div className="benchmark-instrument__scale" aria-hidden="true"><span>0</span><span>{comparison.scale / 2}</span><span>{comparison.scale}</span></div>
-          <p className="benchmark-instrument__gap">{comparison.gap.toFixed(metric.decimals)} {metric.unit === "score" ? "points" : metric.unit} separates {comparison.leader.method} and {comparison.next.method}.</p>
+          <p className="benchmark-instrument__gap">
+            {isLeader
+              ? `${comparison.gap.toFixed(metric.decimals)} ${unitLabel} separates ${comparison.leader.method} and ${comparison.next.method}.`
+              : `${difference.toFixed(metric.decimals)} ${unitLabel} separates ${comparison.leader.method} and ${compared.method}.`}
+          </p>
         </section>
         <aside className="benchmark-instrument__profile" aria-label={`Selected method profile: ${selected[0]}`}>
           <header><span>Selected method</span><h3>{selected[0]}</h3><p>Sequence length {sequenceLength}</p></header>
@@ -81,10 +180,10 @@ export function BenchmarkBubbleAtlas({ sequenceLength, reference, activeMethod, 
               <dd>{selected[item.index]}<small>{item.unit}</small></dd>
             </div>
           ))}</dl>
-          <p>Values and uncertainty as reported in the team-supplied evaluation.</p>
+          <p>Values shown with their reported uncertainty.</p>
         </aside>
       </div>
-      <figcaption><span><i className="is-leader" />Indigo · metric leader</span><span><i className="is-selected" />Purple · your selection</span><span>Select a method to inspect all four metrics.</span></figcaption>
+      <figcaption><span><i className="is-leader" />Indigo · metric leader</span><span><i className="is-selected" />Purple · your selection</span><span>Drag the marker, or select a method, to inspect all four metrics.</span></figcaption>
     </figure>
   );
 }

@@ -125,7 +125,7 @@ export function DemoForm() {
           {status === "success" ? (
             <>
               <CheckCircle weight="fill" aria-hidden="true" />
-              Thank you. Your request is saved and our team will follow up.
+              Thank you. We have your request and will follow up.
             </>
           ) : null}
           {status === "error" && Object.keys(errors).length > 0 ? (

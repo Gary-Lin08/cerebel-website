@@ -66,6 +66,28 @@ export interface SwingAnnotation {
   end: number;
   anchor: string;
   group: string | null;
+  /** Bones the close-up lights up, and where it stands: degrees from face-on, positive toward the lead side. */
+  bones?: string[];
+  viewYaw?: number;
+  /** Measured trace this finding reads from, the frame it freezes on, and its headline number. */
+  series?: string;
+  hold?: number;
+  metric?: { value: string; caption: string };
+  /** Coaching: why the fault costs strokes, the feel to chase, a drill, and what the next capture should show. */
+  why?: string;
+  cue?: string;
+  drill?: string;
+  check?: string;
+  /** The value the finding's trace should hold, drawn across its window. */
+  goal?: { value: number; label: string };
+}
+
+/** One measured quantity, sampled on every frame of the swing window. */
+export interface SwingSeries {
+  id: string;
+  label: string;
+  unit: string;
+  values: number[];
 }
 
 export interface SwingMuscleGroup {
@@ -87,6 +109,9 @@ export interface SwingAnalysisBundle {
   disclosure: { badge: string; club: string; coaching: string };
   /** Measured strengths, shown beside the findings. */
   highlights: string[];
+  series?: SwingSeries[];
+  /** The footage the reconstruction was made from, trimmed so its frame n is the bundle's frame n. */
+  sourceVideo?: { url: string; label: string; aspect: number };
   surface: {
     label: string;
     vertexCount: number;

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import { useCompact } from "../hooks";
+import { BackerButton } from "./BackerSheet";
 
 type SequenceSet = {
   width: number;
@@ -32,12 +33,12 @@ const phases = [
   {
     label: "AR concept",
     title: "Information. In your line of sight.",
-    copy: "Designed for in-lens AR. A development concept exploring how information could enter your line of sight.",
+    copy: "Designed for in-lens AR. A development concept for putting information where you are already looking.",
   },
   {
     label: "Capture",
     title: "Your perspective. Captured.",
-    copy: "Designed for camera and sensor capture from a wearable perspective. Functional integration is in development.",
+    copy: "Designed for camera and sensor capture from your own point of view. Functional integration is in development.",
   },
   {
     label: "One wearable",
@@ -47,7 +48,7 @@ const phases = [
   {
     label: "Inside out",
     title: "One system. Every layer visible.",
-    copy: "The exploded development view separates the major structural modules without presenting a finalized production specification.",
+    copy: "An exploded view of the main modules. This is a development build, not a final production design.",
   },
 ] as const;
 
@@ -406,7 +407,14 @@ export function LegacyCerebelScrollSequence() {
           </nav>
         )}
 
-        <a className="product-sequence__evidence-link" href="#evidence">Explore research evidence <span aria-hidden="true">↗</span></a>
+        <div className="product-sequence__actions">
+          <a className="product-sequence__evidence-link" href="#evidence">
+            <span className="product-sequence__evidence-long">Explore research evidence</span>
+            <span className="product-sequence__evidence-short">Evidence</span>
+            <span aria-hidden="true">↗</span>
+          </a>
+          <BackerButton />
+        </div>
         {status === "error" ? <p className="product-sequence__fallback-note">Product sequence unavailable. Static view shown.</p> : null}
       </div>
     </section>

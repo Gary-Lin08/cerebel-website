@@ -5,7 +5,7 @@ import { Database } from "@phosphor-icons/react/Database";
 import { Plus } from "@phosphor-icons/react/Plus";
 import { UploadSimple } from "@phosphor-icons/react/UploadSimple";
 import { X } from "@phosphor-icons/react/X";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { GolfSwingAnalysis } from "./GolfSwingAnalysis";
 import { OpenSimPreview } from "./OpenSimPreview";
@@ -92,6 +92,9 @@ function mergeSessions(...groups: ViewerSession[][]): ViewerSession[] {
   groups.flat().forEach((session) => merged.set(session.id, session));
   return [...merged.values()];
 }
+
+// The selection thumb slides between options like a native segmented control.
+const thumbSpring = { type: "spring", stiffness: 460, damping: 34, mass: 0.8 } as const;
 
 function firstViewer(session: ViewerSession): ViewerKey {
   if (session.viewers.swing) return "swing";
@@ -240,6 +243,9 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
                   aria-pressed={session.id === activeSession?.id}
                   onClick={() => selectSession(session.id)}
                 >
+                  {session.id === activeSession?.id ? (
+                    <motion.div className="viewer-thumb" layoutId="session-thumb" transition={thumbSpring} aria-hidden="true" />
+                  ) : null}
                   <span>{String(index + 1).padStart(2, "0")}</span>
                   <strong>{session.label}</strong>
                   <small>{session.frameCount} frames</small>
@@ -277,6 +283,9 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
                     setActiveViewer(key);
                   }}
                 >
+                  {activeViewer === key ? (
+                    <motion.div className="viewer-thumb" layoutId="mode-thumb" transition={thumbSpring} aria-hidden="true" />
+                  ) : null}
                   <span>{String(index + 1).padStart(2, "0")}</span>
                   <div><strong>{item.title}</strong></div>
                   <i aria-hidden="true" />
@@ -379,10 +388,12 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
 
   if (embedded) {
     return (
-      <div className="viewer-embedded">
-        {workspace}
-        {overlays}
-      </div>
+      <LayoutGroup id="viewer-embedded">
+        <div className="viewer-embedded">
+          {workspace}
+          {overlays}
+        </div>
+      </LayoutGroup>
     );
   }
 
