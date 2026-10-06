@@ -26,6 +26,8 @@ export interface IframeViewerDefinition {
 export interface SwingAnalysisViewerDefinition {
   kind: "swing-analysis";
   dataUrl: string;
+  /** Name of the view for this session, e.g. "Pitch analysis". Defaults to "Swing analysis". */
+  title?: string;
 }
 
 export type ViewerDefinition =
@@ -69,6 +71,8 @@ export interface SwingAnnotation {
   /** Bones the close-up lights up, and where it stands: degrees from face-on, positive toward the lead side. */
   bones?: string[];
   viewYaw?: number;
+  /** Draw the dashed line where the pelvis stood at the start, for findings measured against it. */
+  plumb?: boolean;
   /** Measured trace this finding reads from, the frame it freezes on, and its headline number. */
   series?: string;
   hold?: number;
@@ -106,12 +110,22 @@ export interface SwingAnalysisBundle {
   frameCount: number;
   impactIndex: number;
   phases: SwingPhase[];
+  /** Spoken description of the stage, the legend name of the glowing path, and the frames left behind as exposures. */
+  stageLabel?: string;
+  trailLabel?: string;
+  exposures?: number[];
   disclosure: { badge: string; club: string; coaching: string };
   /** Measured strengths, shown beside the findings. */
   highlights: string[];
   series?: SwingSeries[];
   /** The footage the reconstruction was made from, trimmed so its frame n is the bundle's frame n. */
-  sourceVideo?: { url: string; label: string; aspect: number };
+  sourceVideo?: {
+    url: string;
+    label: string;
+    aspect: number;
+    /** The reconstruction's joints in the video's own image: x, y per named joint, 0–1 across the frame. */
+    joints?: { names: string[]; frames: number[][] };
+  };
   surface: {
     label: string;
     vertexCount: number;
@@ -123,9 +137,13 @@ export interface SwingAnalysisBundle {
     /** Horizontal facing direction and target direction, measured from the capture. */
     forward: [number, number, number];
     target: [number, number, number];
-    ball: [number, number, number];
-    /** Per frame: grip xyz, head xyz. */
-    club: number[][];
+    /** Where the stage is centred on the ground; defaults to the first frame's centre. */
+    center?: [number, number];
+    ball?: [number, number, number];
+    /** Per frame: grip xyz, head xyz. Absent for movements without an implement. */
+    club?: number[][];
+    /** Per frame: the point whose path glows (a hand, for instance) when there is no club. */
+    trail?: number[][];
   };
   skeleton: {
     label: string;
@@ -141,8 +159,9 @@ export interface SwingAnalysisBundle {
     muscleNames: string[];
     /** Per frame, per muscle: path points. */
     muscles: number[][][][];
-    ball: [number, number, number];
-    club: number[][];
+    ball?: [number, number, number];
+    club?: number[][];
+    trail?: number[][];
   };
   annotations: SwingAnnotation[];
   muscleGroups: SwingMuscleGroup[];

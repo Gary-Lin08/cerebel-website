@@ -148,18 +148,69 @@
   white-space: nowrap;
 }
 
-.golf-source small {
+/* The reconstruction's joints, drawn on the footage they were recovered from. */
+.golf-source__joints {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transition: opacity 260ms ease;
+}
+
+.golf-source__joints[data-visible="false"] { opacity: 0; }
+
+.golf-source__joints path {
+  fill: none;
+  stroke: #f4f0fa;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-opacity: 0.86;
+  vector-effect: non-scaling-stroke;
+}
+
+.golf-source__joints path.is-hot {
+  stroke: var(--accent, #b99bff);
+  stroke-width: 2.6px;
+  stroke-opacity: 1;
+  filter: drop-shadow(0 0 3px var(--accent, #b99bff));
+}
+
+.golf-source__joints path.is-dots { stroke-width: 4px; stroke-opacity: 1; }
+
+.golf-source button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #b9b2c6;
-  font-size: inherit;
+  padding: 3px 7px 3px 6px;
+  border: 0;
+  border-radius: 999px;
+  color: #8f879c;
+  background: rgba(244, 240, 250, 0.08);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color 200ms ease, background 200ms ease, transform 200ms var(--ease-out);
 }
 
-.golf-source small i {
+.golf-source button:active { transform: scale(0.94); }
+
+.golf-source button[aria-pressed="true"] {
+  color: #f4f0fa;
+  background: rgba(244, 240, 250, 0.18);
+}
+
+.golf-source button i {
   width: 5px;
   height: 5px;
   border-radius: 50%;
+  background: #6d6678;
+  transition: background 200ms ease, box-shadow 200ms ease;
+}
+
+.golf-source button[aria-pressed="true"] i {
   background: #52e07c;
   box-shadow: 0 0 8px #52e07c;
 }
@@ -921,7 +972,11 @@
   .golf-swing__label--skeleton { top: calc(58% + 16px); left: 18px; }
   .golf-source { top: 42px; left: 14px; height: 148px; border-radius: 12px; }
   .golf-source figcaption { padding: 16px 8px 7px; font-size: 0.5rem; }
-  .golf-source small { display: none; }
+  .golf-source figcaption span { display: none; }
+  .golf-source figcaption { justify-content: flex-end; }
+  .golf-source__joints path { stroke-width: 1.2px; }
+  .golf-source__joints path.is-hot { stroke-width: 2px; }
+  .golf-source__joints path.is-dots { stroke-width: 3px; }
   .golf-swing__muscle { top: calc(58% + 38px); left: 14px; max-width: calc(100% - 28px); }
   .golf-swing__muscle span { display: none; }
   .golf-caption { bottom: calc(42% + 58px); left: 14px; width: calc(100% - 28px); }

@@ -326,6 +326,9 @@ def build(cfg: dict) -> None:
             encode_source_video(Path(original), video["file"], start, end, video["crop"], video["width"])
         if video["file"].exists():
             bundle["sourceVideo"] = {"url": video["url"], "label": video["label"], "aspect": video["aspect"]}
+            joints = video.get("joints")
+            if joints and joints.exists():
+                bundle["sourceVideo"]["joints"] = source_joints(joints, start, end, video["crop"])
 
     (mesh_dir / "swing-analysis.json").write_text(json.dumps(bundle, ensure_ascii=False, separators=(",", ":")))
     head_err_m = np.linalg.norm(np.array(mesh_club[impact - start][3:]) - mesh_ball)
@@ -351,6 +354,21 @@ def encode_source_video(original: Path, target: Path, start: int, end: int, crop
         ],
         check=True,
     )
+
+
+def source_joints(path: Path, start: int, end: int, crop: str) -> dict:
+    """The reconstruction's joints in image space, re-expressed in the cropped source video (0–1 on both axes)."""
+    data = json.loads(path.read_text())
+    width, height = data["imageSize"]
+    crop_w, crop_h, crop_x, crop_y = (int(v) for v in crop.split(":"))
+    frames = []
+    for row in data["frames"][start:end + 1]:
+        out = []
+        for k in range(0, len(row), 2):
+            out.append(round((row[k] * width - crop_x) / crop_w, 4))
+            out.append(round((row[k + 1] * height - crop_y) / crop_h, 4))
+        frames.append(out)
+    return {"names": data["names"], "frames": frames}
 
 
 # --------------------------------------------------------------------------- measured metrics
@@ -426,6 +444,8 @@ def config_1872() -> dict:
             "crop": "1080:1520:0:60",
             "width": 432,
             "aspect": round(1080 / 1520, 4),
+            # Joints of the reconstruction in the capture's image, from the session's pose3d.json.
+            "joints": mesh_dir / "source-joints.json",
         },
         "phases": [
             {"id": "address", "label": "Address", "start": 30, "end": 47},
@@ -444,7 +464,7 @@ def config_1872() -> dict:
                 "detail": f"On the way back your hips slide about {m['sway_cm']:.0f} cm away from the target instead of turning in place.",
                 "start": 62, "end": 79, "anchor": "pelvis", "group": "trail-hip",
                 # What the close-up lights up, and where it stands: degrees from face-on, positive toward the lead side.
-                "bones": ["pelvis", "femur_r"], "viewYaw": -35,
+                "bones": ["pelvis", "femur_r"], "viewYaw": -35, "plumb": True,
                 "series": "sway", "hold": sway_hold,
                 "metric": {"value": f"{m['sway_cm']:.0f} cm", "caption": "hip slide away from the target"},
                 "why": "The low point of your swing moves back with your hips. To strike the ball first you have to slide forward by the same amount, at full speed. Miss that timing and you hit the ground early or catch the ball thin.",
@@ -487,7 +507,7 @@ def config_1872() -> dict:
                 "title": "Stuck on the back foot",
                 "detail": f"At impact your hips are still where they stood at address: {m['impact_cm']:.0f} cm toward the target.",
                 "start": 103, "end": 114, "anchor": "pelvis", "group": "lead-hip",
-                "bones": ["pelvis", "femur_l"], "viewYaw": 140,
+                "bones": ["pelvis", "femur_l"], "viewYaw": 140, "plumb": True,
                 "series": "sway", "hold": 108,
                 "metric": {"value": f"{m['impact_cm']:.0f} cm", "caption": "hip shift toward the target at impact"},
                 "why": "Weight that stays back puts the bottom of the swing behind the ball. The club meets the turf first or catches the ball on the way up: heavy and thin strikes, and less distance.",

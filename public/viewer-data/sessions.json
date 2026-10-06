@@ -20,6 +20,31 @@
     }
   },
   {
+    "id": "baseball",
+    "label": "Baseball",
+    "description": "Third-party clip: an illustrative pitch analysis, the surface and joint motion.",
+    "capturedAt": null,
+    "fps": 24,
+    "frameCount": 855,
+    "status": "qualitative",
+    "source": "User-provided Baseball session archive",
+    "viewers": {
+      "swing": {
+        "kind": "swing-analysis",
+        "dataUrl": "/viewer-data/baseball/motion-analysis.json",
+        "title": "Pitch analysis"
+      },
+      "soma": {
+        "kind": "mesh-sequence",
+        "metadataUrl": "/viewer-data/baseball/soma-metadata.json"
+      },
+      "kinetic": {
+        "kind": "iframe",
+        "url": "/viewers/kinetic/sessions/BB6037F3-37EC-4876-ACEE-282061ECB537/index.html?v=mobile-side-by-side-1"
+      }
+    }
+  },
+  {
     "id": "boxing",
     "label": "Boxing",
     "description": "Synchronized surface and joint-motion inspection.",
@@ -36,26 +61,6 @@
       "kinetic": {
         "kind": "iframe",
         "url": "/viewers/kinetic/sessions/991B507E-AF0B-4DED-A4EC-9EE892230F0/index.html?v=mobile-side-by-side-1"
-      }
-    }
-  },
-  {
-    "id": "baseball",
-    "label": "Baseball",
-    "description": "Synchronized surface and joint-motion inspection.",
-    "capturedAt": null,
-    "fps": 24,
-    "frameCount": 855,
-    "status": "qualitative",
-    "source": "User-provided Baseball session archive",
-    "viewers": {
-      "soma": {
-        "kind": "mesh-sequence",
-        "metadataUrl": "/viewer-data/baseball/soma-metadata.json"
-      },
-      "kinetic": {
-        "kind": "iframe",
-        "url": "/viewers/kinetic/sessions/BB6037F3-37EC-4876-ACEE-282061ECB537/index.html?v=mobile-side-by-side-1"
       }
     }
   },

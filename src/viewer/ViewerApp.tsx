@@ -17,7 +17,7 @@ import type {
   ViewerSession,
 } from "./types";
 
-const REGISTRY_URL = "/viewer-data/sessions.json?v=golf-1872-1";
+const REGISTRY_URL = "/viewer-data/sessions.json?v=pitch-1";
 const LOCAL_SESSIONS_KEY = "cerebel.viewer.sessions.v1";
 
 const viewerCopy = {
@@ -166,6 +166,8 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
   );
   const activeDefinition = activeSession?.viewers[activeViewer];
   const swingDefinition = activeSession?.viewers.swing;
+  // The analysis view is named for the movement: "Swing analysis" for golf, "Pitch analysis" for baseball.
+  const titleOf = (key: ViewerKey) => (key === "swing" && swingDefinition?.title) || viewerCopy[key].title;
   const somaDefinition = activeSession?.viewers.soma;
   const kineticDefinition = activeSession?.viewers.kinetic;
 
@@ -267,7 +269,7 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
               // Session-specific views (Swing analysis) only appear where they exist.
               .filter((key) => key !== "swing" || Boolean(activeSession?.viewers.swing))
               .map((key, index) => {
-              const item = viewerCopy[key];
+              const title = titleOf(key);
               const available = Boolean(activeSession?.viewers[key]);
               return (
                 <button
@@ -287,7 +289,7 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
                     <motion.div className="viewer-thumb" layoutId="mode-thumb" transition={thumbSpring} aria-hidden="true" />
                   ) : null}
                   <span>{String(index + 1).padStart(2, "0")}</span>
-                  <div><strong>{item.title}</strong></div>
+                  <div><strong>{title}</strong></div>
                   <i aria-hidden="true" />
                 </button>
               );
@@ -298,7 +300,7 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
             className="viewer-panel"
             id={`viewer-panel-${activeViewer}`}
             role="tabpanel"
-            aria-label={viewerCopy[activeViewer].title}
+            aria-label={titleOf(activeViewer)}
           >
             {!embedded && activeDefinition?.kind === "iframe" ? (
               <header className="viewer-panel__head">
@@ -315,7 +317,7 @@ export function MotionViewerWorkspace({ embedded = false }: { embedded?: boolean
                   className={`viewer-mode-layer${activeViewer === "swing" ? " is-active" : ""}`}
                   aria-hidden={activeViewer !== "swing"}
                 >
-                  <GolfSwingAnalysis dataUrl={swingDefinition.dataUrl} active={activeViewer === "swing"} />
+                  <GolfSwingAnalysis key={swingDefinition.dataUrl} dataUrl={swingDefinition.dataUrl} active={activeViewer === "swing"} />
                 </div>
               ) : null}
               <div

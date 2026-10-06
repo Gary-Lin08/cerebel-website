@@ -493,7 +493,7 @@ function TechnologyStack() {
           compact
           eyebrow="CeRebel motion representation"
           title="From movement signals to physical intelligence."
-          copy="Pick a movement and inspect what Cerebel recovered from it: the body surface, the joints and, for golf, a measured swing."
+          copy="Pick a movement and inspect what Cerebel recovered from it: the body surface, the joints and, for golf, a measured swing. Baseball shows the same analysis on a third-party clip."
         />
 
         <Suspense

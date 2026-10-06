@@ -45,7 +45,24 @@ const BODY_SAMPLES = 24_000;
 const GHOST_SAMPLES = 9_000;
 const BONE_COLOR = "#eee9dd";
 const DEFAULT_ACCENT = "#b99bff";
+const FINDING_COUNT: Record<number, string> = { 2: "Two", 3: "Three", 4: "Four", 5: "Five" };
 const UP = new THREE.Vector3(0, 0, 1);
+// The stick figure drawn on the source video: each bone names the skeleton body it stands for,
+// so a finding can light the same limb on the footage as it does in the close-up.
+const VIDEO_BONES: Array<[string, string, string | null]> = [
+  ["left_shoulder", "right_shoulder", null],
+  ["left_shoulder", "left_hip", null],
+  ["right_shoulder", "right_hip", null],
+  ["left_hip", "right_hip", "pelvis"],
+  ["left_shoulder", "left_elbow", "humerus_l"],
+  ["left_elbow", "left_wrist", "ulna_l"],
+  ["right_shoulder", "right_elbow", "humerus_r"],
+  ["right_elbow", "right_wrist", "ulna_r"],
+  ["left_hip", "left_knee", "femur_l"],
+  ["left_knee", "left_ankle", "tibia_l"],
+  ["right_hip", "right_knee", "femur_r"],
+  ["right_knee", "right_ankle", "tibia_r"],
+];
 
 async function loadSwing(dataUrl: string, signal: AbortSignal): Promise<LoadedSwing> {
   const response = await fetch(dataUrl, { signal });
@@ -98,14 +115,17 @@ function catmullRom(points: THREE.Vector3[], substeps: number): number[] {
   return out;
 }
 
-/** Club, ball, ball tracer and glowing club-head trail for one figure; `fan` adds the stroboscopic shafts. */
+/**
+ * Club, ball, ball tracer and glowing club-head trail for one figure; `fan` adds the stroboscopic shafts.
+ * A movement without an implement passes only `trail`: the path of a hand, led by a small marker.
+ */
 function createSwingProps(
-  club: number[][],
-  ball: number[],
+  spec: { club?: number[][]; ball?: number[]; trail?: number[][] },
   target: THREE.Vector3,
   up: THREE.Vector3,
   options: { fan?: boolean; impactIndex?: number } = {},
 ) {
+  const { club, ball } = spec;
   const group = new THREE.Group();
   const shaft = new THREE.Mesh(
     new THREE.CylinderGeometry(0.007, 0.0095, 1, 12),
@@ -126,10 +146,17 @@ function createSwingProps(
     new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
     new THREE.LineBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.55 }),
   );
-  group.add(shaft, head, ballMesh, tracer);
+  const marker = new THREE.Mesh(
+    // Only the leading end of the path: small enough not to read as a ball, which is not tracked.
+    new THREE.SphereGeometry(0.012, 16, 12),
+    new THREE.MeshBasicMaterial({ color: TRAIL_COLOR }),
+  );
+  if (club) group.add(shaft, head);
+  else group.add(marker);
+  if (ball) group.add(ballMesh, tracer);
 
-  const heads = club.map((row) => new THREE.Vector3(row[3], row[4], row[5]));
-  const grips = club.map((row) => new THREE.Vector3(row[0], row[1], row[2]));
+  const heads = (club?.map((row) => row.slice(3)) ?? spec.trail ?? []).map((row) => new THREE.Vector3(row[0], row[1], row[2]));
+  const grips = club?.map((row) => new THREE.Vector3(row[0], row[1], row[2])) ?? heads;
   const trailGeometry = new LineGeometry();
   trailGeometry.setPositions(catmullRom(heads, TRAIL_SUBSTEPS));
   const core = new LineMaterial({ color: TRAIL_COLOR, linewidth: 2.6, transparent: true, opacity: 0.95 });
@@ -150,7 +177,7 @@ function createSwingProps(
   // One faint shaft per captured frame: the swing read as a single long exposure.
   let fan: THREE.LineSegments | null = null;
   let fanMaterial: THREE.LineBasicMaterial | null = null;
-  if (options.fan) {
+  if (options.fan && club) {
     const positions = new Float32Array(club.length * 6);
     const colors = new Float32Array(club.length * 6);
     const impact = options.impactIndex ?? club.length;
@@ -178,7 +205,7 @@ function createSwingProps(
     group.add(fan);
   }
 
-  const ballRest = new THREE.Vector3(...(ball as [number, number, number]));
+  const ballRest = new THREE.Vector3(...((ball ?? [0, 0, 0]) as [number, number, number]));
   const flightPos = new THREE.Vector3();
   const grip = new THREE.Vector3();
   const tip = new THREE.Vector3();
@@ -195,22 +222,27 @@ function createSwingProps(
       fanMaterial?.dispose();
     },
     update(frame: number, impactIndex: number, fps: number) {
-      const i = Math.min(Math.floor(frame), club.length - 1);
-      const j = Math.min(i + 1, club.length - 1);
+      const i = Math.min(Math.floor(frame), heads.length - 1);
+      const j = Math.min(i + 1, heads.length - 1);
       const a = frame - i;
       grip.lerpVectors(grips[i], grips[j], a);
       tip.lerpVectors(heads[i], heads[j], a);
-      axis.subVectors(tip, grip);
-      const length = axis.length();
-      axis.normalize();
-      shaft.position.copy(grip).addScaledVector(axis, length / 2);
-      shaft.quaternion.setFromUnitVectors(yAxis, axis);
-      shaft.scale.set(1, length, 1);
-      head.position.copy(tip);
-      head.quaternion.copy(shaft.quaternion);
+      if (club) {
+        axis.subVectors(tip, grip);
+        const length = axis.length();
+        axis.normalize();
+        shaft.position.copy(grip).addScaledVector(axis, length / 2);
+        shaft.quaternion.setFromUnitVectors(yAxis, axis);
+        shaft.scale.set(1, length, 1);
+        head.position.copy(tip);
+        head.quaternion.copy(shaft.quaternion);
+      } else {
+        marker.position.copy(tip);
+      }
 
       trailGeometry.instanceCount = Math.max(0, Math.round(frame * TRAIL_SUBSTEPS));
       fan?.geometry.setDrawRange(0, (i + 1) * 2);
+      if (!ball) return;
 
       // Illustrative ball flight after impact: launches toward the target, then leaves frame.
       const flight = (frame - impactIndex) / fps;
@@ -325,6 +357,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
   const hostRef = useRef<HTMLDivElement>(null);
   const markerRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const overlayRef = useRef<SVGSVGElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef<HTMLDivElement>(null);
   const readingRefs = useRef(new Map<string, HTMLOutputElement>());
@@ -345,6 +378,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
   const [phaseId, setPhaseId] = useState("address");
   const [activeAnnotations, setActiveAnnotations] = useState<string[]>([]);
   const [focusGroup, setFocusGroup] = useState<string | null>(null);
+  const [showJoints, setShowJoints] = useState(true);
   // Which finding's coaching notes are unfolded. It follows the replay until the viewer picks one.
   // `undefined` means nothing has been chosen yet, so the first finding is shown; `null` means all folded.
   const [openNote, setOpenNote] = useState<string | null | undefined>(undefined);
@@ -431,6 +465,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
         }
         cx /= data.surface.vertexCount;
         cy /= data.surface.vertexCount;
+        if (data.surface.center) [cx, cy] = data.surface.center;
         surfaceRig.position.set(-cx, -cy, -data.surface.ground);
 
         const pose = vertices.slice(0, vertexStride);
@@ -459,7 +494,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
 
         // Earlier poses stay behind as exposures: address, top of the backswing, impact.
         const topPhase = data.phases.find((phase) => phase.id === "top");
-        const ghostFrames = [
+        const ghostFrames = data.exposures ?? [
           0,
           topPhase ? Math.round((topPhase.start + topPhase.end) / 2) : Math.round(data.impactIndex * 0.8),
           data.impactIndex,
@@ -483,8 +518,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
         });
 
         const surfaceProps = createSwingProps(
-          data.surface.club,
-          data.surface.ball,
+          data.surface,
           new THREE.Vector3(...data.surface.target),
           new THREE.Vector3(0, 0, 1),
           { fan: true, impactIndex: data.impactIndex },
@@ -553,8 +587,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
         for (let o = 0; o < muscleColors.length; o += 3) baseMuscle.toArray(muscleColors, o);
 
         const skeletonProps = createSwingProps(
-          data.skeleton.club,
-          data.skeleton.ball,
+          data.skeleton,
           new THREE.Vector3(...data.skeleton.target),
           new THREE.Vector3(...data.skeleton.up),
         );
@@ -792,7 +825,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
           jointGlow.material.color.copy(accent);
           jointGlow.material.opacity += ((node ? 0.12 + 0.06 * pulse : 0) - jointGlow.material.opacity) * ease;
 
-          const hipFinding = currentNote >= 0 && data.annotations[currentNote].anchor === "pelvis";
+          const hipFinding = currentNote >= 0 && Boolean(data.annotations[currentNote].plumb);
           plumbMaterial.opacity += ((hipFinding ? 0.75 : 0) - plumbMaterial.opacity) * ease;
 
           const marker = markerRef.current;
@@ -812,8 +845,44 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
         const syncVideo = (frame: number) => {
           const video = videoRef.current;
           if (!video || video.readyState < 1 || video.seeking) return;
+          // The last seek has landed, so the joints are drawn for the frame that is actually on screen.
+          drawJoints(Math.min(count - 1, Math.floor(video.currentTime * data.fps)));
           const time = Math.min((Math.floor(frame) + 0.5) / data.fps, video.duration - 0.001);
           if (Math.abs(video.currentTime - time) > 0.004) video.currentTime = time;
+        };
+
+        const joints = data.sourceVideo?.joints;
+        const jointScaleY = 100 / (data.sourceVideo?.aspect ?? 1);
+        const videoBones = VIDEO_BONES.flatMap(([from, to, body]) => {
+          const a = joints?.names.indexOf(from) ?? -1;
+          const b = joints?.names.indexOf(to) ?? -1;
+          return a < 0 || b < 0 ? [] : [{ a, b, body }];
+        });
+        let drawnJoints = "";
+        /** The reconstruction's joints on the footage; the bones a finding names take its colour. */
+        const drawJoints = (index: number) => {
+          const overlay = overlayRef.current;
+          if (!overlay || !joints) return;
+          const key = `${index}:${currentNote}`;
+          if (key === drawnJoints) return;
+          drawnJoints = key;
+          const row = joints.frames[Math.min(index, joints.frames.length - 1)];
+          const at = (joint: number) => `${(row[joint * 2] * 100).toFixed(2)} ${(row[joint * 2 + 1] * jointScaleY).toFixed(2)}`;
+          const lit = currentNote >= 0 ? noteBones[currentNote] : null;
+          let plain = "";
+          let hot = "";
+          const dots = new Set<number>();
+          videoBones.forEach(({ a, b, body }) => {
+            const segment = `M${at(a)}L${at(b)}`;
+            if (lit && body && lit.has(body)) hot += segment;
+            else plain += segment;
+            dots.add(a);
+            dots.add(b);
+          });
+          const [plainPath, hotPath, dotPath] = overlay.querySelectorAll("path");
+          plainPath?.setAttribute("d", plain);
+          hotPath?.setAttribute("d", hot);
+          dotPath?.setAttribute("d", [...dots].map((joint) => `M${at(joint)}h0.01`).join(""));
         };
 
         const writeReadings = (frame: number) => {
@@ -965,9 +1034,9 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
         className="golf-swing__stage"
         ref={hostRef}
         role="img"
-        aria-label="Golf swing replay. The player's phone video runs in step with a particle surface reconstruction that swings an estimated club and leaves its earlier poses behind as exposures; beside it, a close-up of the skeleton and muscles follows each finding."
+        aria-label={bundle?.stageLabel ?? "Golf swing replay. The player's phone video runs in step with a particle surface reconstruction that swings an estimated club and leaves its earlier poses behind as exposures; beside it, a close-up of the skeleton and muscles follows each finding."}
       >
-        <span className="golf-swing__badge">{bundle?.disclosure.badge ?? "Swing analysis"}</span>
+        <span className="golf-swing__badge">{bundle?.disclosure.badge ?? "Motion analysis"}</span>
         {bundle ? (
           <>
             <p className="golf-swing__label golf-swing__label--surface">{bundle.surface.label}</p>
@@ -977,11 +1046,36 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
 
         {bundle?.sourceVideo ? (
           // The real footage beside its reconstruction, stepped frame for frame by the replay.
-          <figure className="golf-source" style={{ "--aspect": bundle.sourceVideo.aspect } as CSSProperties} aria-hidden="true">
-            <video ref={videoRef} src={bundle.sourceVideo.url} muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
+          <figure
+            className="golf-source"
+            style={{
+              "--aspect": bundle.sourceVideo.aspect,
+              "--accent": accentOf(bundle.annotations.find((note) => note.id === liveNote) ?? bundle.annotations[0]),
+            } as CSSProperties}
+          >
+            <video ref={videoRef} src={bundle.sourceVideo.url} muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
+            {bundle.sourceVideo.joints ? (
+              <svg
+                ref={overlayRef}
+                className="golf-source__joints"
+                viewBox={`0 0 100 ${(100 / bundle.sourceVideo.aspect).toFixed(2)}`}
+                preserveAspectRatio="none"
+                data-visible={showJoints ? "true" : "false"}
+                aria-hidden="true"
+              >
+                <path />
+                <path className="is-hot" />
+                <path className="is-dots" />
+              </svg>
+            ) : null}
             <figcaption>
               <span>{bundle.sourceVideo.label}</span>
-              <small><i />In sync</small>
+              {bundle.sourceVideo.joints ? (
+                <button type="button" aria-pressed={showJoints} onClick={() => setShowJoints((value) => !value)}>
+                  <i aria-hidden="true" />
+                  Joints
+                </button>
+              ) : null}
             </figcaption>
           </figure>
         ) : null}
@@ -1046,7 +1140,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
         {status !== "ready" ? (
           <div className="golf-swing__status" role="status">
             {status === "loading" ? <CircleNotch className="golf-swing__spinner" aria-hidden="true" /> : null}
-            {status === "loading" ? "Loading swing analysis" : "Swing analysis could not be loaded."}
+            {status === "loading" ? "Loading analysis" : "The analysis could not be loaded."}
           </div>
         ) : null}
       </div>
@@ -1057,7 +1151,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
           <p className="golf-swing__reading" aria-hidden="true">
             {(() => {
               const live = bundle.annotations.find((note) => note.id === liveNote);
-              if (!live) return "Four findings, each read from the measured traces below.";
+              if (!live) return `${FINDING_COUNT[bundle.annotations.length] ?? bundle.annotations.length} findings, each read from the measured traces below.`;
               return live.cue ? <><b>Fix</b>{live.cue}</> : live.detail;
             })()}
           </p>
@@ -1242,7 +1336,7 @@ export function GolfSwingAnalysis({ dataUrl, active = true }: GolfSwingAnalysisP
                   </ul>
                 </>
               ) : null}
-              <p><i className="golf-swing__swatch golf-swing__swatch--trail" aria-hidden="true" />Estimated club-head path</p>
+              <p><i className="golf-swing__swatch golf-swing__swatch--trail" aria-hidden="true" />{bundle.trailLabel ?? "Estimated club-head path"}</p>
               <p className="golf-swing__disclosure">{bundle.disclosure.club}</p>
               <p className="golf-swing__disclosure">{bundle.disclosure.coaching}</p>
             </div>
