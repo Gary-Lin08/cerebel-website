@@ -1,0 +1,79 @@
+/*
+ * Preview: quiet labels.
+ * Section kickers and index numbers go; the small labels that stay are set in the text face,
+ * sentence case, at a readable size. Monospace is kept only where it carries measurements
+ * (benchmark values, scales, sequence lengths, the progress counter).
+ * Imported last so it can be reviewed and removed as one file.
+ */
+
+/* Kickers above headings: the heading carries its own weight. */
+.site-shell .eyebrow,
+.site-shell .product-sequence__copy > div > p:first-child {
+  display: none;
+}
+
+/* Index numbers that only restate position. */
+.site-shell .product-sequence__rail button > span,
+.site-shell .golf-steps button > span {
+  display: none;
+}
+
+/* Small labels: text face, sentence case, readable size, no tracking. */
+.site-shell .particle-hero__measure span,
+.site-shell .hero__evidence-threshold > small,
+.site-shell .golf-swing__label,
+.site-shell .golf-source figcaption span,
+.site-shell .golf-source figcaption button,
+.site-shell .golf-swing__muscle > span,
+.site-shell .golf-caption__metric,
+.site-shell .golf-caption__cue b,
+.site-shell .golf-plan dt,
+.site-shell .golf-plan__check > span,
+.site-shell .world-tile > p,
+.site-shell .world-tile > em,
+.site-shell .sports-tile__copy > p,
+.site-shell .sports-tile__tabs button > span,
+.site-shell .sports-frame figcaption,
+.site-shell .sports-frame figcaption span,
+.site-shell .sports-frame figcaption b,
+.site-shell .founder-stack__phase,
+.site-shell .founder-stack__photo--team figcaption,
+.site-shell .vision__affil-meta p,
+.site-shell .vision__affil header span,
+.site-shell .demo__contact span,
+.site-shell .form-field > span,
+.site-shell .footer__links > span,
+.site-shell .footer__meta span {
+  font-family: "Space Grotesk Variable", "Helvetica Neue", Arial, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Labels sitting on the near-black ground need the brighter neutral to stay above 4.5:1. */
+.site-shell .golf-plan dt,
+.site-shell .golf-plan__check > span,
+.site-shell .world-tile > p,
+.site-shell .sports-tile__copy > p,
+.site-shell .vision__affil-meta p,
+.site-shell .demo__contact span,
+.site-shell .form-field > span,
+.site-shell .footer__links > span,
+.site-shell .footer__meta span {
+  color: var(--muted);
+}
+
+/* Ranked findings keep their order number, set as a figure rather than a code. */
+.site-shell .golf-plan__head > span {
+  font-family: "Space Grotesk Variable", "Helvetica Neue", Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Measurements stay monospace but lose the shouting. */
+.site-shell .benchmark__toggle button > span {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}

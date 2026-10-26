@@ -4,6 +4,7 @@ import { App } from "./App";
 import "./styles.css";
 import "./refinements.css";
 import "./polish.css";
+import "./quiet-labels.css";
 
 const ViewerApp = lazy(() =>
   import("./viewer/ViewerApp").then((module) => ({ default: module.ViewerApp })),
