@@ -1,9 +1,9 @@
 /*
- * Preview: quiet labels.
+ * Quiet labels.
  * Section kickers and index numbers go; the small labels that stay are set in the text face,
  * sentence case, at a readable size. Monospace is kept only where it carries measurements
  * (benchmark values, scales, sequence lengths, the progress counter).
- * Imported last so it can be reviewed and removed as one file.
+ * Imported last, after polish.css, so these rules win over the older label styles.
  */
 
 /* Kickers above headings: the heading carries its own weight. */
