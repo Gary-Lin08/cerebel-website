@@ -2,15 +2,12 @@ import { useEffect, useState, type RefObject } from "react";
 
 /** True once the element comes within `margin` of the viewport; it never turns false again. */
 export function useNearViewport(ref: RefObject<Element | null>, margin = "1200px 0px") {
-  const [near, setNear] = useState(false);
+  // Browsers without IntersectionObserver just mount the content straight away.
+  const [near, setNear] = useState(() => !("IntersectionObserver" in window));
 
   useEffect(() => {
     const element = ref.current;
     if (near || !element) return;
-    if (!("IntersectionObserver" in window)) {
-      setNear(true);
-      return;
-    }
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) setNear(true);
