@@ -989,6 +989,17 @@ button {
   transform: scaleX(1);
 }
 
+.site-nav__link--out {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.site-nav__link--out svg {
+  width: 0.8em;
+  height: 0.8em;
+}
+
 .nav-cta {
   justify-self: end;
   min-height: 40px;
@@ -3937,6 +3948,30 @@ button {
 
 .technology .section-heading {
   margin-bottom: clamp(42px, 5vw, 68px);
+}
+
+.technology__try {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px 40px;
+  margin-top: clamp(40px, 5vw, 64px);
+}
+
+.technology__try p {
+  max-width: 56ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.technology__try strong {
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .tech-instruments {

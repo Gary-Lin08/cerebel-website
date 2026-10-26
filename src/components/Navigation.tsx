@@ -3,7 +3,7 @@ import { ArrowUpRight } from "@phosphor-icons/react/ArrowUpRight";
 import { List } from "@phosphor-icons/react/List";
 import { X } from "@phosphor-icons/react/X";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { navItems } from "../content";
+import { navItems, playgroundHref } from "../content";
 import { useCompact } from "../hooks";
 
 interface NavigationProps {
@@ -92,6 +92,10 @@ export function Navigation({ activeSection }: NavigationProps) {
               ) : null}
             </a>
           ))}
+          <a className="site-nav__link site-nav__link--out" href={playgroundHref}>
+            Playground
+            <ArrowUpRight aria-hidden="true" weight="bold" />
+          </a>
         </nav>
 
         <a className="nav-cta" href="#demo">
@@ -149,6 +153,10 @@ export function Navigation({ activeSection }: NavigationProps) {
                   {item.label}
                 </a>
               ))}
+              <a href={playgroundHref} onClick={closeMenu}>
+                <span>0{navItems.length + 1}</span>
+                Playground
+              </a>
               <a className="mobile-menu__cta" href="#demo" onClick={closeMenu}>
                 Request a Demo
                 <ArrowUpRight aria-hidden="true" />

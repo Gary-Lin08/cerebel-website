@@ -7,6 +7,9 @@ export const navItems = [
   { label: "Company", href: "#company" },
 ] as const;
 
+// The consumer golf app, served under this domain by the Vercel proxy.
+export const playgroundHref = "/playground";
+
 export const technologyLayers = [
   ["01", "Wearable hardware", "Lightweight, task-ready capture"],
   ["02", "Egocentric vision", "Wide-FOV and fisheye imaging"],

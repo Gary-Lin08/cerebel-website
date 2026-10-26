@@ -16,7 +16,7 @@ import { Navigation } from "./components/Navigation";
 import { SectionHeading } from "./components/SectionHeading";
 import { WorldsBento } from "./components/WorldsBento";
 import { MotionSection } from "./components/motion/MotionSection";
-import { navItems } from "./content";
+import { navItems, playgroundHref } from "./content";
 import { useActiveSection, useCompact, useNearViewport } from "./hooks";
 import { useAnalytics } from "./analytics";
 
@@ -510,6 +510,14 @@ function TechnologyStack() {
             <MotionViewerWorkspace embedded />
           </Suspense>
         ) : loading}
+
+        <div className="technology__try">
+          <p>
+            <strong>Try it on your own swing.</strong> CeRebel Playground runs this golf analysis
+            on a video from your phone. Three swings a month are free.
+          </p>
+          <MagneticButton href={playgroundHref}>Analyse your swing</MagneticButton>
+        </div>
       </div>
     </section>
   );
