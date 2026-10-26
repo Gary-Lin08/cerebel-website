@@ -144,7 +144,7 @@ export function WorldsBento() {
           />
         </svg>
         <p>Humanoid partner</p>
-        <img
+        <img loading="lazy" decoding="async"
           className="world-tile__mark"
           src="/assets/apocynthion-mark.png"
           alt=""
@@ -181,7 +181,7 @@ export function WorldsBento() {
               // The photograph is a control too; the buttons above stay the keyboard path.
               onClick={() => setSelectedSport(sport.id)}
             >
-              <img src={sport.image} alt={sport.alt} />
+              <img loading="lazy" decoding="async" src={sport.image} alt={sport.alt} />
               <figcaption>
                 <i aria-hidden="true" />
                 <span>{sport.label}</span>
@@ -211,7 +211,7 @@ export function WorldsBento() {
         onClick={(event) => openWorld("overide", event.currentTarget)}
         {...enter(reduceMotion, 2, compact)}
       >
-        <img
+        <img loading="lazy" decoding="async"
           className="world-tile__photo"
           src="/assets/overide-field.jpg"
           alt=""
@@ -279,7 +279,7 @@ export function WorldsBento() {
                             transform="rotate(-28 140 140)"
                           />
                         </svg>
-                        <img src="/assets/apocynthion-mark.png" alt="" width="360" height="306" />
+                        <img loading="lazy" decoding="async" src="/assets/apocynthion-mark.png" alt="" width="360" height="306" />
                       </div>
                       <div className="world-sheet__body">
                         <p className="world-sheet__eyebrow">Humanoid partner</p>
@@ -302,7 +302,7 @@ export function WorldsBento() {
                   {open === "overide" ? (
                     <>
                       <div className="world-sheet__media">
-                        <img src="/assets/overide-field.jpg" alt="Overide riders gathered on the snow in front of the lift." />
+                        <img loading="lazy" decoding="async" src="/assets/overide-field.jpg" alt="Overide riders gathered on the snow in front of the lift." />
                       </div>
                       <div className="world-sheet__body">
                         <p className="world-sheet__eyebrow">Partnership</p>

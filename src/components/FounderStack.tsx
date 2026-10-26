@@ -282,7 +282,7 @@ export function FounderStack() {
                   className="founder-stack__photo founder-stack__photo--lab"
                   style={{ opacity: labOpacity, scale: labScale }}
                 >
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={photos.lab.src}
                     srcSet={photos.lab.srcSet}
                     sizes="56vw"
@@ -296,7 +296,7 @@ export function FounderStack() {
                   className="founder-stack__photo founder-stack__photo--desk"
                   style={{ opacity: deskOpacity, scale: deskScale }}
                 >
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={photos.desk.src}
                     srcSet={photos.desk.srcSet}
                     sizes="56vw"

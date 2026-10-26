@@ -17,7 +17,7 @@ import { SectionHeading } from "./components/SectionHeading";
 import { WorldsBento } from "./components/WorldsBento";
 import { MotionSection } from "./components/motion/MotionSection";
 import { navItems } from "./content";
-import { useActiveSection, useCompact } from "./hooks";
+import { useActiveSection, useCompact, useNearViewport } from "./hooks";
 import { useAnalytics } from "./analytics";
 
 const MotionViewerWorkspace = lazy(() =>
@@ -486,8 +486,17 @@ function Benchmark() {
 }
 
 function TechnologyStack() {
+  // The workspace pulls ~11 MB of meshes and video, so it mounts only as the section approaches.
+  const sectionRef = useRef<HTMLElement>(null);
+  const near = useNearViewport(sectionRef);
+  const loading = (
+    <div className="viewer-embedded-loading" role="status">
+      Preparing motion workspace
+    </div>
+  );
+
   return (
-    <section className="section technology" id="technology" data-nav-tone="dark">
+    <section ref={sectionRef} className="section technology" id="technology" data-nav-tone="dark">
       <div className="page-grid">
         <SectionHeading
           compact
@@ -496,15 +505,11 @@ function TechnologyStack() {
           copy="Pick a movement and inspect what Cerebel recovered from it: the body surface, the joints and, for golf, a measured swing. Baseball shows the same analysis on a third-party clip."
         />
 
-        <Suspense
-          fallback={(
-            <div className="viewer-embedded-loading" role="status">
-              Preparing motion workspace
-            </div>
-          )}
-        >
-          <MotionViewerWorkspace embedded />
-        </Suspense>
+        {near ? (
+          <Suspense fallback={loading}>
+            <MotionViewerWorkspace embedded />
+          </Suspense>
+        ) : loading}
       </div>
     </section>
   );
@@ -584,7 +589,7 @@ function Footer() {
       <div className="page-grid footer__grid">
         <div>
           <span className="wordmark">
-            <img
+            <img loading="lazy" decoding="async"
               src="/assets/cerebel-wordmark.png"
               alt="Cerebel"
               width="595"
