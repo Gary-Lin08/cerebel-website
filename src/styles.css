@@ -2587,9 +2587,10 @@ button {
 }
 
 @media (max-width: 560px) {
+  /* Four chapters in about two and a half screens of scrolling on a phone. */
   .product-sequence {
-    height: 340vh;
-    min-height: 1900px;
+    height: 240vh;
+    min-height: 1500px;
   }
 
   .product-sequence__sticky {
