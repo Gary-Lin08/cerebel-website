@@ -617,8 +617,19 @@ function Footer() {
           <a href="mailto:hello@cerebel.tech">hello@cerebel.tech</a>
         </div>
         <div className="footer__meta">
+          <img loading="lazy" decoding="async"
+            className="footer__inception"
+            src="/assets/nvidia-inception-program-badge.svg"
+            alt="Cerebel is a member of NVIDIA Inception"
+            width="500"
+            height="216"
+          />
           <span>© {new Date().getFullYear()} Cerebel AI</span>
         </div>
+        {/* Legal line required by the NVIDIA Inception brand guide wherever the badge appears. */}
+        <p className="footer__legal">
+          © {new Date().getFullYear()} NVIDIA, the NVIDIA logo, and NVIDIA Inception are trademarks and/or registered trademarks of NVIDIA Corporation in the U.S. and other countries.
+        </p>
       </div>
     </footer>
   );
