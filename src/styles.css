@@ -7697,19 +7697,75 @@ button {
   text-transform: uppercase;
 }
 
-/* The badge file carries its own clear space; at 48px the boxed lockup is about 37 x 100px,
-   above NVIDIA's 30px digital minimum and smaller than the 40 x 123px Cerebel wordmark. */
-.footer__inception {
-  --inception-height: 48px;
-  display: block;
-  width: auto;
-  height: var(--inception-height);
-  /* Pull the built-in clear space (25.4 of 216 units) back so the box lines up with the text edge. */
-  margin: 0 calc(var(--inception-height) * -25.4 / 216) 0 auto;
+/* Cerebel, NVIDIA Inception and the Greif Incubator read as one group. The Inception guide
+   requires the badge to stay smaller than our own mark: at 62px the boxed lockup is about
+   47 x 129px, against a 52 x 159px wordmark. */
+.footer .wordmark img {
+  height: 52px;
 }
 
-.footer .wordmark img {
-  height: 40px;
+.footer__programs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 28px;
+  margin: 36px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footer__inception {
+  --inception-height: 62px;
+  display: block;
+  width: auto;
+  max-width: none;
+  height: var(--inception-height);
+  /* The badge file carries its own clear space (25.4 of 216 units); pull it back so the box
+     lines up with the text edge. */
+  margin: calc(var(--inception-height) * -25.4 / 216);
+}
+
+.footer__program-name {
+  display: grid;
+  gap: 8px;
+  padding-left: 24px;
+  border-left: 1px solid var(--line-soft);
+}
+
+/* 34px keeps the USC Marshall mark narrower than the Cerebel wordmark above it. */
+.footer__program-name img {
+  width: auto;
+  max-width: none;
+  height: 34px;
+}
+
+.footer__program-name span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+/* Keep the badge and the Greif name on one line on phones. */
+@media (max-width: 480px) {
+  .footer__programs {
+    flex-wrap: nowrap;
+    gap: 20px;
+  }
+
+  .footer__inception {
+    --inception-height: 54px;
+  }
+
+  .footer__program-name {
+    padding-left: 18px;
+  }
+
+  .footer__program-name img {
+    height: 30px;
+  }
+
+  .footer__program-name span {
+    font-size: 0.74rem;
+  }
 }
 
 .footer__legal {
@@ -8313,10 +8369,6 @@ button {
     padding-top: 24px;
     border-top: 1px solid var(--line);
     text-align: left;
-  }
-
-  .footer__inception {
-    margin: 0 0 0 calc(var(--inception-height) * -25.4 / 216);
   }
 
   .footer__legal {

@@ -607,6 +607,27 @@ function Footer() {
           <p>
             Wearable systems for structured human motion and interaction data.
           </p>
+          <ul className="footer__programs" aria-label="Programs">
+            <li>
+              <img loading="lazy" decoding="async"
+                className="footer__inception"
+                src="/assets/nvidia-inception-program-badge.svg"
+                alt="Cerebel is a member of NVIDIA Inception"
+                width="500"
+                height="216"
+              />
+            </li>
+            <li className="footer__program-name">
+              {/* USC Marshall's own reversed mark from its site footer; the Greif Center has no separate logo file. */}
+              <img loading="lazy" decoding="async"
+                src="/assets/affiliations/usc-marshall-white.svg"
+                alt="USC Marshall"
+                width="309"
+                height="73"
+              />
+              <span>Greif Incubator</span>
+            </li>
+          </ul>
         </div>
         <div className="footer__links">
           {navItems.map(item => <a key={item.href} href={item.href}>{item.label}</a>)}
@@ -617,13 +638,6 @@ function Footer() {
           <a href="mailto:hello@cerebel.tech">hello@cerebel.tech</a>
         </div>
         <div className="footer__meta">
-          <img loading="lazy" decoding="async"
-            className="footer__inception"
-            src="/assets/nvidia-inception-program-badge.svg"
-            alt="Cerebel is a member of NVIDIA Inception"
-            width="500"
-            height="216"
-          />
           <span>© {new Date().getFullYear()} Cerebel AI</span>
         </div>
         {/* Legal line required by the NVIDIA Inception brand guide wherever the badge appears. */}
