@@ -7697,18 +7697,19 @@ button {
   text-transform: uppercase;
 }
 
-/* The badge file carries its own clear space; 40px tall keeps the boxed lockup just above
-   NVIDIA's 30px digital minimum and smaller than the Cerebel wordmark beside it. */
+/* The badge file carries its own clear space; at 48px the boxed lockup is about 37 x 100px,
+   above NVIDIA's 30px digital minimum and smaller than the 40 x 123px Cerebel wordmark. */
 .footer__inception {
+  --inception-height: 48px;
   display: block;
   width: auto;
-  height: 40px;
+  height: var(--inception-height);
   /* Pull the built-in clear space (25.4 of 216 units) back so the box lines up with the text edge. */
-  margin: 0 calc(40px * -25.4 / 216) 0 auto;
+  margin: 0 calc(var(--inception-height) * -25.4 / 216) 0 auto;
 }
 
 .footer .wordmark img {
-  height: 32px;
+  height: 40px;
 }
 
 .footer__legal {
@@ -8315,7 +8316,7 @@ button {
   }
 
   .footer__inception {
-    margin: 0 0 0 calc(40px * -25.4 / 216);
+    margin: 0 0 0 calc(var(--inception-height) * -25.4 / 216);
   }
 
   .footer__legal {
