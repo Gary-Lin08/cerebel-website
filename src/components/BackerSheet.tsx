@@ -6,9 +6,10 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { getAttribution } from "../analytics";
 
-// Where sign-ups are sent. Until this is configured, nothing is stored on a server, and the
-// sheet says so instead of claiming a place on a list that does not exist yet.
-const endpoint = (import.meta.env.VITE_BACKER_ENDPOINT ?? "").trim();
+// Where sign-ups are sent: the site's own /api/backers function (api/backers.js), which keeps one
+// record per email in the deployment's private store. VITE_BACKER_ENDPOINT can point elsewhere.
+const endpoint = (import.meta.env.VITE_BACKER_ENDPOINT ?? "/api/backers").trim();
+// `vite dev` serves no API; a sign-up that cannot reach one is kept in this browser and says so.
 const previewStoreKey = "cerebel.backers.preview";
 const contact = "hello@cerebel.tech";
 
@@ -16,9 +17,9 @@ const uses = ["Sports and coaching", "Robotics and embodied AI", "Research", "Ju
 
 type Outcome =
   | { kind: "idle" | "sending" }
-  | { kind: "listed"; email: string } // stored by the configured endpoint
+  | { kind: "listed"; email: string } // stored by the endpoint
+  | { kind: "already"; email: string } // the endpoint already had this email
   | { kind: "preview"; email: string } // local preview only: saved in this browser
-  | { kind: "mail"; email: string } // no endpoint in production: handed to the visitor's mail app
   | { kind: "failed"; message: string };
 
 const sheetSpring = { type: "spring", stiffness: 300, damping: 32, mass: 0.9 } as const;
@@ -61,6 +62,7 @@ export function BackerButton() {
     const email = String(data.get("email") ?? "").trim();
     const name = String(data.get("name") ?? "").trim();
     const use = String(data.get("use") ?? "");
+    const website = String(data.get("website") ?? "");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setEmailError("Enter a valid email address.");
       emailRef.current?.focus();
@@ -68,23 +70,27 @@ export function BackerButton() {
     }
     setEmailError("");
 
-    if (endpoint) {
-      setOutcome({ kind: "sending" });
-      try {
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email, name, use, list: "glasses-presale", ...getAttribution() }),
-        });
-        if (!response.ok) throw new Error(`Sign-up failed with ${response.status}.`);
-        setOutcome({ kind: "listed", email });
-      } catch {
-        setOutcome({ kind: "failed", message: `We could not save that just now. Try again, or write to ${contact}.` });
+    setOutcome({ kind: "sending" });
+    let status = 0;
+    let message = "";
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, name, use, website, list: "glasses-presale", ...getAttribution() }),
+      });
+      status = response.status;
+      const payload = (await response.json().catch(() => ({}))) as { status?: string; error?: string };
+      if (response.ok) {
+        setOutcome({ kind: payload.status === "already" ? "already" : "listed", email });
+        return;
       }
-      return;
+      message = payload.error ?? "";
+    } catch {
+      // No answer at all: handled below like any other failure.
     }
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && (status === 404 || status === 0)) {
       try {
         const saved: unknown = JSON.parse(localStorage.getItem(previewStoreKey) ?? "[]");
         const list = Array.isArray(saved) ? saved : [];
@@ -96,19 +102,13 @@ export function BackerButton() {
       return;
     }
 
-    // No endpoint on a live build: the visitor's own mail app carries the request, so nothing is lost.
-    const body = [
-      "Please add me to the Cerebel glasses presale list.",
-      "",
-      `Email: ${email}`,
-      name ? `Name: ${name}` : "",
-      use ? `I would use them for: ${use}` : "",
-    ].filter((line, index) => line || index === 1).join("\n");
-    window.location.href = `mailto:${contact}?subject=${encodeURIComponent("Cerebel glasses presale list")}&body=${encodeURIComponent(body)}`;
-    setOutcome({ kind: "mail", email });
+    setOutcome({
+      kind: "failed",
+      message: status === 400 && message ? message : `We could not save that just now. Try again, or write to ${contact}.`,
+    });
   };
 
-  const done = outcome.kind === "listed" || outcome.kind === "preview" || outcome.kind === "mail";
+  const done = outcome.kind === "listed" || outcome.kind === "already" || outcome.kind === "preview";
 
   return (
     <>
@@ -180,21 +180,18 @@ export function BackerButton() {
                             <p className="world-sheet__lede">We'll write to {outcome.email} when presale opens, with the price and the timing.</p>
                           </>
                         ) : null}
-                        {outcome.kind === "mail" ? (
+                        {outcome.kind === "already" ? (
                           <>
-                            <h3 id={titleId}>One step left.</h3>
-                            <p className="world-sheet__lede">
-                              Your mail app should have opened with a message to {contact}. Send it and you're on the list.
-                              If nothing opened, write to us at that address.
-                            </p>
+                            <h3 id={titleId}>You're already on the list.</h3>
+                            <p className="world-sheet__lede">{outcome.email} is already reserved. We'll write when presale opens, with the price and the timing.</p>
                           </>
                         ) : null}
                         {outcome.kind === "preview" ? (
                           <>
                             <h3 id={titleId}>Saved in this preview.</h3>
                             <p className="world-sheet__lede">
-                              {outcome.email} was stored in this browser only. Sign-ups are not being sent to Cerebel yet:
-                              set VITE_BACKER_ENDPOINT to connect the list.
+                              {outcome.email} was stored in this browser only: this development server has no sign-up API.
+                              Run it with `vercel dev` to exercise the real one.
                             </p>
                           </>
                         ) : null}
@@ -223,6 +220,8 @@ export function BackerButton() {
                             aria-describedby={emailError ? `${fieldId}-error` : undefined}
                           />
                           {emailError ? <p className="backer-form__error" id={`${fieldId}-error`}>{emailError}</p> : null}
+                          {/* Never shown to people; a form filler that completes it is a bot. */}
+                          <input className="backer-form__trap" name="website" type="text" tabIndex={-1} autoComplete="off" aria-hidden="true" />
 
                           <div className="backer-form__row">
                             <div>

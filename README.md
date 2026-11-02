@@ -66,6 +66,30 @@ All visible product and application scenes are generated specifically for this p
 - Canonical production domain is cerebel.tech; public contact is hello@cerebel.tech
 - Any validated product specifications, supported formats, partner references, or technical results
 
+## Sign-ups, API and tests
+
+The site has its own backend as Vercel functions in `api/` (shared code in `api/_lib/`):
+
+- `POST /api/backers` — the glasses presale reservation (one record per email, no payment).
+- `POST /api/leads` — the Request a Demo form.
+- `POST /api/events` — accepted and dropped; page analytics are not stored on this hosting.
+- `/api/admin/summary`, `/api/admin/leads?list=leads|backers`, `PATCH /api/admin/leads/:id`, `/api/admin/export?list=…` — behind `Authorization: Bearer <ADMIN_TOKEN>`; `/admin` asks for the token once per browser session.
+
+Records are stored in a private Vercel Blob store (`BLOB_READ_WRITE_TOKEN`). Without it, a non-production build writes JSON files to `.signups/` and production answers 503 and points visitors to hello@cerebel.tech. `RESEND_API_KEY` is optional and emails hello@cerebel.tech for each new sign-up.
+
+Provisioning, once, from a linked checkout:
+
+```bash
+vercel blob store add cerebel-signups          # creates the store and adds BLOB_READ_WRITE_TOKEN to the project
+vercel env add ADMIN_TOKEN production preview  # paste a long random token; it is what /admin asks for
+```
+
+Tests:
+
+- `npm run test:sites` — unit tests, including the API handlers against a memory store and the file store.
+- `npm run test:e2e` — Playwright on desktop, tablet and phone against `vite preview` (build first) with the API faked the same way as the real handlers.
+- `BASE_URL=https://<deployment> npm run test:e2e` — the same checks plus `tests/e2e/api.spec.ts` against the real functions.
+
 ## Deployment
 
 The project is prepared for the bundled Sites runtime. `npm run build` produces:

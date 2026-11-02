@@ -45,6 +45,7 @@ export function DemoForm() {
           organization: data.get("organization"),
           interest: data.get("interest"),
           message: data.get("message"),
+          website: data.get("website"),
           ...getAttribution(),
         }),
       });
@@ -104,6 +105,8 @@ export function DemoForm() {
           ) : null}
         </label>
       </div>
+      {/* Never shown to people; a form filler that completes it is a bot. */}
+      <input className="form-field__trap" name="website" type="text" tabIndex={-1} autoComplete="off" aria-hidden="true" />
       <label className="form-field form-field--message">
         <span>Message</span>
         <textarea

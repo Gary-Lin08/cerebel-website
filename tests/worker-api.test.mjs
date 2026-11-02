@@ -114,7 +114,7 @@ test("protects admin data and supports lead management", async () => {
   const unauthorized = await worker.fetch(request("/api/admin/summary"), { DB });
   assert.equal(unauthorized.status, 401);
 
-  const authHeaders = { "oai-authenticated-user-email": "lin@motionverse.ai" };
+  const authHeaders = { "oai-authenticated-user-email": "garylin@cerebel.tech" };
   const summary = await worker.fetch(request("/api/admin/summary", { headers: authHeaders }), { DB });
   assert.equal(summary.status, 200);
 

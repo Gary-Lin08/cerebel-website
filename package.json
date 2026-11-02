@@ -14,12 +14,16 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:sites": "node --test tests/*.test.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:api": "node --test tests/signups-api.test.mjs",
+    "test:e2e": "playwright test",
+    "test": "npm run test:sites && npm run test:e2e"
   },
   "dependencies": {
     "@fontsource-variable/space-grotesk": "^5.2.8",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@phosphor-icons/react": "^2.1.10",
+    "@vercel/blob": "^2.8.2",
     "@vitejs/plugin-react": "5.0.4",
     "drizzle-orm": "^0.45.2",
     "gsap": "^3.15.0",
@@ -31,6 +35,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.64.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.185.4",

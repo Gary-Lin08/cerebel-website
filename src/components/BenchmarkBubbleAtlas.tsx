@@ -114,7 +114,7 @@ export function BenchmarkBubbleAtlas({ sequenceLength, reference, activeMethod, 
                 key={row.method}
                 className={`benchmark-instrument__lane${selected[0] === row.method ? " is-selected" : ""}${row.method === comparison.leader.method ? " is-leader" : ""}`}
                 aria-pressed={selected[0] === row.method}
-                aria-label={`${row.method} ${metric.label} ${row.exact}`}
+                aria-label={`${row.method} ${row.exact}, ${metric.label}`}
                 onClick={() => onMethodChange(row.method)}
               >
                 <span>{row.method}{row.method === comparison.leader.method && <i aria-label="Metric leader" />}</span>

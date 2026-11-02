@@ -266,7 +266,7 @@
   border: 0;
   color: rgba(11, 10, 13, 0.48);
   background: transparent;
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
@@ -294,7 +294,7 @@
 .product-sequence__rail button span {
   color: #6a3dd1;
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.62rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   letter-spacing: 0.08em;
 }
@@ -315,7 +315,7 @@
 
   .product-sequence__rail button {
     gap: 6px;
-    font-size: 0.74rem;
+    font-size: 0.8125rem;
   }
 }
 
@@ -574,7 +574,7 @@
   color: #0a0610;
   background: #e9e4ef;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
-  font-size: 0.76rem;
+  font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   transform: translateX(-50%);
@@ -582,7 +582,7 @@
 }
 
 .benchmark-caliper__tag strong { margin-right: 4px; font-weight: 600; }
-.benchmark-caliper__tag small { color: #5b5466; font-size: 0.68rem; }
+.benchmark-caliper__tag small { color: #5b5466; font-size: 0.8125rem; }
 .benchmark-caliper__tag i { font-style: normal; }
 
 .benchmark-caliper__grip {
@@ -849,7 +849,7 @@
   margin: 0;
   color: #f4f0fa;
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.62rem;
+  font-size: 0.8125rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -906,7 +906,7 @@
 .world-sheet dt {
   color: rgba(244, 240, 250, 0.52);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.56rem;
+  font-size: 0.8125rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -1037,7 +1037,7 @@
   border-radius: 999px;
   color: #0a0610;
   background: #b594ff;
-  font-size: 0.7rem;
+  font-size: 0.8125rem;
   font-style: normal;
   white-space: nowrap;
 }
@@ -1053,7 +1053,7 @@
   left: 22px;
   margin: 0;
   color: #2b2731;
-  font-size: 0.74rem;
+  font-size: 0.8125rem;
 }
 
 .backer-form {
@@ -1066,7 +1066,7 @@
   margin-bottom: 7px;
   color: rgba(244, 240, 250, 0.62);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.58rem;
+  font-size: 0.8125rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -1111,7 +1111,7 @@
 .backer-form__error {
   margin: 8px 0 0;
   color: #ffa698;
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
 }
 
 .backer-form .world-sheet__link,
@@ -1129,7 +1129,7 @@
 .backer-note {
   margin: 20px 0 0;
   color: rgba(244, 240, 250, 0.5);
-  font-size: 0.74rem;
+  font-size: 0.8125rem;
   line-height: 1.55;
 }
 
@@ -1204,7 +1204,7 @@
   }
 
   .viewer-workspace--embedded .viewer-switcher button strong {
-    font-size: 0.8rem;
+    font-size: 0.8125rem;
     white-space: nowrap;
   }
 }
@@ -1291,4 +1291,74 @@
   .site-shell--refined .hero__evidence-threshold > strong {
     transition: none;
   }
+}
+
+/* Sign-up forms: the field people never see (a bot that fills it is dropped by the API). */
+.backer-form__trap,
+.form-field__trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Admin console: the token prompt. */
+.access-screen__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 22px 0 10px;
+}
+
+.access-screen__form input {
+  min-width: 240px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(244, 240, 250, 0.22);
+  border-radius: 10px;
+  background: rgba(244, 240, 250, 0.06);
+  color: inherit;
+  font: inherit;
+}
+
+.access-screen__form button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent, #9b6cff);
+  color: #08070b;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-export {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Filled buttons: a slightly deeper purple so white text reads at 4.5:1 (the accent itself stays
+   #9b6cff for underlines, dots and selection). Hover keeps the lighter tint. */
+:root {
+  --orange-fill: #8552ff;
+}
+
+.button--primary,
+.nav-cta,
+.mobile-menu nav .mobile-menu__cta,
+.evidence__play,
+.demo-form__footer button,
+.lead-edit button,
+.benchmark__metric-tabs button.is-active {
+  background: var(--orange-fill);
+}
+
+.button--primary:hover,
+.nav-cta:hover,
+.evidence__play:hover,
+.demo-form__footer button:hover {
+  background: #ad7cff;
 }

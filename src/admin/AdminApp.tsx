@@ -51,21 +51,59 @@ interface Lead {
   ipAddress: string;
   ipMasked: string;
   userAgent: string;
-  createdAt: number;
-  updatedAt: number;
+  createdAt: number | string;
+  updatedAt: number | string;
+}
+
+interface Backer {
+  id: string;
+  email: string;
+  name: string;
+  use: string;
+  sourcePage: string;
+  referrer: string;
+  utmSource: string;
+  country: string;
+  city: string;
+  createdAt: number | string;
 }
 
 type LeadStatus = "new" | "contacted" | "qualified" | "closed";
 
 interface Summary {
   period: string;
-  totals: MetricValues;
-  previous: MetricValues;
+  /** false on the Vercel deployment: sign-ups are stored, page analytics are not. */
+  analytics?: boolean;
+  storage?: string;
+  totals: MetricValues & { backers?: number; allBackers?: number };
+  previous: MetricValues & { backers?: number };
   daily: DailyPoint[];
   markets: Array<{ country: string; visitors: number; events: number }>;
   sources: Array<{ source: string; visitors: number }>;
   devices: Array<{ device: string; visitors: number }>;
   recentLeads: Lead[];
+  recentBackers?: Backer[];
+}
+
+// The admin routes take a bearer token (ADMIN_TOKEN in the deployment's environment). It is typed
+// once per browser session and never written into a URL.
+const TOKEN_KEY = "cerebel.admin.token";
+
+function adminToken() {
+  try {
+    return window.sessionStorage.getItem(TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function rememberToken(token: string) {
+  try {
+    if (token) window.sessionStorage.setItem(TOKEN_KEY, token);
+    else window.sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Private mode: the token lives for this page only.
+  }
 }
 
 const statusLabels: Record<LeadStatus, string> = {
@@ -80,7 +118,10 @@ function numeric(value: number | null | undefined) {
 }
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, options);
+  const headers = new Headers(options?.headers);
+  const token = adminToken();
+  if (token) headers.set("authorization", `Bearer ${token}`);
+  const response = await fetch(url, { ...options, headers });
   const body = (await response.json()) as T & { error?: string };
   if (!response.ok) {
     const error = new Error(body.error || "Request failed") as Error & { status?: number };
@@ -95,12 +136,27 @@ function percentChange(current: number, previous: number) {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-function formatDate(timestamp: number, includeTime = false) {
+function formatDate(timestamp: number | string, includeTime = false) {
   return new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
     ...(includeTime ? { hour: "2-digit", minute: "2-digit" } : {}),
-  }).format(timestamp);
+  }).format(typeof timestamp === "string" ? Date.parse(timestamp) : timestamp);
+}
+
+/** Fetch a CSV with the token and hand it to the browser as a download. */
+async function downloadCsv(list: "leads" | "backers") {
+  const response = await fetch(`/api/admin/export?list=${list}`, {
+    headers: { authorization: `Bearer ${adminToken()}` },
+  });
+  if (!response.ok) throw new Error(`Export failed with ${response.status}.`);
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `cerebel-${list}-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function friendlySource(source: string) {
@@ -115,6 +171,7 @@ function friendlySource(source: string) {
 export function AdminApp() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [backers, setBackers] = useState<Backer[]>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [status, setStatus] = useState<LeadStatus | "">("");
   const [query, setQuery] = useState("");
@@ -126,12 +183,14 @@ export function AdminApp() {
     setLoading(true);
     setError("");
     try {
-      const [summaryResult, leadResult] = await Promise.all([
+      const [summaryResult, leadResult, backerResult] = await Promise.all([
         api<Summary>("/api/admin/summary"),
         api<{ leads: Lead[] }>("/api/admin/leads"),
+        api<{ backers: Backer[] }>("/api/admin/leads?list=backers"),
       ]);
       setSummary(summaryResult);
       setLeads(leadResult.leads);
+      setBackers(backerResult.backers ?? []);
       setAuthStatus(null);
     } catch (loadError) {
       const statusCode = (loadError as Error & { status?: number }).status;
@@ -159,7 +218,20 @@ export function AdminApp() {
     });
   }, [leads, query, status]);
 
-  if (authStatus) return <AccessScreen forbidden={authStatus === 403} />;
+  if (authStatus) {
+    return (
+      <AccessScreen
+        forbidden={authStatus === 403}
+        onToken={(token) => {
+          rememberToken(token);
+          setAuthStatus(null);
+          void load();
+        }}
+      />
+    );
+  }
+
+  const analytics = summary?.analytics !== false;
 
   return (
     <div className="admin-shell">
@@ -173,7 +245,7 @@ export function AdminApp() {
           />
         </a>
         <div className="admin-header__actions">
-          <span className="live-indicator"><i /> Live data</span>
+          <span className="live-indicator"><i /> {summary?.storage ? `Stored in ${summary.storage}` : "Live data"}</span>
           <a href="/" target="_blank" rel="noreferrer">
             View website <ArrowSquareOut aria-hidden="true" />
           </a>
@@ -188,7 +260,7 @@ export function AdminApp() {
           <div>
             <p>COMMAND CENTER / 01</p>
             <h1>Website intelligence</h1>
-            <span>Traffic, market interest and demo pipeline in one view.</span>
+            <span>{analytics ? "Traffic, market interest and demo pipeline in one view." : "Demo requests and glasses presale backers from cerebel.tech."}</span>
           </div>
           <div className="admin-period">
             <span>Reporting window</span>
@@ -201,23 +273,39 @@ export function AdminApp() {
         {summary ? (
           <>
             <MetricGrid summary={summary} />
-            <div className="admin-grid admin-grid--wide">
-              <TrendPanel daily={summary.daily} />
-              <DevicePanel devices={summary.devices} />
-            </div>
-            <div className="admin-grid">
-              <MarketPanel markets={summary.markets} />
-              <SourcePanel sources={summary.sources} />
-            </div>
+            {analytics ? (
+              <>
+                <div className="admin-grid admin-grid--wide">
+                  <TrendPanel daily={summary.daily} />
+                  <DevicePanel devices={summary.devices} />
+                </div>
+                <div className="admin-grid">
+                  <MarketPanel markets={summary.markets} />
+                  <SourcePanel sources={summary.sources} />
+                </div>
+              </>
+            ) : null}
+            <section className="admin-panel leads-panel">
+              <div className="panel-heading leads-heading">
+                <div>
+                  <span>GLASSES / PRESALE RESERVATIONS</span>
+                  <h2>Backers</h2>
+                </div>
+                <button type="button" className="admin-export" onClick={() => void downloadCsv("backers").catch((e: Error) => setError(e.message))}>
+                  <DownloadSimple aria-hidden="true" /> Export CSV
+                </button>
+              </div>
+              <BackerTable backers={backers} />
+            </section>
             <section className="admin-panel leads-panel">
               <div className="panel-heading leads-heading">
                 <div>
                   <span>PIPELINE / DEMO REQUESTS</span>
                   <h2>Leads</h2>
                 </div>
-                <a className="admin-export" href="/api/admin/leads/export.csv">
+                <button type="button" className="admin-export" onClick={() => void downloadCsv("leads").catch((e: Error) => setError(e.message))}>
                   <DownloadSimple aria-hidden="true" /> Export CSV
-                </a>
+                </button>
               </div>
               <div className="lead-controls">
                 <label>
@@ -262,17 +350,31 @@ export function AdminApp() {
   );
 }
 
-function AccessScreen({ forbidden }: { forbidden: boolean }) {
+function AccessScreen({ forbidden, onToken }: { forbidden: boolean; onToken: (token: string) => void }) {
+  const [token, setToken] = useState("");
   return (
     <main className="access-screen">
-      <div className="access-screen__mark">MV</div>
+      <div className="access-screen__mark">C</div>
       <p>PRIVATE OPERATIONS CONSOLE</p>
       <h1>{forbidden ? "Account not authorized." : "Sign in required."}</h1>
       <span>
         {forbidden
           ? "This dashboard is restricted to the Cerebel owner account."
-          : "Open this page through your private Cerebel Sites access link."}
+          : "Enter the admin token for this deployment (ADMIN_TOKEN in the Vercel project settings)."}
       </span>
+      <form
+        className="access-screen__form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (token.trim()) onToken(token.trim());
+        }}
+      >
+        <label>
+          <span className="sr-only">Admin token</span>
+          <input type="password" value={token} onChange={(event) => setToken(event.target.value)} autoComplete="current-password" placeholder="Admin token" />
+        </label>
+        <button type="submit">Open console</button>
+      </form>
       <a href="/">Return to website <ArrowUpRight aria-hidden="true" /></a>
     </main>
   );
@@ -287,7 +389,32 @@ function DashboardSkeleton() {
 }
 
 function MetricGrid({ summary }: { summary: Summary }) {
-  const metrics = [
+  const metrics = summary.analytics === false ? [
+    {
+      label: "Demo leads (30d)",
+      value: numeric(summary.totals.leads),
+      previous: numeric(summary.previous.leads),
+      icon: CheckCircle,
+    },
+    {
+      label: "Presale backers (30d)",
+      value: numeric(summary.totals.backers),
+      previous: numeric(summary.previous.backers),
+      icon: UsersThree,
+    },
+    {
+      label: "All leads",
+      value: numeric(summary.totals.allLeads),
+      previous: numeric(summary.totals.allLeads),
+      icon: ChartLineUp,
+    },
+    {
+      label: "All backers",
+      value: numeric(summary.totals.allBackers),
+      previous: numeric(summary.totals.allBackers),
+      icon: MouseSimple,
+    },
+  ] : [
     {
       label: "Unique visitors",
       value: numeric(summary.totals.visitors),
@@ -459,6 +586,29 @@ function EmptyState({ text }: { text: string }) {
   return <p className="empty-state">{text}</p>;
 }
 
+function BackerTable({ backers }: { backers: Backer[] }) {
+  if (!backers.length) return <EmptyState text="No presale reservations yet." />;
+  return (
+    <div className="lead-table-wrap">
+      <table className="lead-table">
+        <thead><tr><th>Email</th><th>Name</th><th>Would use them for</th><th>Market</th><th>Source</th><th>Received</th></tr></thead>
+        <tbody>
+          {backers.map((backer) => (
+            <tr key={backer.id}>
+              <td><strong>{backer.email}</strong></td>
+              <td>{backer.name || "—"}</td>
+              <td>{backer.use || "—"}</td>
+              <td>{[backer.city, backer.country].filter(Boolean).join(", ") || "Unknown"}</td>
+              <td>{backer.utmSource || friendlySource(backer.referrer) || "Direct"}</td>
+              <td>{formatDate(backer.createdAt, true)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function LeadTable({ leads, onSelect }: { leads: Lead[]; onSelect: (lead: Lead) => void }) {
   if (!leads.length) return <EmptyState text="No leads match this view yet." />;
   return (
@@ -471,7 +621,7 @@ function LeadTable({ leads, onSelect }: { leads: Lead[]; onSelect: (lead: Lead) 
               <td><strong>{lead.name}</strong><span>{lead.email}</span></td>
               <td>{lead.organization}</td>
               <td>{lead.interest}</td>
-              <td><strong>{[lead.city, lead.country].filter(Boolean).join(", ") || "Unknown"}</strong><span>{lead.ipAddress || "No IP"}</span></td>
+              <td><strong>{[lead.city, lead.country].filter(Boolean).join(", ") || "Unknown"}</strong><span>{lead.ipAddress || lead.utmSource || friendlySource(lead.referrer) || "Direct"}</span></td>
               <td><span className={`status-pill status-pill--${lead.status}`}>{statusLabels[lead.status]}</span></td>
               <td>{formatDate(lead.createdAt, true)}</td>
             </tr>
@@ -529,7 +679,7 @@ function LeadDrawer({
           <div><dt>Interest</dt><dd>{lead.interest}</dd></div>
           <div><dt>Received</dt><dd>{formatDate(lead.createdAt, true)}</dd></div>
           <div><dt>Location</dt><dd>{[lead.city, lead.region, lead.country].filter(Boolean).join(", ") || "Unknown"}</dd></div>
-          <div><dt>Raw IP address</dt><dd className="mono">{lead.ipAddress || "Unavailable"}</dd></div>
+          {lead.ipAddress ? <div><dt>Raw IP address</dt><dd className="mono">{lead.ipAddress}</dd></div> : null}
           <div><dt>Attribution</dt><dd>{lead.utmSource || friendlySource(lead.referrer) || "Direct"}</dd></div>
         </dl>
         <div className="lead-message"><span>MESSAGE</span><p>{lead.message}</p></div>
