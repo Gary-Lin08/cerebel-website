@@ -6,9 +6,13 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { getAttribution } from "../analytics";
 
-// Where sign-ups are sent. Until this is configured, nothing is stored on a server, and the
-// sheet says so instead of claiming a place on a list that does not exist yet.
-const endpoint = (import.meta.env.VITE_BACKER_ENDPOINT ?? "").trim();
+// Where sign-ups are sent: a public Supabase function, so they do not depend on the Playground server.
+// The key is the publishable one and can only call that function; the list itself cannot be read with it.
+// A local dev build sends nothing unless configured, and the sheet says so.
+const liveEndpoint = "https://zmwcglopxlsbewvegoyw.supabase.co/rest/v1/rpc/join_backer_list";
+const liveKey = "sb_publishable_S21fJaJ1EVKxDJp6V65oIA_C3zEQFNP";
+const endpoint = (import.meta.env.VITE_BACKER_ENDPOINT ?? (import.meta.env.PROD ? liveEndpoint : "")).trim();
+const apiKey = (import.meta.env.VITE_BACKER_API_KEY ?? (import.meta.env.PROD ? liveKey : "")).trim();
 const previewStoreKey = "cerebel.backers.preview";
 const contact = "hello@cerebel.tech";
 
@@ -70,11 +74,12 @@ export function BackerButton() {
 
     if (endpoint) {
       setOutcome({ kind: "sending" });
+      const signup = { email, name, use, list: "glasses-presale", ...getAttribution() };
       try {
         const response = await fetch(endpoint, {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email, name, use, list: "glasses-presale", ...getAttribution() }),
+          headers: { "content-type": "application/json", ...(apiKey ? { apikey: apiKey } : {}) },
+          body: JSON.stringify(apiKey ? { p: signup } : signup),
         });
         if (!response.ok) throw new Error(`Sign-up failed with ${response.status}.`);
         setOutcome({ kind: "listed", email });
