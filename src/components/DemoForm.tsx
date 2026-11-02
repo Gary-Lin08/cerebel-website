@@ -5,7 +5,17 @@ import { WarningCircle } from "@phosphor-icons/react/WarningCircle";
 import { interestOptions } from "../content";
 import { getAttribution, trackEvent } from "../analytics";
 
-type FormStatus = "idle" | "loading" | "success" | "error";
+type FormStatus = "idle" | "loading" | "success" | "preview" | "error";
+
+// Where demo requests are sent: a public Supabase function, the same way the presale sheet works, so a
+// request does not depend on the Playground server. The key is the publishable one and can only call
+// that function; the table itself cannot be read with it. A local dev build sends nothing unless
+// configured, and the form says so.
+const liveEndpoint = "https://zmwcglopxlsbewvegoyw.supabase.co/rest/v1/rpc/submit_demo_request";
+const liveKey = "sb_publishable_S21fJaJ1EVKxDJp6V65oIA_C3zEQFNP";
+const endpoint = (import.meta.env.VITE_DEMO_ENDPOINT ?? (import.meta.env.PROD ? liveEndpoint : "")).trim();
+const apiKey = (import.meta.env.VITE_BACKER_API_KEY ?? (import.meta.env.PROD ? liveKey : "")).trim();
+const contact = "hello@cerebel.tech";
 
 export function DemoForm() {
   const [status, setStatus] = useState<FormStatus>("idle");
@@ -34,28 +44,39 @@ export function DemoForm() {
       return;
     }
 
+    if (!endpoint) {
+      // `vite dev` without VITE_DEMO_ENDPOINT: nothing is sent, and the form says so.
+      setStatus("preview");
+      return;
+    }
+
     setStatus("loading");
+    const request = {
+      name: String(data.get("name")),
+      email: String(data.get("email")).trim(),
+      organization: String(data.get("organization")),
+      interest: String(data.get("interest")),
+      message: String(data.get("message")),
+      ...getAttribution(),
+    };
     try {
-      const response = await fetch("/api/leads", {
+      const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          name: data.get("name"),
-          email: data.get("email"),
-          organization: data.get("organization"),
-          interest: data.get("interest"),
-          message: data.get("message"),
-          ...getAttribution(),
-        }),
+        headers: { "content-type": "application/json", ...(apiKey ? { apikey: apiKey } : {}) },
+        body: JSON.stringify(apiKey ? { p: request } : request),
       });
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error || "Unable to submit your request.");
+      if (!response.ok) {
+        // PostgREST reports a function's own message as `message`; other backends use `error`.
+        const payload = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
+        const reason = response.status === 400 ? payload.error || payload.message : "";
+        throw new Error(reason || `We could not send that just now. Try again, or write to ${contact}.`);
+      }
       setStatus("success");
       form.reset();
     } catch (error) {
       setStatus("error");
       setErrors({
-        form: error instanceof Error ? error.message : "Unable to submit your request.",
+        form: error instanceof Error && error.message ? error.message : `We could not send that just now. Try again, or write to ${contact}.`,
       });
     }
   };
@@ -126,6 +147,12 @@ export function DemoForm() {
             <>
               <CheckCircle weight="fill" aria-hidden="true" />
               Thank you. We have your request and will follow up.
+            </>
+          ) : null}
+          {status === "preview" ? (
+            <>
+              <WarningCircle weight="fill" aria-hidden="true" />
+              Not sent: this development build has no form endpoint. Set VITE_DEMO_ENDPOINT to connect it.
             </>
           ) : null}
           {status === "error" && Object.keys(errors).length > 0 ? (

@@ -5,7 +5,7 @@ import {
   motion,
   useReducedMotion,
 } from "motion/react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DemoForm } from "./components/DemoForm";
 import { BenchmarkBubbleAtlas } from "./components/BenchmarkBubbleAtlas";
 import { LegacyCerebelScrollSequence as CerebelScrollSequence } from "./components/CerebelScrollSequence";
@@ -17,7 +17,7 @@ import { SectionHeading } from "./components/SectionHeading";
 import { WorldsBento } from "./components/WorldsBento";
 import { MotionSection } from "./components/motion/MotionSection";
 import { navItems, playgroundHref } from "./content";
-import { useActiveSection, useCompact, useNearViewport } from "./hooks";
+import { useActiveSection, useAnchorCorrection, useCompact, useNearViewport } from "./hooks";
 import { useAnalytics } from "./analytics";
 
 const MotionViewerWorkspace = lazy(() =>
@@ -41,6 +41,7 @@ const sectionIds = [
 
 export function App() {
   useAnalytics();
+  useAnchorCorrection();
   const activeSection = useActiveSection(sectionIds);
 
   if (typeof window !== "undefined" && window.location.pathname === "/logo") {
@@ -79,18 +80,22 @@ function Hero() {
           {heroLines.map((line, lineIndex) => (
             <span className="hero__line" key={line}>
               {line.split(" ").map((word, wordIndex) => (
-                <motion.span
-                  key={`${line}-${word}-${wordIndex}`}
-                  initial={skipReveal ? false : { y: "110%", opacity: 0 }}
-                  animate={{ y: "0%", opacity: 1 }}
-                  transition={{
-                    duration: 0.92,
-                    delay: 0.08 + lineIndex * 0.16 + wordIndex * 0.05,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                >
-                  {word}
-                </motion.span>
+                // A real space between the words, so the headline copies, indexes and reads as text;
+                // it sits between the spans, where a line break swallows it.
+                <Fragment key={`${line}-${word}-${wordIndex}`}>
+                  {wordIndex ? " " : null}
+                  <motion.span
+                    initial={skipReveal ? false : { y: "110%", opacity: 0 }}
+                    animate={{ y: "0%", opacity: 1 }}
+                    transition={{
+                      duration: 0.6,
+                      delay: 0.04 + lineIndex * 0.1 + wordIndex * 0.035,
+                      ease: [0.16, 1, 0.3, 1],
+                    }}
+                  >
+                    {word}
+                  </motion.span>
+                </Fragment>
               ))}
             </span>
           ))}
@@ -658,11 +663,12 @@ function FooterStatement() {
     <div className="footer__statement">
       {/* The paragraph is the in-view trigger: the lines themselves start clipped, so they never intersect. */}
       <motion.p
-        aria-label={footerLines.join(" ")}
         initial={reduceMotion ? false : "hidden"}
         whileInView="shown"
         viewport={{ once: true, amount: 0.5 }}
       >
+        {/* Read as one sentence; the animated lines below are presentation only. */}
+        <span className="sr-only">{footerLines.join(" ")}</span>
         {footerLines.map((line, index) => (
           <span className="footer__statement-line" key={line} aria-hidden="true">
             <motion.span

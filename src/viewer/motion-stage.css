@@ -40,7 +40,7 @@
   margin: 0;
   color: #9a93a6;
   font-family: var(--mono, "IBM Plex Mono", monospace);
-  font-size: 0.64rem;
+  font-size: 0.8125rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   pointer-events: none;
@@ -59,7 +59,7 @@
   justify-content: center;
   gap: 10px;
   color: #a9a2b4;
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
   background: #050505;
 }
 
@@ -181,7 +181,7 @@
 }
 
 .motion-stage__time output { min-width: 3.2ch; text-align: right; }
-.motion-stage__time span { color: #8a8296; font-size: 0.72rem; }
+.motion-stage__time span { color: #8a8296; font-size: 0.8125rem; }
 
 .motion-stage__segment {
   display: flex;
@@ -199,7 +199,7 @@
   border-radius: 999px;
   color: #bcb5c6;
   background: transparent;
-  font-size: 0.76rem;
+  font-size: 0.8125rem;
   transition: color 220ms ease, transform 200ms var(--ease-out);
 }
 
@@ -224,7 +224,7 @@
   border: 0;
   color: #bcb5c6;
   background: transparent;
-  font-size: 0.76rem;
+  font-size: 0.8125rem;
   transition: color 220ms ease;
 }
 
