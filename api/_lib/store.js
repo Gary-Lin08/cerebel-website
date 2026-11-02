@@ -177,10 +177,12 @@ export async function defaultStore() {
     shared = createBlobStore(await import("@vercel/blob"));
   } else if (process.env.SIGNUPS_DIR) {
     shared = createFileStore(process.env.SIGNUPS_DIR);
-  } else if (process.env.VERCEL_ENV !== "production") {
+  } else if (!process.env.VERCEL) {
+    // A developer's machine (`vercel dev`, tests): JSON files next to the checkout.
     shared = createFileStore(path.resolve(process.cwd(), ".signups"));
   } else {
-    shared = null; // production with no storage: handlers answer 503 and say so
+    // On Vercel the filesystem is read-only: without a Blob token, handlers answer 503 and say so.
+    shared = null;
   }
   return shared;
 }
