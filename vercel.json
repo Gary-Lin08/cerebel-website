@@ -33,6 +33,7 @@
   ],
   "rewrites": [
     { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/admin/", "destination": "/admin.html" },
     { "source": "/admin/:path*", "destination": "/admin.html" },
     { "source": "/viewer", "destination": "/index.html" },
     { "source": "/viewer/:path*", "destination": "/index.html" },
