@@ -20,6 +20,7 @@
     "@fontsource-variable/space-grotesk": "^5.2.8",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@phosphor-icons/react": "^2.1.10",
+    "@supabase/supabase-js": "2.117.3",
     "@vitejs/plugin-react": "5.0.4",
     "drizzle-orm": "^0.45.2",
     "gsap": "^3.15.0",
