@@ -5,12 +5,13 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { getAttribution } from "../analytics";
+import { rpcUrl, supabasePublishableKey } from "../supabase";
 
 // Where sign-ups are sent: a public Supabase function, so they do not depend on the Playground server.
 // The key is the publishable one and can only call that function; the list itself cannot be read with it.
 // A local dev build sends nothing unless configured, and the sheet says so.
-const liveEndpoint = "https://zmwcglopxlsbewvegoyw.supabase.co/rest/v1/rpc/join_backer_list";
-const liveKey = "sb_publishable_S21fJaJ1EVKxDJp6V65oIA_C3zEQFNP";
+const liveEndpoint = rpcUrl("join_backer_list");
+const liveKey = supabasePublishableKey;
 const endpoint = (import.meta.env.VITE_BACKER_ENDPOINT ?? (import.meta.env.PROD ? liveEndpoint : "")).trim();
 const apiKey = (import.meta.env.VITE_BACKER_API_KEY ?? (import.meta.env.PROD ? liveKey : "")).trim();
 const previewStoreKey = "cerebel.backers.preview";

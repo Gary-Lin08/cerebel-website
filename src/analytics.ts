@@ -1,10 +1,13 @@
 import { useEffect } from "react";
+import { rpcUrl, supabasePublishableKey } from "./supabase";
 
 const SESSION_KEY = "motionverse_session_id";
 // The same random browser ID the Playground uses, so one visitor counts once across both.
 const VISITOR_KEY = "cerebel_visitor_v1";
-// Reached through the project's /playground proxy. If that server is down, nothing here may bother the visitor.
-const endpoint = (import.meta.env.VITE_EVENTS_ENDPOINT ?? "/playground/api/site/ping").trim();
+// Straight to Supabase, so visits are counted even while the Playground server is down. A local dev
+// build sends nothing unless VITE_EVENTS_ENDPOINT is set. Nothing here may ever bother the visitor.
+const endpoint = (import.meta.env.VITE_EVENTS_ENDPOINT ?? (import.meta.env.PROD ? rpcUrl("record_site_event") : "")).trim();
+const apiKey = (import.meta.env.VITE_EVENTS_API_KEY ?? (import.meta.env.PROD ? supabasePublishableKey : "")).trim();
 const HEARTBEAT_MS = 30_000;
 const MAX_FAILURES = 3;
 
@@ -61,18 +64,19 @@ export async function trackEvent(
   eventType: "page_view" | "cta_click" | "form_start" | "heartbeat",
   details: { target?: string; label?: string } = {},
 ) {
-  if (failures >= MAX_FAILURES) return;
+  if (!endpoint || failures >= MAX_FAILURES) return;
   try {
+    const event = {
+      eventType,
+      site: "main",
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+      ...details,
+      ...getAttribution(),
+    };
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        eventType,
-        site: "main",
-        tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
-        ...details,
-        ...getAttribution(),
-      }),
+      headers: { "content-type": "application/json", ...(apiKey ? { apikey: apiKey } : {}) },
+      body: JSON.stringify(apiKey ? { p: event } : event),
       keepalive: true,
     });
     failures = response.ok ? 0 : failures + 1;
