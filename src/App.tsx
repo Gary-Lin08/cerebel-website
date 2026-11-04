@@ -636,6 +636,7 @@ function Footer() {
         <div className="footer__links">
           <span>Direct contact</span>
           <a href="mailto:hello@cerebel.tech">hello@cerebel.tech</a>
+          <a href="/privacy">Privacy</a>
         </div>
         <div className="footer__meta">
           <span>© {new Date().getFullYear()} Cerebel AI</span>

@@ -252,7 +252,7 @@ export function BackerButton() {
                           </button>
                         </form>
                         <p className="backer-note">
-                          Joining is free and does not commit you to buy; no payment is taken. We use your email only for presale news.
+                          Joining is free and does not commit you to buy; no payment is taken. We use your email only for presale news (<a href="/privacy">privacy</a>).
                           The glasses shown are a development concept, not a finished product, and features and timing can change.
                         </p>
                       </>
