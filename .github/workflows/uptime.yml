@@ -1,0 +1,40 @@
+# Every 15 minutes: is cerebel.tech up, does the admin dashboard load, does the Supabase database answer?
+# A failed run makes GitHub email the account that last changed this file. The Supabase call also keeps
+# the free project from being paused for a week without traffic. The key is the publishable one that
+# every visitor's browser already has; it can only call the public functions.
+name: uptime
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Check site, dashboard and database
+        env:
+          SUPABASE_URL: https://zmwcglopxlsbewvegoyw.supabase.co
+          SUPABASE_KEY: sb_publishable_S21fJaJ1EVKxDJp6V65oIA_C3zEQFNP
+        run: |
+          set -u
+          # Three tries, 20 seconds apart, so one slow answer is not an outage.
+          try() {
+            local name="$1"; shift
+            for attempt in 1 2 3; do
+              if "$@"; then echo "OK   $name"; return 0; fi
+              sleep 20
+            done
+            echo "FAIL $name"; return 1
+          }
+          page() { curl -fsS -m 20 -A "cerebel-uptime" "$1?uptime=$RANDOM" | grep -q "$2"; }
+          db() { curl -fsS -m 20 -X POST "$SUPABASE_URL/rest/v1/rpc/ping" -H "apikey: $SUPABASE_KEY" -H "content-type: application/json" -d '{}' | grep -q '"ok"'; }
+          failed=0
+          try "cerebel.tech"        page https://cerebel.tech/ "<title>" || failed=1
+          try "cerebel.tech/admin"  page https://cerebel.tech/admin "CeRebel 后台" || failed=1
+          try "Supabase database"   db || failed=1
+          exit $failed
