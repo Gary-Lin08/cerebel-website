@@ -4,9 +4,13 @@
 // The Vercel project's "Playground app" rule runs before this file, so that rule has to skip page opens
 // (missing header Sec-Fetch-Dest: document) for them to arrive here. API calls, videos and scripts stay
 // on the rule. Our own request below has no such header, so the rule takes it to the server.
+//
+// Document HTML can be large and the hop to the GPU host is slow, so we first poke /api/health
+// (small JSON) and only then pull the page — with compression allowed and a longer budget.
 export const config = { matcher: ["/playground", "/playground/:path*"] };
 
-const WAIT_MS = 8000;
+const HEALTH_MS = 5000;
+const PAGE_MS = 25000;
 
 export const DOWN_PAGE = `<!doctype html>
 <html lang="en">
@@ -49,16 +53,40 @@ export const DOWN_PAGE = `<!doctype html>
 </html>
 `;
 
-export default async function middleware(request) {
-  if (request.method !== "GET" || request.headers.get("sec-fetch-dest") !== "document") return undefined;
+function proxyHeaders(request, accept) {
   const headers = new Headers(request.headers);
   headers.delete("sec-fetch-dest");
-  headers.set("accept-encoding", "identity");
+  if (accept) headers.set("accept", accept);
+  return headers;
+}
+
+export default async function middleware(request) {
+  if (request.method !== "GET" || request.headers.get("sec-fetch-dest") !== "document") return undefined;
+
+  const healthUrl = new URL("/playground/api/health", request.url);
   try {
-    const response = await fetch(request.url, { headers, redirect: "manual", signal: AbortSignal.timeout(WAIT_MS) });
+    const health = await fetch(healthUrl, {
+      headers: proxyHeaders(request, "application/json"),
+      redirect: "manual",
+      signal: AbortSignal.timeout(HEALTH_MS),
+    });
+    if (!health.ok) throw new Error("unhealthy");
+  } catch {
+    return new Response(DOWN_PAGE, {
+      status: 503,
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "retry-after": "120" },
+    });
+  }
+
+  try {
+    const response = await fetch(request.url, {
+      headers: proxyHeaders(request),
+      redirect: "manual",
+      signal: AbortSignal.timeout(PAGE_MS),
+    });
     if (response.status < 500) return response;
   } catch {
-    // No answer in time is the same as a 502.
+    // Page transfer failed after health said up — still show the waiting page.
   }
   return new Response(DOWN_PAGE, {
     status: 503,
