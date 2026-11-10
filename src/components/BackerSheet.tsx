@@ -4,8 +4,12 @@ import { X } from "@phosphor-icons/react/X";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { getAttribution } from "../analytics";
+import { getAttribution, trackEvent } from "../analytics";
 import { rpcUrl, supabasePublishableKey } from "../supabase";
+
+// cerebel.tech/#backer opens the sheet on arrival, so a post or a QR code skips the scroll to the glasses.
+// Put any ?utm_… before the hash: sign-ups take utm_source and utm_campaign from the query string.
+const linkHash = "#backer";
 
 // Where sign-ups are sent: a public Supabase function, so they do not depend on the Playground server.
 // The key is the publishable one and can only call that function; the list itself cannot be read with it.
@@ -57,8 +61,25 @@ export function BackerButton() {
       page?.removeAttribute("inert");
       window.removeEventListener("keydown", onKeyDown);
       trigger?.focus({ preventScroll: true });
+      // Closing ends the link's job: a reload stays on the page, and the same link opens the sheet again.
+      if (window.location.hash === linkHash) {
+        window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+      }
     };
   }, [open]);
+
+  useEffect(() => {
+    const openFromLink = () => {
+      if (window.location.hash !== linkHash) return;
+      // Behind the sheet sits the glasses chapter, so closing it lands on the glasses and this button.
+      document.getElementById("wearable")?.scrollIntoView({ behavior: "instant", block: "start" });
+      setOpen(true);
+      void trackEvent("cta_click", { target: "backer-link", label: "Become a backer (link)" });
+    };
+    openFromLink();
+    window.addEventListener("hashchange", openFromLink);
+    return () => window.removeEventListener("hashchange", openFromLink);
+  }, []);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
