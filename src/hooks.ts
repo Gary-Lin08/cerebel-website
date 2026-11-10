@@ -80,3 +80,46 @@ export function useActiveSection(ids: string[]) {
 
   return activeSection;
 }
+
+/**
+ * Keeps in-page anchor scrolls honest. The Motion workspace mounts as the page scrolls past it and
+ * grows its chapter by about a screen, so a smooth scroll that started above it would stop short of
+ * the chapter the visitor asked for. For a few seconds after a hash link is followed (or the page
+ * opens on a hash), any change in the page's height re-aims the scroll at that target.
+ */
+export function useAnchorCorrection(windowMs = 3000) {
+  useEffect(() => {
+    let target = window.location.hash.slice(1);
+    let until = target ? performance.now() + windowMs : 0;
+    const main = document.querySelector("main");
+    if (!main || !("ResizeObserver" in window)) return;
+
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey) return;
+      const link = (event.target as Element).closest<HTMLAnchorElement>('a[href^="#"]');
+      if (!link) return;
+      target = link.getAttribute("href")!.slice(1);
+      until = performance.now() + windowMs;
+    };
+    const onHashChange = () => {
+      target = window.location.hash.slice(1);
+      until = performance.now() + windowMs;
+    };
+    const observer = new ResizeObserver(() => {
+      if (!target || performance.now() > until) return;
+      const element = document.getElementById(target);
+      if (!element) return;
+      const top = element.getBoundingClientRect().top + window.scrollY;
+      if (Math.abs(window.scrollY - top) < 2) return;
+      window.scrollTo({ top, behavior: "smooth" });
+    });
+    observer.observe(main);
+    document.addEventListener("click", onClick);
+    window.addEventListener("hashchange", onHashChange);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("click", onClick);
+      window.removeEventListener("hashchange", onHashChange);
+    };
+  }, [windowMs]);
+}

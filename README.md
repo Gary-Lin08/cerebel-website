@@ -66,6 +66,14 @@ All visible product and application scenes are generated specifically for this p
 - Canonical production domain is cerebel.tech; public contact is hello@cerebel.tech
 - Any validated product specifications, supported formats, partner references, or technical results
 
+## Sign-ups and tests
+
+Backer sign-ups and demo requests go straight from the browser to two Supabase functions (`join_backer_list`, `submit_demo_request`) in the `cerebel-site` project, with the publishable key; the tables behind them are not readable with that key. Admin functions take the dashboard token. Visitor pings go to the Playground server. Details and the reasoning are in `AGENTS.md` (November 2).
+
+- `npm run test:sites` — unit tests.
+- `npm run build && npm run test:e2e` — Playwright on desktop, tablet and phone against `vite preview`, with the sign-up functions faked the way they answer; plus validation checks against the real functions that never write a row.
+- `BASE_URL=https://<deployment> npm run test:e2e` — the page checks on a deployment (needs one without Vercel Authentication).
+
 ## Deployment
 
 The project is prepared for the bundled Sites runtime. `npm run build` produces:

@@ -8,3 +8,7 @@ dist/
 tmp/
 assets/raw/cerebel-scroll/
 *.blend1
+.signups/
+tests/e2e/.report/
+tests/e2e/.results/
+.taste-skill/

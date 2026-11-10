@@ -1,4 +1,4 @@
-const ADMIN_EMAILS = new Set(["lin@motionverse.ai", "kaijunlin08@outlook.com"]);
+const ADMIN_EMAILS = new Set(["garylin@cerebel.tech", "hello@cerebel.tech"]);
 const LEAD_STATUSES = new Set(["new", "contacted", "qualified", "closed"]);
 const EVENT_TYPES = new Set(["page_view", "cta_click", "form_start", "form_submit"]);
 
