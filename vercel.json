@@ -37,6 +37,7 @@
     { "source": "/admin/:path*", "destination": "/admin.html" },
     { "source": "/viewer", "destination": "/index.html" },
     { "source": "/viewer/:path*", "destination": "/index.html" },
-    { "source": "/logo", "destination": "/index.html" }
+    { "source": "/logo", "destination": "/index.html" },
+    { "source": "/privacy", "destination": "/privacy.html" }
   ]
 }
