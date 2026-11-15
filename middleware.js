@@ -1,14 +1,11 @@
-// When the Playground server is down, show a clear waiting page instead of an empty 502.
+// Playground traffic is proxied by vercel.json rewrites to the GPU origin.
 //
-// Happy-path HTML/API are proxied by vercel.json rewrites to the GPU origin. This middleware
-// only gates browser document opens: a quick health probe, then fall through to the rewrite.
-// It used to re-fetch and stream the HTML from Edge, which hung or false-offlined often.
+// We used to health-check document opens here and stream HTML from Edge. That
+// false-offlined the app (Edge often cannot reach the tunnel / same-host
+// subrequests stall). Keep this file as a no-op so older deploys that expect
+// middleware.js still build; do not reintroduce an Edge fetch gate without a
+// proven path from Vercel Edge to the Playground host.
 export const config = { matcher: ["/playground", "/playground/:path*"] };
-
-const HEALTH_MS = 5000;
-
-// Same host vercel.json rewrites target. Override with PLAYGROUND_ORIGIN in Vercel env.
-const DEFAULT_ORIGIN = "https://0i5-79nucyondu7h6sp1a-cdhea2bq-custom.service.onethingrobot.com";
 
 export const DOWN_PAGE = `<!doctype html>
 <html lang="en">
@@ -51,53 +48,6 @@ export const DOWN_PAGE = `<!doctype html>
 </html>
 `;
 
-function playgroundOrigin() {
-  const raw = (typeof process !== "undefined" && process.env && process.env.PLAYGROUND_ORIGIN) || DEFAULT_ORIGIN;
-  return String(raw).replace(/\/$/, "");
-}
-
-function healthUrls(request) {
-  const origin = `${playgroundOrigin()}/playground/api/health`;
-  const site = new URL("/playground/api/health", request.url).href;
-  return origin === site ? [origin] : [origin, site];
-}
-
-function cleanHeaders() {
-  return new Headers({
-    "user-agent": "cerebel-playground-middleware",
-    accept: "application/json",
-  });
-}
-
-async function healthOk(request) {
-  const tasks = healthUrls(request).map(async (url) => {
-    const response = await fetch(url, {
-      headers: cleanHeaders(),
-      redirect: "manual",
-      signal: AbortSignal.timeout(HEALTH_MS),
-      cache: "no-store",
-    });
-    if (!response.ok) throw new Error(String(response.status));
-    return true;
-  });
-  await Promise.any(tasks);
-  return true;
-}
-
-export default async function middleware(request) {
-  if (request.method !== "GET" || request.headers.get("sec-fetch-dest") !== "document") {
-    return undefined;
-  }
-
-  try {
-    await healthOk(request);
-  } catch {
-    return new Response(DOWN_PAGE, {
-      status: 503,
-      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "retry-after": "120" },
-    });
-  }
-
-  // Healthy: let vercel.json rewrite proxy the real Playground HTML.
+export default async function middleware() {
   return undefined;
 }
