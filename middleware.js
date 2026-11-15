@@ -3,14 +3,18 @@
 //
 // The Vercel project's "Playground app" rule runs before this file, so that rule has to skip page opens
 // (missing header Sec-Fetch-Dest: document) for them to arrive here. API calls, videos and scripts stay
-// on the rule. Our own request below has no such header, so the rule takes it to the server.
+// on the rule.
 //
-// Document HTML can be large and the hop to the GPU host is slow, so we first poke /api/health
-// (small JSON) and only then pull the page — with compression allowed and a longer budget.
+// Document opens used to re-fetch https://cerebel.tech/playground/... from Edge middleware. That
+// same-host hop often stalled past the health budget and showed a false "offline" page even while
+// /api/health was fine. Probe the GPU origin directly (PLAYGROUND_ORIGIN) with clean headers.
 export const config = { matcher: ["/playground", "/playground/:path*"] };
 
-const HEALTH_MS = 5000;
+const HEALTH_MS = 8000;
 const PAGE_MS = 25000;
+
+// Same host the Vercel "Playground app" rewrite targets (CeRebel / onething tunnel).
+const DEFAULT_ORIGIN = "https://0i5-79nucyondu7h6sp1a-cdhea2bq-custom.service.onethingrobot.com";
 
 export const DOWN_PAGE = `<!doctype html>
 <html lang="en">
@@ -53,22 +57,35 @@ export const DOWN_PAGE = `<!doctype html>
 </html>
 `;
 
-function proxyHeaders(request, accept) {
-  const headers = new Headers(request.headers);
-  headers.delete("sec-fetch-dest");
-  if (accept) headers.set("accept", accept);
+function playgroundOrigin() {
+  const raw = (typeof process !== "undefined" && process.env && process.env.PLAYGROUND_ORIGIN) || DEFAULT_ORIGIN;
+  return String(raw).replace(/\/$/, "");
+}
+
+function originUrl(pathWithQuery) {
+  return playgroundOrigin() + (pathWithQuery.startsWith("/") ? pathWithQuery : `/${pathWithQuery}`);
+}
+
+function cleanHeaders(accept) {
+  // Do not forward browser cookies / sec-fetch — those can stall the Edge→origin hop.
+  const headers = new Headers({
+    "user-agent": "cerebel-playground-middleware",
+    accept: accept || "*/*",
+  });
   return headers;
 }
 
 export default async function middleware(request) {
   if (request.method !== "GET" || request.headers.get("sec-fetch-dest") !== "document") return undefined;
 
-  const healthUrl = new URL("/playground/api/health", request.url);
+  const incoming = new URL(request.url);
+  const healthUrl = originUrl("/playground/api/health");
   try {
     const health = await fetch(healthUrl, {
-      headers: proxyHeaders(request, "application/json"),
+      headers: cleanHeaders("application/json"),
       redirect: "manual",
       signal: AbortSignal.timeout(HEALTH_MS),
+      cache: "no-store",
     });
     if (!health.ok) throw new Error("unhealthy");
   } catch {
@@ -79,12 +96,19 @@ export default async function middleware(request) {
   }
 
   try {
-    const response = await fetch(request.url, {
-      headers: proxyHeaders(request),
+    const pageUrl = originUrl(incoming.pathname + incoming.search);
+    const response = await fetch(pageUrl, {
+      headers: cleanHeaders("text/html"),
       redirect: "manual",
       signal: AbortSignal.timeout(PAGE_MS),
+      cache: "no-store",
     });
-    if (response.status < 500) return response;
+    if (response.status < 500) {
+      // Rebuild so we can force no-store on the HTML shell.
+      const headers = new Headers(response.headers);
+      headers.set("cache-control", "no-store");
+      return new Response(response.body, { status: response.status, headers });
+    }
   } catch {
     // Page transfer failed after health said up — still show the waiting page.
   }
