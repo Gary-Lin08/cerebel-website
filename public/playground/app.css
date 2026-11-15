@@ -1,0 +1,183 @@
+:root {
+  --bg: #07080c;
+  --panel: #0e1016;
+  --ink: #eef0f5;
+  --muted: #9aa3b5;
+  --line: rgba(255, 255, 255, 0.1);
+  --accent: #8b5cff;
+  --accent-ink: #f6f2ff;
+  --ok: #5ad1a0;
+  --warn: #f0b35a;
+  --err: #f07178;
+  --font: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --display: "Space Grotesk", "IBM Plex Sans", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); }
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(139, 92, 255, 0.18), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(90, 209, 160, 0.08), transparent 50%),
+    var(--bg);
+}
+
+.top {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 1.1rem 1.4rem;
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 1.15rem;
+}
+.eyebrow {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.shell { width: min(1120px, calc(100% - 2rem)); margin: 1.5rem auto 3rem; }
+.panel {
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 1.5rem;
+  backdrop-filter: blur(10px);
+}
+.home h1, .result h2, .working h2 {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.65rem;
+  font-size: clamp(1.6rem, 3vw, 2.35rem);
+}
+.lede { color: var(--muted); max-width: 42rem; line-height: 1.55; }
+
+.upload {
+  display: inline-flex;
+  margin-top: 1.25rem;
+  padding: 0.85rem 1.25rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+.upload:hover { filter: brightness(1.08); }
+
+.status { margin-top: 1rem; color: var(--muted); }
+.status.is-err { color: var(--err); }
+.status.is-ok { color: var(--ok); }
+
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+  margin: 1rem 0;
+}
+.bar i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), #5ad1a0);
+  transition: width 0.35s ease;
+}
+
+.result {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1.25rem;
+}
+@media (max-width: 900px) {
+  .result { grid-template-columns: 1fr; }
+}
+
+.result__side { display: grid; gap: 0.75rem; align-content: start; }
+.mesh {
+  position: relative;
+  height: min(52vh, 440px);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0b0d0b;
+  border: 1px solid var(--line);
+}
+.mesh canvas { width: 100% !important; height: 100% !important; display: block; }
+.mesh__label {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.72);
+  pointer-events: none;
+}
+.video-wrap {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--line);
+}
+.video-wrap video {
+  width: 100%;
+  display: block;
+  max-height: 320px;
+  object-fit: contain;
+  background: #000;
+}
+
+.chat { margin-top: 1.25rem; display: grid; gap: 0.75rem; }
+.chat__log {
+  min-height: 180px;
+  max-height: 340px;
+  overflow: auto;
+  padding: 0.85rem;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.28);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 0.65rem;
+}
+.bubble {
+  padding: 0.65rem 0.8rem;
+  border-radius: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.bubble.user { background: rgba(139, 92, 255, 0.18); justify-self: end; max-width: 92%; }
+.bubble.assistant { background: rgba(255,255,255,0.05); max-width: 96%; }
+.chat__form { display: flex; gap: 0.5rem; }
+.chat__form input {
+  flex: 1;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(0,0,0,0.35);
+  color: var(--ink);
+  padding: 0.75rem 1rem;
+}
+.chat__form button, .chips button {
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.chips button {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+.chips button:hover { border-color: color-mix(in srgb, var(--accent) 55%, white); }

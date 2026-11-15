@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CeRebel Playground</title>
+  <meta name="cerebel-surface" content="customer" />
+  <link rel="stylesheet" href="/playground/app.css" />
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">Cerebel</a>
+    <span class="eyebrow">Playground</span>
+  </header>
+
+  <main class="shell">
+    <section id="home" class="panel home">
+      <h1>Upload a swing. See the body. Ask the coach.</h1>
+      <p class="lede">
+        GEM-X rebuilds a 3D body from your clip. Coaching runs on vision — no joint IK on this build.
+      </p>
+      <label class="upload">
+        <input id="fileInput" type="file" accept="video/*,.mp4,.mov,.m4v" hidden />
+        <span>Choose video</span>
+      </label>
+      <p id="homeStatus" class="status" hidden></p>
+    </section>
+
+    <section id="working" class="panel working" hidden>
+      <h2>Rebuilding your body…</h2>
+      <div class="bar"><i id="progressBar"></i></div>
+      <p id="workStatus" class="status">Queued</p>
+    </section>
+
+    <section id="result" class="panel result" hidden>
+      <div class="result__copy">
+        <h2 id="resultTitle">Your body mesh is ready</h2>
+        <p id="resultPlain">
+          Drag the mesh to orbit. Play the RGB clip on the right. Ask the coach what to fix.
+        </p>
+        <div class="chat">
+          <div id="chatLog" class="chat__log" aria-live="polite"></div>
+          <form id="chatForm" class="chat__form">
+            <input id="chatInput" type="text" placeholder="What’s the biggest thing to fix?" autocomplete="off" />
+            <button type="submit">Ask</button>
+          </form>
+          <div class="chips" id="chips">
+            <button type="button" data-q="What’s the biggest thing I should fix?">Biggest fix</button>
+            <button type="button" data-q="Describe my swing sequence from the video.">Swing sequence</button>
+            <button type="button" data-q="What should I feel on the next swing?">Feel cue</button>
+          </div>
+        </div>
+      </div>
+      <div class="result__side">
+        <div id="meshStage" class="mesh" aria-label="Body mesh">
+          <span class="mesh__label">Body mesh</span>
+        </div>
+        <div class="video-wrap">
+          <video id="rgbVideo" controls playsinline muted preload="auto"></video>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/playground/app.js"></script>
+</body>
+</html>
