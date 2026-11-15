@@ -5,8 +5,11 @@ import middleware, { DOWN_PAGE, config } from "../middleware.js";
 const realFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = realFetch; });
 
+const ORIGIN = "https://0i5-79nucyondu7h6sp1a-cdhea2bq-custom.service.onethingrobot.com";
+const SITE = "https://cerebel.tech";
+
 const open = (path = "/playground", init = {}) =>
-  new Request(`https://cerebel.tech${path}`, { headers: { accept: "text/html,*/*", "sec-fetch-dest": "document" }, ...init });
+  new Request(`${SITE}${path}`, { headers: { accept: "text/html,*/*", "sec-fetch-dest": "document" }, ...init });
 
 function answer(plan) {
   const calls = [];
@@ -21,20 +24,40 @@ function answer(plan) {
   return calls;
 }
 
-test("a working Playground is passed through untouched", async () => {
+test("a working Playground is passed through from the GPU origin", async () => {
   const calls = answer((href) => {
+    // Prefer origin; make the same-host candidate slower so Promise.any picks origin.
+    if (href.startsWith(SITE)) {
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(new Response("site", { status: 200 })), 50);
+      });
+    }
     if (href.includes("/api/health")) return 200;
     return new Response("<title>Playground</title>", { status: 200 });
   });
   const response = await middleware(open("/playground/app?x=1"));
   assert.equal(response.status, 200);
   assert.equal(await response.text(), "<title>Playground</title>");
-  assert.equal(calls[0].url, "https://cerebel.tech/playground/api/health");
-  assert.equal(calls[1].url, "https://cerebel.tech/playground/app?x=1");
-  assert.equal(calls[1].options.redirect, "manual");
-  // Without this header the project's rule sends the request on to the server, so it can't loop.
-  assert.equal(calls[0].options.headers.has("sec-fetch-dest"), false);
-  assert.equal(calls[1].options.headers.has("sec-fetch-dest"), false);
+  assert.ok(calls.some((c) => c.url === `${ORIGIN}/playground/api/health`));
+  assert.ok(calls.some((c) => c.url === `${ORIGIN}/playground/app?x=1`));
+  const pageCall = calls.find((c) => c.url === `${ORIGIN}/playground/app?x=1`);
+  assert.equal(pageCall.options.redirect, "manual");
+  assert.equal(pageCall.options.headers.get("user-agent"), "cerebel-playground-middleware");
+  assert.equal(pageCall.options.headers.has("sec-fetch-dest"), false);
+});
+
+test("same-host fallback is used when the GPU origin is down", async () => {
+  const calls = answer((href) => {
+    if (href.startsWith(ORIGIN)) throw new TypeError("origin unreachable");
+    if (href.includes("/api/health")) return 200;
+    return new Response("<title>via rewrite</title>", { status: 200 });
+  });
+  const response = await middleware(open("/playground"));
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "<title>via rewrite</title>");
+  assert.ok(calls.some((c) => c.url === `${ORIGIN}/playground/api/health`));
+  assert.ok(calls.some((c) => c.url === `${SITE}/playground/api/health`));
+  assert.ok(calls.some((c) => c.url === `${SITE}/playground`));
 });
 
 test("a redirect or a not-found page is the server's own answer", async () => {

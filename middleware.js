@@ -5,15 +5,16 @@
 // (missing header Sec-Fetch-Dest: document) for them to arrive here. API calls, videos and scripts stay
 // on the rule.
 //
-// Document opens used to re-fetch https://cerebel.tech/playground/... from Edge middleware. That
-// same-host hop often stalled past the health budget and showed a false "offline" page even while
-// /api/health was fine. Probe the GPU origin directly (PLAYGROUND_ORIGIN) with clean headers.
+// Document opens are handled here. We used to re-fetch the same cerebel.tech URL (often stalled) or
+// only the GPU origin (unreachable from some Edge regions). Race both with clean headers — first
+// healthy answer wins.
 export const config = { matcher: ["/playground", "/playground/:path*"] };
 
-const HEALTH_MS = 8000;
-const PAGE_MS = 25000;
+const HEALTH_MS = 6000;
+const PAGE_MS = 20000;
 
 // Same host the Vercel "Playground app" rewrite targets (CeRebel / onething tunnel).
+// Override with PLAYGROUND_ORIGIN in the Vercel project env if the tunnel hostname changes.
 const DEFAULT_ORIGIN = "https://0i5-79nucyondu7h6sp1a-cdhea2bq-custom.service.onethingrobot.com";
 
 export const DOWN_PAGE = `<!doctype html>
@@ -62,58 +63,83 @@ function playgroundOrigin() {
   return String(raw).replace(/\/$/, "");
 }
 
-function originUrl(pathWithQuery) {
-  return playgroundOrigin() + (pathWithQuery.startsWith("/") ? pathWithQuery : `/${pathWithQuery}`);
-}
-
 function cleanHeaders(accept) {
-  // Do not forward browser cookies / sec-fetch — those can stall the Edge→origin hop.
-  const headers = new Headers({
+  // Do not forward browser cookies / sec-fetch — those can stall the Edge hop.
+  return new Headers({
     "user-agent": "cerebel-playground-middleware",
     accept: accept || "*/*",
   });
-  return headers;
+}
+
+function candidateUrls(request, pathWithQuery) {
+  const path = pathWithQuery.startsWith("/") ? pathWithQuery : `/${pathWithQuery}`;
+  const site = new URL(path, request.url).href;
+  const origin = playgroundOrigin() + path;
+  // Prefer the GPU origin first: same-host subrequests from Edge middleware can stall
+  // behind the document request. Keep same-host as a fallback (uses the Vercel rewrite).
+  return origin === site ? [site] : [origin, site];
+}
+
+async function fetchFirstOk(urls, { accept, timeoutMs, requireOk = true }) {
+  const errors = [];
+  const tasks = urls.map(async (url) => {
+    const response = await fetch(url, {
+      headers: cleanHeaders(accept),
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs),
+      cache: "no-store",
+    });
+    if (requireOk && !response.ok) {
+      throw new Error(`${url} → ${response.status}`);
+    }
+    if (!requireOk && response.status >= 500) {
+      throw new Error(`${url} → ${response.status}`);
+    }
+    return response;
+  });
+  // Promise.any rejects with AggregateError if every candidate fails.
+  try {
+    return await Promise.any(tasks);
+  } catch (err) {
+    errors.push(err);
+    throw err;
+  }
+}
+
+function downResponse() {
+  return new Response(DOWN_PAGE, {
+    status: 503,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "retry-after": "120" },
+  });
 }
 
 export default async function middleware(request) {
   if (request.method !== "GET" || request.headers.get("sec-fetch-dest") !== "document") return undefined;
 
   const incoming = new URL(request.url);
-  const healthUrl = originUrl("/playground/api/health");
   try {
-    const health = await fetch(healthUrl, {
-      headers: cleanHeaders("application/json"),
-      redirect: "manual",
-      signal: AbortSignal.timeout(HEALTH_MS),
-      cache: "no-store",
+    await fetchFirstOk(candidateUrls(request, "/playground/api/health"), {
+      accept: "application/json",
+      timeoutMs: HEALTH_MS,
+      requireOk: true,
     });
-    if (!health.ok) throw new Error("unhealthy");
   } catch {
-    return new Response(DOWN_PAGE, {
-      status: 503,
-      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "retry-after": "120" },
-    });
+    return downResponse();
   }
 
   try {
-    const pageUrl = originUrl(incoming.pathname + incoming.search);
-    const response = await fetch(pageUrl, {
-      headers: cleanHeaders("text/html"),
-      redirect: "manual",
-      signal: AbortSignal.timeout(PAGE_MS),
-      cache: "no-store",
-    });
-    if (response.status < 500) {
-      // Rebuild so we can force no-store on the HTML shell.
-      const headers = new Headers(response.headers);
-      headers.set("cache-control", "no-store");
-      return new Response(response.body, { status: response.status, headers });
-    }
+    const response = await fetchFirstOk(
+      candidateUrls(request, incoming.pathname + incoming.search),
+      {
+        accept: "text/html",
+        timeoutMs: PAGE_MS,
+        requireOk: false,
+      },
+    );
+    const headers = new Headers(response.headers);
+    headers.set("cache-control", "no-store");
+    return new Response(response.body, { status: response.status, headers });
   } catch {
-    // Page transfer failed after health said up — still show the waiting page.
+    return downResponse();
   }
-  return new Response(DOWN_PAGE, {
-    status: 503,
-    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "retry-after": "120" },
-  });
 }
