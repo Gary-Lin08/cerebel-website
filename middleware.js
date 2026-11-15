@@ -1,20 +1,13 @@
-// When the Playground server is down, its proxy answers with an empty 502. People opening a page get
-// this explanation instead, and it reloads itself once the server is back.
+// When the Playground server is down, show a clear waiting page instead of an empty 502.
 //
-// The Vercel project's "Playground app" rule runs before this file, so that rule has to skip page opens
-// (missing header Sec-Fetch-Dest: document) for them to arrive here. API calls, videos and scripts stay
-// on the rule.
-//
-// Document opens are handled here. We used to re-fetch the same cerebel.tech URL (often stalled) or
-// only the GPU origin (unreachable from some Edge regions). Race both with clean headers — first
-// healthy answer wins.
+// Happy-path HTML/API are proxied by vercel.json rewrites to the GPU origin. This middleware
+// only gates browser document opens: a quick health probe, then fall through to the rewrite.
+// It used to re-fetch and stream the HTML from Edge, which hung or false-offlined often.
 export const config = { matcher: ["/playground", "/playground/:path*"] };
 
-const HEALTH_MS = 6000;
-const PAGE_MS = 20000;
+const HEALTH_MS = 5000;
 
-// Same host the Vercel "Playground app" rewrite targets (CeRebel / onething tunnel).
-// Override with PLAYGROUND_ORIGIN in the Vercel project env if the tunnel hostname changes.
+// Same host vercel.json rewrites target. Override with PLAYGROUND_ORIGIN in Vercel env.
 const DEFAULT_ORIGIN = "https://0i5-79nucyondu7h6sp1a-cdhea2bq-custom.service.onethingrobot.com";
 
 export const DOWN_PAGE = `<!doctype html>
@@ -63,83 +56,48 @@ function playgroundOrigin() {
   return String(raw).replace(/\/$/, "");
 }
 
-function cleanHeaders(accept) {
-  // Do not forward browser cookies / sec-fetch — those can stall the Edge hop.
+function healthUrls(request) {
+  const origin = `${playgroundOrigin()}/playground/api/health`;
+  const site = new URL("/playground/api/health", request.url).href;
+  return origin === site ? [origin] : [origin, site];
+}
+
+function cleanHeaders() {
   return new Headers({
     "user-agent": "cerebel-playground-middleware",
-    accept: accept || "*/*",
+    accept: "application/json",
   });
 }
 
-function candidateUrls(request, pathWithQuery) {
-  const path = pathWithQuery.startsWith("/") ? pathWithQuery : `/${pathWithQuery}`;
-  const site = new URL(path, request.url).href;
-  const origin = playgroundOrigin() + path;
-  // Prefer the GPU origin first: same-host subrequests from Edge middleware can stall
-  // behind the document request. Keep same-host as a fallback (uses the Vercel rewrite).
-  return origin === site ? [site] : [origin, site];
-}
-
-async function fetchFirstOk(urls, { accept, timeoutMs, requireOk = true }) {
-  const errors = [];
-  const tasks = urls.map(async (url) => {
+async function healthOk(request) {
+  const tasks = healthUrls(request).map(async (url) => {
     const response = await fetch(url, {
-      headers: cleanHeaders(accept),
+      headers: cleanHeaders(),
       redirect: "manual",
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: AbortSignal.timeout(HEALTH_MS),
       cache: "no-store",
     });
-    if (requireOk && !response.ok) {
-      throw new Error(`${url} → ${response.status}`);
-    }
-    if (!requireOk && response.status >= 500) {
-      throw new Error(`${url} → ${response.status}`);
-    }
-    return response;
+    if (!response.ok) throw new Error(String(response.status));
+    return true;
   });
-  // Promise.any rejects with AggregateError if every candidate fails.
-  try {
-    return await Promise.any(tasks);
-  } catch (err) {
-    errors.push(err);
-    throw err;
-  }
-}
-
-function downResponse() {
-  return new Response(DOWN_PAGE, {
-    status: 503,
-    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "retry-after": "120" },
-  });
+  await Promise.any(tasks);
+  return true;
 }
 
 export default async function middleware(request) {
-  if (request.method !== "GET" || request.headers.get("sec-fetch-dest") !== "document") return undefined;
+  if (request.method !== "GET" || request.headers.get("sec-fetch-dest") !== "document") {
+    return undefined;
+  }
 
-  const incoming = new URL(request.url);
   try {
-    await fetchFirstOk(candidateUrls(request, "/playground/api/health"), {
-      accept: "application/json",
-      timeoutMs: HEALTH_MS,
-      requireOk: true,
+    await healthOk(request);
+  } catch {
+    return new Response(DOWN_PAGE, {
+      status: 503,
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "retry-after": "120" },
     });
-  } catch {
-    return downResponse();
   }
 
-  try {
-    const response = await fetchFirstOk(
-      candidateUrls(request, incoming.pathname + incoming.search),
-      {
-        accept: "text/html",
-        timeoutMs: PAGE_MS,
-        requireOk: false,
-      },
-    );
-    const headers = new Headers(response.headers);
-    headers.set("cache-control", "no-store");
-    return new Response(response.body, { status: response.status, headers });
-  } catch {
-    return downResponse();
-  }
+  // Healthy: let vercel.json rewrite proxy the real Playground HTML.
+  return undefined;
 }

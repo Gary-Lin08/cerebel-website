@@ -38,6 +38,14 @@
     { "source": "/viewer", "destination": "/index.html" },
     { "source": "/viewer/:path*", "destination": "/index.html" },
     { "source": "/logo", "destination": "/index.html" },
-    { "source": "/privacy", "destination": "/privacy.html" }
+    { "source": "/privacy", "destination": "/privacy.html" },
+    {
+      "source": "/playground",
+      "destination": "https://0i5-79nucyondu7h6sp1a-cdhea2bq-custom.service.onethingrobot.com/playground"
+    },
+    {
+      "source": "/playground/:path*",
+      "destination": "https://0i5-79nucyondu7h6sp1a-cdhea2bq-custom.service.onethingrobot.com/playground/:path*"
+    }
   ]
 }

@@ -24,50 +24,34 @@ function answer(plan) {
   return calls;
 }
 
-test("a working Playground is passed through from the GPU origin", async () => {
+test("a healthy Playground falls through to the vercel.json rewrite", async () => {
   const calls = answer((href) => {
-    // Prefer origin; make the same-host candidate slower so Promise.any picks origin.
     if (href.startsWith(SITE)) {
       return new Promise((resolve) => {
         setTimeout(() => resolve(new Response("site", { status: 200 })), 50);
       });
     }
-    if (href.includes("/api/health")) return 200;
-    return new Response("<title>Playground</title>", { status: 200 });
+    assert.match(href, /\/api\/health$/);
+    return 200;
   });
-  const response = await middleware(open("/playground/app?x=1"));
-  assert.equal(response.status, 200);
-  assert.equal(await response.text(), "<title>Playground</title>");
+  assert.equal(await middleware(open("/playground/app?x=1")), undefined);
   assert.ok(calls.some((c) => c.url === `${ORIGIN}/playground/api/health`));
-  assert.ok(calls.some((c) => c.url === `${ORIGIN}/playground/app?x=1`));
-  const pageCall = calls.find((c) => c.url === `${ORIGIN}/playground/app?x=1`);
-  assert.equal(pageCall.options.redirect, "manual");
-  assert.equal(pageCall.options.headers.get("user-agent"), "cerebel-playground-middleware");
-  assert.equal(pageCall.options.headers.has("sec-fetch-dest"), false);
+  assert.equal(calls.every((c) => c.url.endsWith("/playground/api/health")), true);
+  assert.equal(calls[0].options.headers.get("user-agent"), "cerebel-playground-middleware");
+  assert.equal(calls[0].options.headers.has("sec-fetch-dest"), false);
 });
 
-test("same-host fallback is used when the GPU origin is down", async () => {
+test("same-host health fallback works when the GPU origin is down", async () => {
   const calls = answer((href) => {
     if (href.startsWith(ORIGIN)) throw new TypeError("origin unreachable");
-    if (href.includes("/api/health")) return 200;
-    return new Response("<title>via rewrite</title>", { status: 200 });
+    return 200;
   });
-  const response = await middleware(open("/playground"));
-  assert.equal(response.status, 200);
-  assert.equal(await response.text(), "<title>via rewrite</title>");
+  assert.equal(await middleware(open("/playground")), undefined);
   assert.ok(calls.some((c) => c.url === `${ORIGIN}/playground/api/health`));
   assert.ok(calls.some((c) => c.url === `${SITE}/playground/api/health`));
-  assert.ok(calls.some((c) => c.url === `${SITE}/playground`));
 });
 
-test("a redirect or a not-found page is the server's own answer", async () => {
-  answer((href) => (href.includes("/api/health") ? 200 : 308));
-  assert.equal((await middleware(open())).status, 308);
-  answer((href) => (href.includes("/api/health") ? 200 : 404));
-  assert.equal((await middleware(open("/playground/nope"))).status, 404);
-});
-
-test("a bad health check or a page 502 gets the explanation, never cached", async () => {
+test("a bad health check gets the explanation, never cached", async () => {
   for (const fail of [502, 503, 504]) {
     answer(fail);
     const response = await middleware(open());
@@ -76,10 +60,6 @@ test("a bad health check or a page 502 gets the explanation, never cached", asyn
     assert.equal(await response.text(), DOWN_PAGE);
   }
   answer(() => { throw new DOMException("timed out", "TimeoutError"); });
-  assert.equal((await middleware(open())).status, 503);
-
-  // Health up but page transfer fails → still the waiting page.
-  answer((href) => (href.includes("/api/health") ? 200 : 502));
   assert.equal((await middleware(open())).status, 503);
 });
 
