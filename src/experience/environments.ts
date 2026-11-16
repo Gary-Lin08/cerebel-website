@@ -4,7 +4,7 @@ import type { Act } from "./stage";
 /** Decorative geometry, separate from the measured capture and its annotations. */
 export function addEnvironments(acts: Act[]) {
   acts.forEach((act, index) => {
-    if(index === 5) return;
+    if(index === 5 || index === 2) return; // the snow act travels; fixed linework would be left behind
     const environment = new THREE.Group();
     const material = new THREE.LineBasicMaterial({color:act.tint?.[1] ?? 0x9b6cff,transparent:true,opacity:.13,depthWrite:false});
     // Fine spatial structures give each act a different silhouette.

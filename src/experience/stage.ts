@@ -55,35 +55,46 @@ export const actSpans = ACTS.map((_, i) => {
 });
 const WIPE = 0.85; // half-width of a scene wipe, in viewport heights
 
+const NOISE = /* glsl */ `
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
+float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++){ s += a * vnoise(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }
+`;
+
+// Between acts the incoming scene comes up through the outgoing one behind a drifting, cloud-shaped front,
+// not a ruled edge. The backdrop and the cloud of lights are already the same in both (see palette()), so
+// only the subjects change hands. The outgoing scene eases toward the lens as it goes; the incoming settles back.
 const compositeFrag = /* glsl */ `
 precision highp float;
 uniform sampler2D tA; uniform sampler2D tB;
 uniform float uWipe; uniform float uTime; uniform float uVel; uniform float uAspect;
 varying vec2 vUv;
-float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+${NOISE}
 vec3 sampleScene(sampler2D t, vec2 uv, float ca){
   vec2 d = (uv - 0.5) * ca;
   return vec3(texture2D(t, uv + d).r, texture2D(t, uv).g, texture2D(t, uv - d).b);
 }
 void main(){
-  float slope = 0.34 + sin(uWipe * 3.14159) * 0.08;
-  // The incoming scene rises from the bottom behind a slanted edge.
-  float edge = vUv.y - slope * (vUv.x - 0.5);
-  float line = mix(-slope * 0.5 - 0.02, 1.0 + slope * 0.5 + 0.02, uWipe);
-  float side = edge - line;
-  float ca = 0.0006 + min(abs(uVel), 1.0) * 0.008;
-  // Each scene drifts a little against the edge so the cut reads as two planes.
-  float travel = sin(uWipe * 3.14159);
-  vec2 uvA = (vUv - .5) * (1.0 - travel * .035) + .5 + vec2(-uWipe * .018, uWipe * .09);
-  vec2 uvB = (vUv - .5) * (1.0 + travel * .035) + .5 - vec2(-(1.0-uWipe)*.018, (1.0-uWipe)*.09);
-  // A soft, wide edge: the two scenes dissolve through each other rather than cut.
-  float on = step(0.001, uWipe) * step(uWipe, 0.999);
-  float blend = smoothstep(-0.16, 0.16, side);
-  vec3 col = uWipe <= 0.001 ? sampleScene(tA, vUv, ca) : mix(sampleScene(tB, uvB, ca), sampleScene(tA, uvA, ca), blend);
-  col += on * exp(-abs(side) * 30.0) * vec3(0.61, 0.42, 1.0) * 0.1;
+  float ca = 0.0005 + min(abs(uVel), 1.0) * 0.0028;
+  vec3 col;
+  float glow = 0.0;
+  if (uWipe <= 0.001) col = sampleScene(tA, vUv, ca);
+  else {
+    vec2 p = vec2(vUv.x * uAspect, vUv.y);
+    float shape = fbm(p * 1.7 + vec2(0.0, uTime * 0.015)) - 0.5;
+    float front = vUv.y - 0.22 * (vUv.x - 0.5) + shape * 0.55;
+    float side = front - mix(-0.62, 1.62, uWipe);
+    float blend = smoothstep(-0.3, 0.3, side);
+    vec2 uvA = (vUv - 0.5) * (1.0 - uWipe * 0.045) + 0.5;
+    vec2 uvB = (vUv - 0.5) * (1.0 + (1.0 - uWipe) * 0.045) + 0.5;
+    col = mix(sampleScene(tB, uvB, ca), sampleScene(tA, uvA, ca), blend);
+    glow = exp(-side * side * 9.0) * sin(uWipe * 3.14159);
+    col += glow * col * 0.35;
+  }
   vec2 q = vUv - 0.5; q.x *= uAspect;
   col *= 1.0 - 0.42 * smoothstep(0.35, 1.05, length(q));
-  col += (hash(vUv * vec2(1920.0, 1080.0) + fract(uTime) * 61.0) - 0.5) * 0.045;
+  col += (hash(vUv * vec2(1920.0, 1080.0) + fract(uTime) * 61.0) - 0.5) * 0.04;
   gl_FragColor = vec4(col, 1.0);
 }`;
 
@@ -114,20 +125,32 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
 
   // Backdrop: a slow two-colour field with a glow behind the subject, different for every act.
   const bgMaterial = new THREE.ShaderMaterial({
-    uniforms: { uTop: { value: new THREE.Color() }, uBottom: { value: new THREE.Color() }, uGlow: { value: new THREE.Color() }, uTime: { value: 0 }, uAspect: { value: 1 }, uCentre: { value: new THREE.Vector2(0.5, 0.5) } },
+    uniforms: { uTop: { value: new THREE.Color() }, uBottom: { value: new THREE.Color() }, uGlow: { value: new THREE.Color() }, uA: { value: new THREE.Color() }, uB: { value: new THREE.Color() }, uTime: { value: 0 }, uAspect: { value: 1 }, uCentre: { value: new THREE.Vector2(0.5, 0.5) } },
     vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+    // A graded field, a glow behind the subject, and over both a slow weather of colour: uneven banks of the
+    // act's two light colours, warped so no edge is straight and nothing repeats. Never an even wash.
     fragmentShader: /* glsl */ `
       precision highp float;
-      uniform vec3 uTop, uBottom, uGlow; uniform float uTime, uAspect; uniform vec2 uCentre; varying vec2 vUv;
+      uniform vec3 uTop, uBottom, uGlow, uA, uB; uniform float uTime, uAspect; uniform vec2 uCentre; varying vec2 vUv;
+      ${NOISE}
       float blob(vec2 p, vec2 c, float r){ return exp(-dot(p - c, p - c) / (r * r)); }
       void main(){
         vec2 p = vUv; p.x *= uAspect;
         vec2 c = uCentre; c.x *= uAspect;
         vec3 col = mix(uBottom, uTop, smoothstep(0.0, 1.0, vUv.y + 0.25 * (vUv.x - 0.5)));
-        float g = blob(p, c, 0.55) * 0.85;
-        g += blob(p, c + vec2(sin(uTime * 0.11) * 0.5, cos(uTime * 0.09) * 0.3), 0.32) * 0.45;
-        g += blob(p, c + vec2(cos(uTime * 0.07) * 0.7, sin(uTime * 0.13) * 0.4 - 0.2), 0.24) * 0.3;
+        float t = uTime * 0.02;
+        vec2 w = p * 1.15 + vec2(fbm(p * 0.9 + t), fbm(p * 0.9 - t + 7.3)) * 1.1;
+        float bankA = smoothstep(0.42, 0.78, fbm(w + vec2(t, 3.1)));
+        float bankB = smoothstep(0.46, 0.82, fbm(w * 1.3 + vec2(11.7, -t * 1.3)));
+        float veil = smoothstep(0.35, 0.7, fbm(w * 0.6 + 21.0));
+        float g = blob(p, c, 0.55) * (0.6 + 0.4 * veil);
+        g += blob(p, c + vec2(sin(uTime * 0.11) * 0.5, cos(uTime * 0.09) * 0.3), 0.32) * 0.4;
+        g += blob(p, c + vec2(cos(uTime * 0.07) * 0.7, sin(uTime * 0.13) * 0.4 - 0.2), 0.24) * 0.28;
         col += uGlow * g;
+        float lift = 0.35 + 0.65 * smoothstep(-0.1, 0.9, vUv.y);
+        col += uA * bankA * 0.085 * lift;
+        col += uB * bankB * 0.06 * (1.3 - lift);
+        col *= 0.86 + 0.28 * veil;
         gl_FragColor = vec4(col, 1.0);
       }`,
     depthTest: false,
@@ -240,6 +263,8 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
     bgMaterial.uniforms.uTop.value.copy(mixTop);
     bgMaterial.uniforms.uBottom.value.copy(mixBottom);
     bgMaterial.uniforms.uGlow.value.copy(mixGlow);
+    bgMaterial.uniforms.uA.value.copy(mixA);
+    bgMaterial.uniforms.uB.value.copy(mixB);
     cloud.uniforms.uA.value.copy(mixA);
     cloud.uniforms.uB.value.copy(mixB);
     bgMaterial.uniforms.uTime.value = reduced ? 0 : time;

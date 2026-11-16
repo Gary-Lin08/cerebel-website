@@ -230,3 +230,22 @@ Removed the decorative DATA FLYWHEEL numbered pill from all four flywheel sectio
 
 ### Inline menu subchapters
 Subchapter links now follow each chapter title with a fixed small gap instead of a shared second column. Removed the top-header demo/previous-site shortcuts; menu-bottom entry points remain.
+
+## November 16 (later): art pass and snow act, by Claude on `codex/muscle-orbit`
+
+Taken over at `344b6a0`. User brief: review everything, especially colour, light spots and transitions; make the snow act natural (pose, camera), and show its forces.
+
+- **Snow act (`acts/ski.ts`)**
+  - Model inputs are gentler: 14 m/s on a 2.0 m × 40 m line (peak about 45° lean, 1.4 × body weight; copy reads these from `skiPeak()`). The 52° version looked contorted.
+  - Arms are held low and quiet (hands between hip and chest height, small see-saw). The old ±0.32 m see-saw threw a hand above the head.
+  - Lean is read 1.5 m ahead of the rider, so the body commits before the apex.
+  - Camera is one orbit round the rider (`SHOTS` = azimuth, elevation, distance, look-ahead; Catmull-Rom between keys). It rides a point on the fall line, so fast scrolling cannot lose the rider; only the orbit offset and aim are eased in time. Slight bank with the turn. The top-down key and the extreme close-ups are gone.
+  - Forces: ground reaction up the lean line from the edge, weight down from the modelled centre of mass, and their sum (the turn force) toward the centre of the arc, closed as a dashed parallelogram, with DOM labels (`ski-force`, `ski-weight`, `ski-turn`). A lean arc against a plumb line appears in "Edge control". Load path: beads from each binding up shin, thigh and spine with a slow pulse, and a ring on ankle, knee, hip that opens with load. All of it follows from the two inputs; nothing per joint is stated as a number. Keep the "Computed… Not measured" line.
+  - Fixed: anchors were handed to the stage in the slope's frame, so the force label was off screen. They are now world space.
+- **Colour**: Motion is green (`0x07201c / 0x0c4a40`), Snow is ice blue (`0x0f2646 / 0x1d5c94`, tints ice white and violet). They used to share one teal. Journey: violet → green → ice blue → indigo → graphite → dark teal → magenta.
+- **Backdrop (`stage.ts`)**: warped fbm banks of the act's two tint colours over the gradient and glow, so the field is uneven and drifts.
+- **Light spots (`cloud.ts`)**: 46 large lights near the lens; out-of-focus lights draw as discs with a brighter rim and uneven face.
+- **Transitions (`stage.ts` composite)**: the ruled slanted edge and the counter-sliding planes are replaced by a wide, noise-shaped front with a small depth push (out goes toward the lens, in settles back) and a faint lift along the front. Velocity chromatic offset cut to about a third; it read as a glitch.
+- `environments.ts` skips the snow act: fixed linework was left behind as the rider travels.
+
+Checked in headless Chrome at 1440×900 as stills only. Not checked: real-time feel of the camera easing and the transition, phones, performance on real hardware. Headless frames run slowly with a capped `dt`, so anything eased in time looks further behind there than it is.

@@ -6,7 +6,7 @@ import { asset, loadBinary } from "../paths";
 // Act 2 — a modelled snowboard carve. There is no snow capture in the repo yet, so nothing here is a
 // measurement: the capture's bone model is posed by code and every figure follows from the two stated inputs
 // (speed and arc), by ordinary turn mechanics. Replace with a reconstructed capture when one exists.
-export const SKI = { speed: 15, wavelength: 40, amplitude: 2.25, g: 9.81 };
+export const SKI = { speed: 14, wavelength: 40, amplitude: 2.0, g: 9.81 };
 const K = (2 * Math.PI) / SKI.wavelength;
 /** Peak values of the modelled turn, for the copy. */
 export function skiPeak() {
@@ -22,19 +22,25 @@ export function skiPeak() {
 
 const BONE = 0xd4d8e6;
 
-// Camera set-ups, as offsets from the rider: three-quarter front, low beside the board, low and close in
-// front, high overhead, the far side, a chase from behind, and a wide pull-out.
-const SHOTS: [number, number, number][] = [
-  [2.2, 0.9, -3.8],
-  [4.6, 0.55, -0.9],
-  [2.2, 0.4, -4.0],
-  [0.4, 5.6, 2.2],
-  [-2.8, 0.7, -2.6],
-  [-0.6, 1.5, 4.2],
-  [-3.4, 2.6, -5.6],
+// Camera: one crane move round the rider, never a cut. Each key is [azimuth°, elevation°, distance m, look-ahead m];
+// azimuth 0 is downhill of the rider looking back up, 90 beside them, 180 chasing from behind. Keys are joined by a
+// Catmull-Rom curve so the camera's speed is continuous through every key.
+const SHOTS: [number, number, number, number][] = [
+  [26, 9, 5.4, 0.4],
+  [58, 5, 4.4, 0.2],
+  [98, 8, 4.0, 0.0],
+  [134, 26, 5.0, 0.5],
+  [172, 15, 4.6, 1.0],
+  [206, 12, 5.0, 0.8],
+  [232, 18, 7.6, 0.3],
 ];
+const spline = (p0: number, p1: number, p2: number, p3: number, t: number) =>
+  0.5 * (2 * p1 + (p2 - p0) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (3 * p1 - p0 - 3 * p2 + p3) * t * t * t);
+/** Metres drawn per body weight of force. */
+const FORCE_SCALE = 0.5;
 
-export function createSki(onValues: (v: { kmh: number; radius: number; lean: number; load: number }) => void): Act {
+export type SkiValues = { kmh: number; radius: number; lean: number; load: number; turn: number; forces: number };
+export function createSki(onValues: (v: SkiValues) => void): Act {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
   scene.add(new THREE.HemisphereLight(0xe8f4ff, 0x14303a, 2.3));
@@ -232,11 +238,94 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
   board.add(new THREE.LineSegments(new THREE.EdgesGeometry(boardGeo, 30), new THREE.LineBasicMaterial({ color: 0x39e6b0 })));
   skier.add(board);
 
-  // Ground reaction under each foot, along the line the load travels.
-  const arrows = [-1, 1].map(() => {
-    const arrow = new THREE.ArrowHelper(Y, new THREE.Vector3(), 1, 0x39e6b0, 0.16, 0.09);
-    skier.add(arrow);
-    return arrow;
+  // ---- Forces. The model is a point mass on a tilted line: weight (always 1 × body weight), the ground's
+  // push up through the edge and the legs, and what the two leave over, which is the force that bends the
+  // path into a turn. All three are computed from the stated speed and arc; none is measured.
+  const forces = new THREE.Group();
+  skier.add(forces);
+  const unitShaft = new THREE.CylinderGeometry(1, 1, 1, 10, 1, true).translate(0, 0.5, 0);
+  const unitHead = new THREE.ConeGeometry(1, 1, 14).translate(0, 0.5, 0);
+  function vector(colour: number, thick: number) {
+    const mat = new THREE.MeshBasicMaterial({ color: colour, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
+    const shaft = new THREE.Mesh(unitShaft, mat);
+    const head = new THREE.Mesh(unitHead, mat);
+    const group = new THREE.Group();
+    group.add(shaft, head);
+    group.renderOrder = 5;
+    forces.add(group);
+    const q = new THREE.Quaternion();
+    return (from: THREE.Vector3, dir: THREE.Vector3, length: number, opacity: number) => {
+      group.visible = opacity > 0.01 && length > 0.02;
+      const headLen = Math.min(0.09, length * 0.4);
+      group.position.copy(from);
+      group.quaternion.copy(q.setFromUnitVectors(Y, dir));
+      shaft.scale.set(thick, Math.max(0.001, length - headLen), thick);
+      head.position.y = length - headLen;
+      head.scale.set(thick * 3.4, headLen, thick * 3.4);
+      mat.opacity = opacity;
+    };
+  }
+  const drawReaction = vector(0x6ff2c8, 0.0085);
+  const drawWeight = vector(0xdfe6ff, 0.0055);
+  const drawTurn = vector(0xa98bff, 0.0065);
+  // The dashed sides that close the parallelogram: reaction + weight = turn force.
+  const closing = new THREE.LineSegments(
+    new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(12), 3)),
+    new THREE.LineDashedMaterial({ color: 0xcfd6ff, transparent: true, opacity: 0.4, dashSize: 0.035, gapSize: 0.03, depthTest: false }),
+  );
+  closing.frustumCulled = false;
+  closing.renderOrder = 5;
+  forces.add(closing);
+  // The lean angle, as an arc from upright to the line the load travels.
+  const ARC = 24;
+  const leanArc = new THREE.Line(
+    new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array((ARC + 1) * 3), 3)),
+    new THREE.LineBasicMaterial({ color: 0x6ff2c8, transparent: true, opacity: 0.55, depthTest: false }),
+  );
+  leanArc.frustumCulled = false;
+  leanArc.renderOrder = 5;
+  forces.add(leanArc);
+  const plumb = new THREE.Line(
+    new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3)),
+    new THREE.LineDashedMaterial({ color: 0xcfd6ff, transparent: true, opacity: 0.3, dashSize: 0.03, gapSize: 0.03, depthTest: false }),
+  );
+  plumb.frustumCulled = false;
+  forces.add(plumb);
+
+  // The path the load takes through the skeleton: beads of light from each binding up the shin and thigh into
+  // the pelvis and spine, brighter and larger the harder the turn, with a slow pulse travelling up from the snow.
+  const PER = 34;
+  const BEADS = PER * 3;
+  const beadPos = new Float32Array(BEADS * 3);
+  const beadU = new Float32Array(BEADS);
+  for (let i = 0; i < BEADS; i += 1) beadU[i] = i < PER * 2 ? ((i % PER) / (PER - 1)) * 0.72 : 0.72 + ((i - PER * 2) / (PER - 1)) * 0.28;
+  const beadGeo = new THREE.BufferGeometry();
+  beadGeo.setAttribute("position", new THREE.BufferAttribute(beadPos, 3));
+  beadGeo.setAttribute("aU", new THREE.BufferAttribute(beadU, 1));
+  const beadUniforms = { uLoad: { value: 0 }, uTime: { value: 0 }, uSize: { value: 1 } };
+  const beads = new THREE.Points(beadGeo, new THREE.ShaderMaterial({
+    uniforms: beadUniforms,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    vertexShader: `uniform float uLoad, uTime, uSize; attribute float aU; varying float vA;
+      void main(){ float wave = pow(0.5 + 0.5 * sin((aU * 2.2 - uTime * 0.55) * 6.2832), 6.0);
+        vA = (0.16 + 0.5 * uLoad) * (0.45 + 0.55 * wave) * (1.0 - 0.45 * aU);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv;
+        gl_PointSize = uSize * (12.0 + 26.0 * uLoad + 16.0 * wave * uLoad) / -mv.z; }`,
+    fragmentShader: `precision highp float; varying float vA; void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); gl_FragColor = vec4(mix(vec3(0.2, 0.95, 0.72), vec3(1.0), a * a * 0.6), a * a * vA); }`,
+  }));
+  beads.frustumCulled = false;
+  beads.renderOrder = 4;
+  skier.add(beads);
+  // A ring on each loaded joint (ankle, knee, hip), opening with the load.
+  const ringGeo = new THREE.RingGeometry(0.93, 1, 56);
+  const rings = Array.from({ length: 6 }, () => {
+    const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x8ff5d6, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+    ring.renderOrder = 4;
+    skier.add(ring);
+    return ring;
   });
 
   // Snow thrown from the loaded edge.
@@ -275,7 +364,18 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
     out.copy(root).addScaledVector(axis, along).addScaledVector(sideways, h);
   }
 
-  const anchors = { "ski-force": new THREE.Vector3() };
+  const anchors = { "ski-force": new THREE.Vector3(), "ski-weight": new THREE.Vector3(), "ski-turn": new THREE.Vector3() };
+  const com = new THREE.Vector3();
+  const inward = new THREE.Vector3();
+  const down = new THREE.Vector3(0, -1, 0);
+  const tip = new THREE.Vector3();
+  const spineTop = new THREE.Vector3();
+  const camQ = new THREE.Quaternion();
+  const camLocal = new THREE.Vector3();
+  const lookLocal = new THREE.Vector3();
+  const look = new THREE.Vector3();
+  const lookWant = new THREE.Vector3();
+  let camReady = false;
   const f = new THREE.Vector3();
   const r = new THREE.Vector3();
   const up = new THREE.Vector3();
@@ -296,12 +396,9 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
   const footDir = new THREE.Vector3();
   const toeDir = new THREE.Vector3();
   const facing = new THREE.Vector3();
-  const view = new THREE.Vector3();
   const basis = new THREE.Matrix4();
-  const camAt = new THREE.Vector3();
   const camPos = new THREE.Vector3(3, 3, 8);
   const want = new THREE.Vector3();
-  const world = new THREE.Vector3();
   let leanNow = 0;
 
   const act: Act = {
@@ -309,8 +406,8 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
     camera,
     ready,
     offset: { x: 0.17, y: 0 },
-    bg: [0x0b2230, 0x04080c, 0x0f4a52],
-    tint: [0x8fe9ff, 0x39e6b0],
+    bg: [0x0f2646, 0x04070f, 0x1d5c94],
+    tint: [0xcdeeff, 0x8f7bff],
     anchors: () => anchors,
     update(ctx: Ctx) {
       if (!rigged) return;
@@ -325,7 +422,9 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
       // Signed curvature of the line; positive means the turn centre is toward +r.
       const curvature = SKI.amplitude * K * K * Math.sin(K * s);
       const lateral = SKI.speed * SKI.speed * curvature;
-      leanNow = damp(leanNow, Math.atan(lateral / SKI.g), 10, ctx.dt);
+      // The body commits a little before the line bends: lean is read a metre and a half ahead.
+      const ahead = SKI.speed * SKI.speed * SKI.amplitude * K * K * Math.sin(K * (s + 1.5));
+      leanNow = damp(leanNow, Math.atan((lateral * 0.5 + ahead * 0.5) / SKI.g), 7, ctx.dt);
       const load = Math.hypot(SKI.g, lateral) / SKI.g;
       const inside = Math.sign(leanNow) || 1;
       up.copy(Y).applyAxisAngle(f, -leanNow); // tilt toward the inside of the turn
@@ -355,6 +454,8 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
       const qTorso = carry(rest.trunk, rest.shoulderLine, trunk, shoulderDir, new THREE.Quaternion());
       setGroup(["torso"], body.torso.p0, chest, qTorso);
 
+      const loadK = clamp01((load - 1) / 0.62);
+      const show = smooth(-0.3, 0.05, ctx.local("ski-load")) * (1 - smooth(0.82, 1.0, ctx.t));
       edge.crossVectors(up, f).normalize();
       basis.makeBasis(edge, up, f);
       board.position.copy(base).addScaledVector(up, 0.012);
@@ -372,33 +473,99 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
         setGroup([`tibia_${tag}`, `patella_${tag}`], body[`tibia_${tag}`].p0, knee, carry(tmp.subVectors(body[`talus_${tag}`].p0, body[`tibia_${tag}`].p0), rest.hipLine, edge.subVectors(ankle, knee), hipDir, turn));
         footDir.copy(toeDir).addScaledVector(f, along * 0.9).normalize();
         setGroup([`talus_${tag}`, `calcn_${tag}`, `toes_${tag}`], body[`talus_${tag}`].p0, ankle, carry(rest.foot[tag as "r" | "l"], rest.hipLine, footDir, hipDir, turn));
-        loadedMaterials[i].emissive.setRGB(0.04, 0.5, 0.38).multiplyScalar(clamp01((load - 1) / 0.62) * 0.8);
+        loadedMaterials[i].emissive.setRGB(0.04, 0.5, 0.38).multiplyScalar(loadK * 0.55);
 
-        // Ground reaction under each foot. Both are drawn alike: the page states the total, never a split.
-        const length = Math.max(0.2, load * 0.5 * 0.95);
-        tmp.copy(base).addScaledVector(f, along).addScaledVector(up, 0.03);
-        arrows[i].position.copy(tmp);
-        arrows[i].setDirection(up);
-        arrows[i].setLength(length, 0.16, 0.09);
-        if (sd < 0) anchors["ski-force"].copy(tmp).addScaledVector(up, length);
+        // The load's way up this leg, as beads from binding to hip, and a ring on each joint.
+        for (let n = 0; n < PER; n += 1) {
+          const u = (n / (PER - 1)) * 2;
+          if (u < 1) tmp.lerpVectors(ankle, knee, u);
+          else tmp.lerpVectors(knee, hip, u - 1);
+          tmp.toArray(beadPos, (i * PER + n) * 3);
+        }
+        [ankle, knee, hip].forEach((joint, n) => {
+          const ring = rings[i * 3 + n];
+          ring.position.copy(joint);
+          ring.scale.setScalar((0.05 + 0.012 * n) * (1 + 0.55 * loadK));
+          (ring.material as THREE.MeshBasicMaterial).opacity = (0.12 + 0.5 * loadK) * show;
+        });
 
         // Arms balance the rider: out along the board, the leading one toward the nose and the trailing one
         // toward the tail, held below shoulder height with soft elbows. They see-saw against the lean, the
         // outside arm lifting as the body tips in, and spread a little wider at the apex.
         carried(body[`humerus_${tag}`].p0, body.torso.p0, chest, qTorso, shoulder);
         // Balance is driven by the scroll pose. At rest only the shared tiny breathing lift remains.
-        const fidget = 0;
-        const seesaw = -sd * swing * 0.32;
-        const reach = Math.cos(K * s) * 0.16; // fastest change of lean: arms sweep to catch it
+        // Held low and quiet: hands between hip and chest height, elbows soft. The see-saw is small; a rider
+        // who throws an arm above the head has already lost the edge.
+        const seesaw = -sd * swing * 0.1;
+        const reach = Math.cos(K * s) * 0.07; // fastest change of lean: the arms drift to meet it
         hand.copy(shoulder)
-          .addScaledVector(shoulderDir, sd * (0.4 + 0.08 * apex + fidget * 0.5))
-          .addScaledVector(Y, -0.12 + seesaw + fidget)
-          .addScaledVector(facing, 0.12 + sd * reach);
-        pole.copy(Y).multiplyScalar(-1).addScaledVector(facing, -0.5).addScaledVector(shoulderDir, sd * 0.2);
+          .addScaledVector(shoulderDir, sd * (0.33 + 0.07 * apex))
+          .addScaledVector(trunk, -0.27 + seesaw)
+          .addScaledVector(facing, 0.17 + sd * reach + 0.05 * (1 - toe) * apex);
+        pole.copy(trunk).multiplyScalar(-1).addScaledVector(facing, -0.7).addScaledVector(shoulderDir, sd * 0.35);
         bend(shoulder, hand, rest.upper, rest.fore, pole, elbow);
         setGroup([`humerus_${tag}`], body[`humerus_${tag}`].p0, shoulder, carry(tmp.subVectors(body[`ulna_${tag}`].p0, body[`humerus_${tag}`].p0), rest.shoulderLine, edge.subVectors(elbow, shoulder), shoulderDir, turn));
         setGroup([`ulna_${tag}`, `radius_${tag}`, `hand_${tag}`], body[`ulna_${tag}`].p0, elbow, carry(tmp.subVectors(body[`hand_${tag}`].p0, body[`ulna_${tag}`].p0), rest.shoulderLine, edge.subVectors(hand, elbow), shoulderDir, turn));
       });
+
+      // The load carries on from the pelvis up the spine.
+      spineTop.copy(chest).addScaledVector(trunk, 0.34);
+      for (let n = 0; n < PER; n += 1) {
+        const u = (n / (PER - 1)) * 2;
+        if (u < 1) tmp.lerpVectors(pelvis, chest, u);
+        else tmp.lerpVectors(chest, spineTop, u - 1);
+        tmp.toArray(beadPos, (2 * PER + n) * 3);
+      }
+      beadGeo.attributes.position.needsUpdate = true;
+      beadUniforms.uLoad.value = loadK * show + 0.12 * show;
+      beadUniforms.uTime.value = ctx.reduced ? 0 : ctx.time;
+      beadUniforms.uSize.value = Math.min(window.devicePixelRatio || 1, 1.5);
+      slope.updateMatrixWorld(true);
+      camera.getWorldQuaternion(camQ);
+      slope.getWorldQuaternion(turn).invert();
+      camQ.premultiply(turn);
+      for (const ring of rings) ring.quaternion.copy(camQ);
+
+      // Force triangle on the modelled centre of mass: the ground pushes up the lean line, weight pulls
+      // straight down, and what is left over points at the centre of the turn.
+      const lean = Math.atan(Math.abs(lateral) / SKI.g); // the model's own balance angle at this point of the arc
+      const turnForce = Math.abs(lateral) / SKI.g;
+      inward.copy(r).multiplyScalar(Math.sign(lateral) || inside);
+      tmp.copy(Y).multiplyScalar(Math.cos(lean)).addScaledVector(inward, Math.sin(lean)); // exact line of the load
+      com.copy(base).addScaledVector(tmp, 0.98);
+      const full = show * smooth(0.0, 0.35, ctx.local("ski-load"));
+      drawReaction(base, tmp, load * FORCE_SCALE, 0.95 * show);
+      drawWeight(com, down, FORCE_SCALE, 0.8 * full);
+      drawTurn(com, inward, turnForce * FORCE_SCALE, 0.95 * full * smooth(0.06, 0.3, turnForce));
+      anchors["ski-force"].copy(base).addScaledVector(inward, -0.34).addScaledVector(Y, 0.1); // beside the edge, on the outside of the turn
+      anchors["ski-weight"].copy(com).addScaledVector(down, FORCE_SCALE);
+      anchors["ski-turn"].copy(com).addScaledVector(inward, turnForce * FORCE_SCALE);
+      const cl = closing.geometry.attributes.position as THREE.BufferAttribute;
+      const wTip = anchors["ski-weight"];
+      const tTip = anchors["ski-turn"];
+      tip.copy(com).addScaledVector(down, FORCE_SCALE).addScaledVector(inward, turnForce * FORCE_SCALE);
+      cl.setXYZ(0, wTip.x, wTip.y, wTip.z);
+      cl.setXYZ(1, tip.x, tip.y, tip.z);
+      cl.setXYZ(2, tTip.x, tTip.y, tTip.z);
+      cl.setXYZ(3, tip.x, tip.y, tip.z);
+      cl.needsUpdate = true;
+      closing.computeLineDistances();
+      // The stage projects anchors from world space; everything above is in the slope's frame.
+      for (const id in anchors) anchors[id as keyof typeof anchors].applyMatrix4(slope.matrixWorld);
+      (closing.material as THREE.LineDashedMaterial).opacity = 0.34 * full * smooth(0.06, 0.3, turnForce);
+      const arc = leanArc.geometry.attributes.position as THREE.BufferAttribute;
+      for (let n = 0; n <= ARC; n += 1) {
+        const ang = (n / ARC) * lean;
+        arc.setXYZ(n, base.x + (Math.sin(ang) * inward.x) * 0.52, base.y + Math.cos(ang) * 0.52, base.z + (Math.sin(ang) * inward.z) * 0.52);
+      }
+      arc.needsUpdate = true;
+      (leanArc.material as THREE.LineBasicMaterial).opacity = 0.55 * show * smooth(0.0, 0.4, ctx.local("ski-edge"));
+      const pl = plumb.geometry.attributes.position as THREE.BufferAttribute;
+      pl.setXYZ(0, base.x, base.y, base.z);
+      pl.setXYZ(1, base.x, base.y + 1.25, base.z);
+      pl.needsUpdate = true;
+      plumb.computeLineDistances();
+      (plumb.material as THREE.LineDashedMaterial).opacity = 0.3 * show * smooth(0.0, 0.4, ctx.local("ski-edge"));
 
       // Spray off the working edge, more of it the harder the turn.
       const moved = Math.abs(s - lastS);
@@ -427,25 +594,40 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
       track.geometry.setDrawRange(0, Math.floor((s / 110) * TRACK));
 
       const c = Math.abs(curvature);
-      onValues({ kmh: SKI.speed * 3.6, radius: c > 0.004 ? 1 / c : Infinity, lean: (Math.abs(leanNow) * 180) / Math.PI, load });
+      onValues({ kmh: SKI.speed * 3.6, radius: c > 0.004 ? 1 / c : Infinity, lean: (lean * 180) / Math.PI, load, turn: turnForce, forces: full });
 
-      // Camera: one continuous move through seven set-ups across the act, relative to the rider.
+      // Camera. It rides the fall line rather than the rider: the crane follows the middle of the run, so the
+      // rider swings across the frame through each turn the way a follow-cam operator would let them, and the
+      // look point only goes part of the way with them. Position and aim are both eased in time.
       const ft = clamp01(ctx.t) * (SHOTS.length - 1);
-      const i0 = Math.min(Math.floor(ft), SHOTS.length - 2);
-      const mixShot = smooth(0.12, 0.88, ft - i0);
-      want.fromArray(SHOTS[i0]).lerp(view.fromArray(SHOTS[i0 + 1]), mixShot);
-      slope.updateMatrixWorld(true);
-      world.copy(pelvis).applyMatrix4(slope.matrixWorld);
-      if (!wide) want.multiplyScalar(1.5);
-      want.add(world);
-      camPos.x = damp(camPos.x, want.x, 4, ctx.dt);
-      camPos.y = damp(camPos.y, want.y, 4, ctx.dt);
-      camPos.z = damp(camPos.z, want.z, 4, ctx.dt);
-      camAt.copy(world);
-      camAt.y -= 0.1;
-      camera.position.copy(camPos);
-      camera.position.x += ctx.pointer.x * 0.3;
-      camera.lookAt(camAt);
+      const i1 = Math.min(Math.floor(ft), SHOTS.length - 2);
+      const key = (i: number, n: number) => SHOTS[Math.max(0, Math.min(SHOTS.length - 1, i))][n];
+      const at = (n: number) => spline(key(i1 - 1, n), key(i1, n), key(i1 + 1, n), key(i1 + 2, n), ft - i1);
+      const az = (at(0) * Math.PI) / 180;
+      const el = (Math.max(3, at(1)) * Math.PI) / 180;
+      const dist = at(2) * (wide ? 1 : 1.45);
+      // Both are kept relative to a point that travels down the fall line with the rider, so however fast the
+      // page is scrolled the rider cannot leave the frame; only the orbit and the aim are eased in time (a heavy head).
+      const cx = base.x * 0.62;
+      want.set(Math.sin(az) * Math.cos(el) * dist, Math.sin(el) * dist, -Math.cos(az) * Math.cos(el) * dist);
+      lookWant.set(lerp(cx, pelvis.x, 0.8) - cx, lerp(0.8, pelvis.y, 0.8) - 0.84, lerp(-s, pelvis.z, 0.8) + s).addScaledVector(f, at(3) * 0.35);
+      if (!camReady) {
+        camPos.copy(want);
+        look.copy(lookWant);
+        camReady = true;
+      }
+      camPos.lerp(want, 1 - Math.exp(-3.2 * ctx.dt));
+      look.lerp(lookWant, 1 - Math.exp(-4.4 * ctx.dt));
+      camLocal.set(cx, 0.8, -s).add(camPos).applyMatrix4(slope.matrixWorld);
+      lookLocal.set(cx, 0.8, -s).add(look).applyMatrix4(slope.matrixWorld);
+      camera.position.copy(camLocal);
+      camera.position.x += ctx.pointer.x * 0.25;
+      camera.position.y += ctx.pointer.y * 0.1;
+      camera.lookAt(lookLocal);
+      // A touch of bank with the turn, and the lens opens slightly at speed through the apex.
+      camera.rotateZ(-leanNow * 0.045 * Math.cos(az));
+      camera.fov = 32 + 2.5 * apex;
+      camera.updateProjectionMatrix();
     },
   };
   return act;

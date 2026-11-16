@@ -55,6 +55,9 @@ export function createCloud() {
   // Loose scatter and a few large soft lights.
   for (let i = 0; i < 700; i += 1) push((rnd() - 0.5) * 32, (rnd() - 0.5) * 18, (rnd() - 0.5) * 22 - 2, rnd(), rnd() < 0.86 ? 0.2 + rnd() * 0.45 : 1.5 + rnd() * 3.5);
 
+  // A few very large lights close to the lens, far out of focus: these are the bokeh discs.
+  for (let i = 0; i < 46; i += 1) push((rnd() - 0.5) * 20, (rnd() - 0.5) * 12, 3 + rnd() * 5.5, rnd(), 2.4 + rnd() * 4.2);
+
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
   geo.setAttribute("aKind", new THREE.BufferAttribute(new Float32Array(kind), 1));
@@ -83,7 +86,7 @@ export function createCloud() {
         vK = aKind;
         vTw = 0.6 + 0.4 * sin(uTime * (0.6 + aKind * 2.0) + aKind * 90.0);
         gl_Position = clip;
-        gl_PointSize = uSize * aScale * (20.0 + vBlur * 60.0 + vNear * 14.0) / -mv.z;
+        gl_PointSize = min(uSize * aScale * (20.0 + vBlur * 60.0 + vNear * 14.0) / -mv.z, 260.0 * uSize);
       }`,
     fragmentShader: /* glsl */ `
       precision highp float;
@@ -91,10 +94,14 @@ export function createCloud() {
       varying float vK; varying float vBlur; varying float vNear; varying float vTw;
       void main(){
         float d = length(gl_PointCoord - 0.5);
-        float disc = smoothstep(0.5, mix(0.05, 0.4, vBlur), d);
+        float disc = smoothstep(0.5, mix(0.05, 0.43, vBlur), d);
+        // Out of focus, a light is a disc with a brighter rim and an uneven face, not a soft dot.
+        float rim = smoothstep(0.3, 0.47, d) * smoothstep(0.5, 0.46, d);
+        float face = 0.75 + 0.25 * sin(gl_PointCoord.x * 7.0 + vK * 40.0) * sin(gl_PointCoord.y * 6.0 - vK * 23.0);
+        disc *= mix(1.0, face * (0.7 + 1.1 * rim), vBlur);
         vec3 c = vK > 0.94 ? vec3(1.0, 0.38, 0.5) : (vK > 0.84 ? vec3(1.0, 0.92, 0.78) : (vK > 0.42 ? uB : uA));
         c = mix(c, vec3(1.0), vNear * 0.6);
-        gl_FragColor = vec4(c, disc * vTw * mix(0.7, 0.13, vBlur) * (0.7 + vNear * 1.6));
+        gl_FragColor = vec4(c, disc * mix(vTw, 0.8 + 0.2 * vTw, vBlur) * mix(0.7, 0.085, vBlur) * (0.7 + vNear * 1.6));
       }`,
   }));
   points.frustumCulled = false;

@@ -11,7 +11,7 @@ import { type Act, TOTAL, createStage, damp, smooth, spans } from "./stage";
 import { createOrigin } from "./acts/origin";
 import { type SwingData, createSwing } from "./acts/swing";
 import { createBenchmark } from "./acts/benchmark";
-import { createSki, skiPeak } from "./acts/ski";
+import { createSki, skiPeak, type SkiValues } from "./acts/ski";
 import { createGlasses } from "./acts/glasses";
 import { createFlywheel } from "./acts/flywheel";
 import { createField } from "./acts/field";
@@ -94,7 +94,7 @@ function markup() {
     <section class="ch ch--ski" data-ch="ski-intro">
       <p class="badge badge--teal">Illustrative model · not a capture</p>
       <h2>${lines("Next: the load", "a turn puts", "on a skeleton.")}</h2>
-      <p>We have not published a snowboard capture yet. This is a carved turn modelled from two inputs, ${peak.kmh.toFixed(0)} km/h and an ${peak.radius.toFixed(0)} m arc, to show what the analysis reads on snow.</p>
+      <p>We have not published a snowboard capture yet. This is a carved turn modelled from two inputs, ${peak.kmh.toFixed(0)} km/h and a ${peak.radius.toFixed(0)} m arc, to show what the analysis reads on snow.</p>
     </section>
 
     <section class="ch ch--ski" data-ch="ski-load">
@@ -186,7 +186,9 @@ function markup() {
     ${seq.map((row, i) => `<div class="tag tag--bar${i === 0 ? " is-lead" : ""}" data-anchor="bar-${i}"><b>${row[0]}</b><span class="num" data-bar="${i}">0.0</span></div>`).join("")}
     ${[0, 20, 40, 60, 80].map((mm) => `<div class="tag tag--tick num" data-anchor="tick-${mm}">${mm}</div>`).join("")}
     <div class="tag tag--gap" data-anchor="gap"><span class="num" data-bench="gap"></span><em>mm between them</em></div>
-    <div class="tag tag--ski" data-anchor="ski-force"><b class="num"><span data-ski="load2">1.0</span>×</b><span>ground reaction</span></div>
+    <div class="tag tag--ski" data-anchor="ski-force"><b class="num"><span data-ski="load2">1.0</span>×</b><span>through the legs</span></div>
+    <div class="tag tag--ski tag--skiforce tag--weight" data-anchor="ski-weight"><b class="num">1.0×</b><span>weight</span></div>
+    <div class="tag tag--ski tag--skiforce tag--turn" data-anchor="ski-turn"><b class="num"><span data-ski="turn">0.0</span>×</b><span>turn force</span></div>
     <div class="joint" data-anchor="joint"><i></i><div><b class="num" data-joint="value"></b><span data-joint="caption"></span></div></div>
     <div class="tag tag--fig" data-anchor="fig-surface">Body surface</div>
     <div class="tag tag--fig" data-anchor="fig-skeleton">Skeleton + muscles</div>
@@ -369,7 +371,10 @@ export function mountExperience(root: HTMLElement) {
   }
 
   const skiEls = Object.fromEntries($$<HTMLElement>("[data-ski]").map((el) => [el.dataset.ski!, el]));
-  function showSki(v: { kmh: number; radius: number; lean: number; load: number }) {
+  const skiForceTags = $$<HTMLElement>(".tag--skiforce");
+  function showSki(v: SkiValues) {
+    skiEls.turn.textContent = v.turn.toFixed(1);
+    skiForceTags.forEach((el, i) => (el.style.opacity = (i === 1 ? v.forces * Math.min(1, v.turn / 0.3) : v.forces).toFixed(2)));
     const load = v.load.toFixed(1);
     skiEls.load.textContent = skiEls.load2.textContent = skiEls.load3.textContent = load;
     skiEls.lean.textContent = skiEls.lean2.textContent = v.lean.toFixed(0);
