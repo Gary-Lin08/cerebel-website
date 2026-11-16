@@ -504,7 +504,7 @@
 }
 
 /* Direct subchapter navigation alongside each chapter. */
-.xp-menu {grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) auto;gap:12px;padding-bottom:24px}
+.xp-menu {grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:12px;padding-bottom:24px}
 .xp-menu ol {width:100%;gap:clamp(4px,.8vh,8px)}
 .xp-menu ol li {display:grid;grid-template-columns:minmax(190px,32%) 1fr;gap:28px;align-items:center}
 .xp .xp-menu ol .menu-chapter {font-size:clamp(22px,min(3.8vw,5.2vh),54px)}
@@ -547,3 +547,5 @@
 @media(max-width:860px),(max-aspect-ratio:21/20){
  .xp-menu ol li {display:flex;gap:18px}
 }
+
+.xp.is-menu .xp-top__links { display: none; }

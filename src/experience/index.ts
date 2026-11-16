@@ -39,6 +39,10 @@ function markup() {
     <button class="xp-burger" type="button" aria-label="Open menu" aria-expanded="false" data-cursor><i></i><i></i></button>
     <a class="xp-mark" href="#hero" data-jump="0" aria-label="Cerebel AI"><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"></a>
 
+    <nav class="xp-top__links" aria-label="Shortcuts">
+      <a href="${page("/")}" data-cursor>Previous site ↗</a>
+      <a class="xp-pill" href="mailto:hello@cerebel.tech?subject=Demo%20request" data-cursor><span class="xp-pill__line" aria-hidden="true"></span><span class="xp-pill__label">Request a demo</span></a>
+    </nav>
   </header>
 
   <nav class="xp-rail" aria-label="Chapters">
@@ -208,10 +212,6 @@ function markup() {
   <div class="xp-menu" aria-hidden="true">
     <p class="fine">Explore the story</p>
     <ol>${groups.map((g, i) => `<li><button class="menu-chapter" type="button" data-group="${g}" data-cursor><em>Chapter ${i + 1}</em>${g}</button><nav class="menu-subchapters" aria-label="${g} subchapters">${spans.filter(s=>s.group===g).map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</nav></li>`).join("")}</ol>
-    <div class="xp-menu__side">
-      <a href="mailto:hello@cerebel.tech?subject=Demo%20request" data-cursor>Request a demo</a>
-      <a href="${page("/")}" data-cursor>Previous site</a>
-    </div>
   </div>
 
   <div class="xp-loader"><div class="xp-loader__halo" aria-hidden="true"></div><div class="xp-loader__content"><span class="xp-loader__eyebrow">HUMAN MOTION / MACHINE INTELLIGENCE</span><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"><div class="xp-loader__track" role="progressbar" aria-label="Loading experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="xp-loader__fill"></i></div><span class="xp-loader__caption">PREPARING THE EXPERIENCE</span></div><span class="xp-loader__signature" aria-hidden="true">CEREBEL AI</span></div>
