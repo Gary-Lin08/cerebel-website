@@ -397,9 +397,10 @@ export function mountExperience(root: HTMLElement) {
   const loader = $(".xp-loader");
   const loaderTrack = loader.querySelector<HTMLElement>(".xp-loader__track")!;
   const loaderFill = loader.querySelector<HTMLElement>(".xp-loader__fill")!;
-  let loaded = 0;
-  let shownPct = 0;
-  acts.forEach((a) => a.ready.then(() => (loaded += 1), () => (loaded += 1)));
+  let homeReady = false;
+  acts[0].ready.then(() => { homeReady = true; });
+  // Later scenes load concurrently, but do not block the landing page.
+  acts.slice(1).forEach(a => a.ready.catch(error => console.error("Scene loading failed", error)));
   let started = false;
 
   // ---- Chrome.
@@ -707,20 +708,14 @@ export function mountExperience(root: HTMLElement) {
     cursor.style.transform = `translate3d(${cur.x}px, ${cur.y}px, 0)`;
 
     if (!started) {
-      const pct = (loaded / acts.length) * 100;
-      shownPct = Math.min(pct, shownPct + dt * 160);
-      loaderFill.style.width = `${shownPct}%`;
-      loaderTrack.setAttribute("aria-valuenow", String(Math.round(shownPct)));
-      if (shownPct >= 100) {
+      if (homeReady) {
         started = true;
-        root.classList.add("is-ready");
-        setTimeout(() => loader.remove(), 1200);
-        // The subject holds the screen alone for a beat before any interface arrives.
-        // The subject holds the screen alone for a beat before any interface arrives.
-        setTimeout(() => {
-          root.classList.add("is-live");
-          setTimeout(() => root.classList.add("is-interactive"), stage.reduced ? 0 : 1500);
-        }, stage.reduced ? 0 : 1900);
+        loaderFill.style.width = "100%";
+        loaderTrack.setAttribute("aria-valuenow", "100");
+        root.classList.add("is-ready", "is-live");
+        setTimeout(() => loader.remove(), stage.reduced ? 0 : 350);
+        // Hover follows the headline entrance, without an extra brain-only hold.
+        setTimeout(() => root.classList.add("is-interactive"), stage.reduced ? 0 : 1300);
       }
     }
     requestAnimationFrame(tick);

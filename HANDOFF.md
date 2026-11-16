@@ -213,3 +213,6 @@ Menu trigger gains opposing line shifts and a quiet sliding backing; top/footer 
 
 ### Benchmark table visibility fix
 The benchmark data table must remain visible whenever its chapter is active, including immediately after a SEQ switch. Removed its opacity dependency on the later scroll-driven gap annotation and removed the narrow-window display:none rule. Table values still come from the selected benchmark dataset.
+
+### Faster landing readiness
+Landing now waits only for Origin assets; later scene readiness no longer gates the loader. Removed artificial percentage catch-up and the 1900ms brain-only hold. Ready and live activate together, loader exits in 300ms, and hover unlocks after the existing headline entrance (1300ms). Later scenes continue loading concurrently.
