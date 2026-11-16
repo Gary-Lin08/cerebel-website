@@ -1,3 +1,4 @@
+import headingOutlines from "./heading-outlines.json";
 import { addEnvironments } from "./environments";
 import { mountMuscleOrbit } from "./muscle-orbit";
 import "@fontsource-variable/space-grotesk";
@@ -463,11 +464,19 @@ export function mountExperience(root: HTMLElement) {
   const lens = root.querySelector<HTMLCanvasElement>(".xp-lens")!;
   const lensCtx = lens.getContext("2d")!;
   // Fixed seeded field: moving the pointer reveals nearby structure; it does not carry a cloud.
-  const nodes = Array.from({length: 1100}, (_,i) => ({
+  const nodes = Array.from({length: 1650}, (_,i) => ({
     x: ((Math.sin(i * 127.1 + 3.7) * 43758.5453) % 1 + 1) % 1, y: ((Math.sin(i * 311.7 + 9.1) * 19341.337) % 1 + 1) % 1,
     z: Math.sin(i * 19.17) * 32, angle: 0, alpha: 0, sx: 0, sy: 0, ox: 0, oy: 0,
     size: .8 + (i * .37 % 1) * 1.6,
   }));
+  const glyphContours = new Map<string,{path:Path2D;length:number}[]>();
+  for(const [char,paths] of Object.entries(headingOutlines.glyphs)) {
+    glyphContours.set(char,paths.map(d=>{
+      const svgPath=document.createElementNS("http://www.w3.org/2000/svg","path");svgPath.setAttribute("d",d);
+      return {path:new Path2D(d),length:svgPath.getTotalLength()};
+    }));
+  }
+  const baselines = new WeakMap<HTMLElement,HTMLElement>();
   let lensOn = false;
   function sizeLens() {
     const k = Math.min(window.devicePixelRatio || 1, 2);
@@ -501,14 +510,18 @@ export function mountExperience(root: HTMLElement) {
       if(n.alpha>.015)visible.push(n);
     }
     lensCtx.lineWidth=.65;
+    const degrees=new Map<typeof nodes[number],number>();
     for(let i=0;i<visible.length;i++) {
       const a=visible[i];
-      for(let j=i+1;j<visible.length;j++) {
-        const b=visible[j];
-        const distance=Math.hypot((a.x-b.x)*innerWidth,(a.y-b.y)*innerHeight,a.z-b.z);
-        if(distance>61)continue;
-        lensCtx.strokeStyle=`rgba(225,235,246,${Math.min(a.alpha,b.alpha)*(1-distance/61)*.7})`;
-        lensCtx.beginPath();lensCtx.moveTo(a.sx,a.sy);lensCtx.lineTo(b.sx,b.sy);lensCtx.stroke();
+      // Sparse local associations: at most two neighbours per point, with many isolated dots.
+      if(i % 3 === 0 && (degrees.get(a) || 0)<2) {
+        const candidates=visible.slice(i+1).map(b=>({b,d:Math.hypot(a.sx-b.sx,a.sy-b.sy,a.z-b.z)}))
+          .filter(({b,d})=>d<46 && (degrees.get(b)||0)<2).sort((x,y)=>x.d-y.d).slice(0,1);
+        for(const {b,d} of candidates){
+          degrees.set(a,(degrees.get(a)||0)+1);degrees.set(b,(degrees.get(b)||0)+1);
+          lensCtx.strokeStyle=`rgba(225,235,246,${Math.min(a.alpha,b.alpha)*(1-d/65)*.55})`;
+          lensCtx.beginPath();lensCtx.moveTo(a.sx,a.sy);lensCtx.lineTo(b.sx,b.sy);lensCtx.stroke();
+        }
       }
       lensCtx.fillStyle=`rgba(245,250,255,${Math.min(1,a.alpha*1.7)})`;
       lensCtx.beginPath();lensCtx.arc(a.sx,a.sy,a.size*(1+Math.sin(a.angle)*.15),0,Math.PI*2);lensCtx.fill();
@@ -521,19 +534,36 @@ export function mountExperience(root: HTMLElement) {
       const rect=el.getBoundingClientRect();
       const style=getComputedStyle(el);
       lensCtx.save();
-      lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,96,0,Math.PI*2);lensCtx.clip();
+      lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,72,0,Math.PI*2);lensCtx.clip();
       lensCtx.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
       lensCtx.letterSpacing=style.letterSpacing;
-      lensCtx.textBaseline="middle";
-      lensCtx.strokeStyle=`rgba(245,248,255,${strength*.9})`;
-      lensCtx.lineWidth=1.05;
-      lensCtx.setLineDash([36,72,12,52]);lensCtx.lineDashOffset=-time*22;
-      const text=el.dataset.t || el.textContent || "";
-      lensCtx.strokeText(style.textTransform === "uppercase" ? text.toUpperCase() : text,rect.left,rect.top+rect.height/2);
+      const baseline=baselines.get(el)?.getBoundingClientRect().top ?? rect.bottom;
+      const text=(el.dataset.t || el.textContent || "").toUpperCase();
+      const scale=parseFloat(style.fontSize)/headingOutlines.units;
+      lensCtx.strokeStyle=`rgba(245,248,255,${strength*.95})`;
+      for(let i=0;i<text.length;i++) {
+        const contours=glyphContours.get(text[i]);if(!contours)continue;
+        const x=rect.left+lensCtx.measureText(text.slice(0,i+1)).width-lensCtx.measureText(text[i]).width;
+        lensCtx.save();lensCtx.translate(x,baseline);lensCtx.scale(scale,-scale);
+        lensCtx.lineWidth=1.65/scale;
+        for(const contour of contours){
+          // Exactly two illuminated segments per closed contour.
+          lensCtx.setLineDash([contour.length*.28,contour.length*.22]);
+          lensCtx.lineDashOffset=-time*contour.length*.11;
+          lensCtx.stroke(contour.path);
+        }
+        lensCtx.restore();
+      }
       lensCtx.restore();
     }
   }
   const headSpans = $$<HTMLElement>(".ln > span");
+  for(const el of headSpans){
+    const marker=document.createElement("i");
+    marker.setAttribute("aria-hidden","true");
+    marker.style.cssText="display:inline-block;width:0;height:0;padding:0;margin:0;vertical-align:baseline";
+    el.append(marker);baselines.set(el,marker);
+  }
   window.addEventListener("pointermove", (e) => {
     if (e.pointerType === "touch" || !root.classList.contains("is-interactive")) return;
     let hit = false;

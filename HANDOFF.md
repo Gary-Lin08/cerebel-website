@@ -168,3 +168,6 @@ User clarified Corn hover: no feather on the circular text aperture. Use a hard 
 
 ### Opening camera choreography
 Scroll now lowers the camera below the brain and aims upward at the highlighted posterior region, approaching to 7.2 scene units. The close view holds into the second chapter before particles loosen and gather into the fibre helix. The aim point is transformed with the model; pointer rotation is attenuated during the close-up. Reverse scrolling reverses the same timeline. The helix/body morph windows moved later within the existing Origin span; later acts retain their scroll positions.
+
+### Smaller lens, exact contours, sparse graph, true upward camera
+Lens radius is now 72 px. Bright strokes use paths extracted from the installed Space Grotesk 700 font, with a DOM baseline marker and browser-measured glyph advances, instead of approximate canvas text positioning. Each closed contour has exactly two animated lit segments. `scripts/build-heading-outlines.py` regenerates the 12 KB JSON (fonttools + brotli); the font's OFL license is beside it. The irregular rest field has more points, but at most two links per point and many isolated dots. Camera reaches 5.1 units below its tracked aim point, 4.8 units in front, making the upward angle explicit rather than merely pushing in.

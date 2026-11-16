@@ -289,8 +289,8 @@ export function createOrigin(): Act {
       cameraTarget.copy(cerebellumTarget).multiplyScalar(focus);
       camera.position.set(
         cerebellumTarget.x * focus,
-        (cerebellumTarget.y - 1.55) * focus,
-        11 + (7.2 - 11) * focus,
+        (cerebellumTarget.y - 5.1) * focus,
+        11 + (4.8 - 11) * focus,
       );
       camera.lookAt(cameraTarget);
     },
