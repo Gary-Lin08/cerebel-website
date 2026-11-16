@@ -56,7 +56,9 @@ export const actSpans = ACTS.map((_, i) => {
 export const WIPE = 0.6; // half-width of a scene wipe, in viewport heights
 
 const NOISE = /* glsl */ `
-float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// A hash without sin(): the sine version loses precision on large pixel coordinates and its output lines up
+// in columns, which showed as vertical streaks in the grain.
+float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++){ s += a * vnoise(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }
@@ -79,7 +81,7 @@ void main(){
   float ca = 0.0005 + min(abs(uVel), 1.0) * 0.0028;
   // Ground glass: each pixel looks a pixel or two aside, in a direction fixed to the screen.
   vec2 cell = floor(gl_FragCoord.xy);
-  vec2 tooth = (vec2(hash(cell), hash(cell + 37.3)) - 0.5) * uFrost / uRes;
+  vec2 tooth = (vec2(hash(cell), hash(cell.yx + vec2(113.0, 57.0))) - 0.5) * uFrost / uRes;
   bool wiping = uWipe > 0.001;
   float blend = 1.0;
   float glow = 0.0;
@@ -116,14 +118,17 @@ void main(){
   vec2 q = vUv - 0.5; q.x *= uAspect;
   col *= 1.0 - 0.42 * smoothstep(0.35, 1.05, length(q));
   // Film grain: coarse enough to see, moving every frame, strongest in the mid-tones.
-  vec2 gcell = floor(gl_FragCoord.xy / (uFrost / 1.5 * 1.35));
+  // Whole-pixel grains only: a fractional grain size makes columns of uneven width, which also reads as streaks.
+  vec2 gcell = floor(gl_FragCoord.xy / max(1.0, floor(uFrost / 1.5 * 1.35 + 0.5)));
   // The grain holds for a sixth of a second and cross-fades to the next pattern, so it drifts instead of fizzing.
   float gt = uTime * 6.0;
-  float g0 = hash(gcell + floor(gt) * 17.13) + hash(gcell * 1.7 + floor(gt) * 9.71) - 1.0;
-  float g1 = hash(gcell + (floor(gt) + 1.0) * 17.13) + hash(gcell * 1.7 + (floor(gt) + 1.0) * 9.71) - 1.0;
+  vec2 s0 = vec2(mod(floor(gt) * 37.0, 289.0), mod(floor(gt) * 91.0, 311.0));
+  vec2 s1 = vec2(mod((floor(gt) + 1.0) * 37.0, 289.0), mod((floor(gt) + 1.0) * 91.0, 311.0));
+  float g0 = hash(gcell + s0) + hash(gcell.yx + s0.yx + 151.0) - 1.0;
+  float g1 = hash(gcell + s1) + hash(gcell.yx + s1.yx + 151.0) - 1.0;
   float grain = mix(g0, g1, smoothstep(0.0, 1.0, fract(gt)));
   float luma = dot(col, vec3(0.3, 0.59, 0.11));
-  col += grain * (0.024 + 0.042 * smoothstep(0.0, 0.35, luma) * (1.0 - 0.6 * smoothstep(0.6, 1.0, luma)));
+  col += grain * (0.019 + 0.033 * smoothstep(0.0, 0.35, luma) * (1.0 - 0.6 * smoothstep(0.6, 1.0, luma)));
   float sheen = smoothstep(0.55, 0.0, abs((vUv.x * uAspect * 0.55 + (1.0 - vUv.y)) - 0.32));
   col += vec3(0.75, 0.82, 1.0) * sheen * 0.022;
   gl_FragColor = vec4(col, 1.0);

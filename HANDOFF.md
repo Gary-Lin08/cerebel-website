@@ -281,3 +281,6 @@ Also fixed: `.ch` must not carry `transform` / `translate` (even `0 0`): it beco
 
 ### Grain slowed (user: too fast, too much)
 Scene grain now holds a pattern for 1/6 s and cross-fades to the next (it used to change every frame) and is about a quarter weaker. The grain tile over the copy steps roughly three times a second instead of nine. Keep it slow.
+
+### Grain streaks (user saw vertical lines in the grain)
+Two causes, both fixed in `stage.ts`: the `sin()` hash lined up in columns on large pixel coordinates (replaced by a fract-based hash, also used by `fbm`), and the grain cell was 1.35 device pixels, giving columns of uneven width (now a whole number of pixels). Grain amount reduced again (shader about 20% down, copy tile opacity 0.17).
