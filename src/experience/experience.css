@@ -283,7 +283,7 @@
 .xp[data-act="1"] .muscle-entry{display:flex}
 .muscle-entry span{display:grid;place-items:center;width:62px;height:62px;border:1px solid #bba0ff;border-radius:50%;font-size:30px;transition:background .3s,transform .5s}
 .muscle-entry:hover span,.muscle-entry:focus-visible span{background:#7950c9;transform:rotate(90deg)}
-.muscle-orbit{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;color:#f5f3ff;background:radial-gradient(ellipse at 72% 42%,#20272b 0%,#11171b 42%,#080c10 78%);overflow:hidden}
+.muscle-orbit{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;color:#f5f3ff;background:radial-gradient(ellipse at 60% 40%,#192d2c,#100e20 55%,#06070c);overflow:hidden}
 .muscle-orbit::backdrop{background:#06070c}
 .muscle-orbit canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
 .orbit-close{position:absolute;right:4vw;top:32px;width:54px;height:54px;border:1px solid #aaa2c2;border-radius:50%;background:transparent;color:white;font-size:32px;cursor:pointer;transition:transform .4s,background .3s}

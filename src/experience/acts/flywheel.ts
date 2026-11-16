@@ -33,7 +33,7 @@ export function createFlywheel(onStep: (step: number) => void): Act {
   geometry.setAttribute("color",new THREE.BufferAttribute(color,3));
   rig.add(new THREE.Points(geometry,new THREE.PointsMaterial({size:.028,vertexColors:true,transparent:true,opacity:.85,depthWrite:false,blending:THREE.AdditiveBlending})));
   let previous=-1, rotation=0;
-  return {scene,camera,ready:Promise.resolve(),offset:{x:.21,y:.03},bg: [0x252218, 0x070e0b, 0x263d2b],tint: [0x299a78, 0x81a991],
+  return {scene,camera,ready:Promise.resolve(),offset:{x:.21,y:.03},bg:[0x071b1c,0x060812,0x142a30],tint:[0xaad995,0x9b6cff],
     update(ctx){
       const step=Math.min(3,Math.max(0,Math.floor(ctx.t*4)));
       if(step!==previous){previous=step;onStep(step);}

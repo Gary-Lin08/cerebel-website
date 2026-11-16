@@ -110,7 +110,7 @@ export function createOrigin(): Act {
 
           col = mix(col, violet, (1.0 - vMix) * 0.35);
           col = mix(col, vec3(.12, .90, .36), vCerebellum);
-          vec3 rail = mix(vec3(1.0, 0.48, 0.13), vec3(0.96, 0.73, 0.33), vKind);
+          vec3 rail = mix(vec3(0.7, 0.5, 1.0), vec3(0.25, 0.95, 0.62), vKind);
           col = mix(col, mix(rail, vec3(1.0, 0.97, 0.9), vNear * 0.8), vStrand * 0.9);
           float alpha = (0.5 + 0.3 * pick + vNear * 0.6) * mix(1.0, 0.22, vStrand);
           gl_FragColor = vec4(col, a * alpha);
@@ -162,7 +162,7 @@ export function createOrigin(): Act {
         precision highp float;
         varying float vNear; varying float vKind; varying float vFade; varying float vPulse;
         void main(){
-          vec3 rail = mix(vec3(1.0, 0.43, 0.11), vec3(0.94, 0.68, 0.28), vKind);
+          vec3 rail = mix(vec3(0.62, 0.42, 1.0), vec3(0.2, 0.9, 0.58), vKind);
           vec3 col = mix(rail, vec3(1.0, 0.96, 0.86), clamp(vNear * 0.95 + vPulse * 0.12, 0.0, 1.0));
           gl_FragColor = vec4(col, vFade * (0.10 + 0.08 * vPulse + 1.55 * vNear));
         }`,
@@ -210,7 +210,7 @@ export function createOrigin(): Act {
         varying float vNear; varying float vKind; varying float vA;
         void main(){
           float a = smoothstep(0.5, 0.0, length(gl_PointCoord - 0.5));
-          vec3 rail = mix(vec3(1.0, 0.51, 0.16), vec3(0.98, 0.76, 0.39), vKind);
+          vec3 rail = mix(vec3(0.7, 0.52, 1.0), vec3(0.3, 0.95, 0.65), vKind);
           gl_FragColor = vec4(mix(rail, vec3(1.0, 0.97, 0.9), vNear), a * vA * (0.35 + vNear));
         }`,
     }));
@@ -231,8 +231,8 @@ export function createOrigin(): Act {
     camera,
     ready,
     offset: { x: 0, y: 0 },
-    bg: [0x251c14, 0x070c09, 0x243526],
-    tint: [0x299a78, 0x81a991],
+    bg: [0x0d0722, 0x050507, 0x1d0f52],
+    tint: [0x9b6cff, 0x39e6b0],
     update(ctx: Ctx) {
       const wide = ctx.aspect > 1.05;
       const hero = ctx.local("hero");
