@@ -268,3 +268,6 @@ Diagnosis: the 3D followed the scroll but the copy ran on timers (class toggle, 
 - **Act change cost**: `WIPE` is 0.6 (was 0.85) and, while two acts are drawn, both go to 2-sample targets instead of 4. Resolution is unchanged because point sizes are in target pixels and would visibly pop.
 
 Checked as stills in headless Chrome plus a scripted test of settling. Not checked: how any of this feels in real time, trackpad versus wheel, and whether the act-change cost is actually what dropped frames on the user's Mac (never profiled there).
+
+### Frosted glass pane (user: a little frosted-glass texture over the whole screen except the logo and Request a demo)
+Two parts. In the composite shader (`stage.ts`) every pixel samples the scene about 1.5 device pixels aside in a direction fixed to the screen (`uFrost`), plus a faint fixed speckle and a sheen across one corner. Over the page, `.xp-glass` (z-index 28, under `.xp-top` at 30) adds the pane's surface: fine noise, corner light and a lit inner edge. Copy is DOM above the canvas, so it gets the surface but is never blurred. The user asked for "a little": to adjust, change `uFrost` (set in `resize()`) and the opacities in `.xp-glass`.

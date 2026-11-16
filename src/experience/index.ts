@@ -217,6 +217,7 @@ function markup() {
   </div>
 
   <div class="xp-loader"><div class="xp-loader__halo" aria-hidden="true"></div><div class="xp-loader__content"><span class="xp-loader__eyebrow">HUMAN MOTION / MACHINE INTELLIGENCE</span><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"><div class="xp-loader__track" role="progressbar" aria-label="Loading experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="xp-loader__fill"></i></div><span class="xp-loader__caption">PREPARING THE EXPERIENCE</span></div><span class="xp-loader__signature" aria-hidden="true">CEREBEL AI</span></div>
+  <div class="xp-glass" aria-hidden="true"></div>
   <canvas class="xp-lens" aria-hidden="true"></canvas>
   <div class="xp-cursor" aria-hidden="true"></div>`;
 }

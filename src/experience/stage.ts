@@ -68,7 +68,7 @@ float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++){ s += a *
 const compositeFrag = /* glsl */ `
 precision highp float;
 uniform sampler2D tA; uniform sampler2D tB;
-uniform float uWipe; uniform float uTime; uniform float uVel; uniform float uAspect;
+uniform float uWipe; uniform float uTime; uniform float uVel; uniform float uAspect; uniform vec2 uRes; uniform float uFrost;
 varying vec2 vUv;
 ${NOISE}
 vec3 sampleScene(sampler2D t, vec2 uv, float ca){
@@ -79,7 +79,11 @@ void main(){
   float ca = 0.0005 + min(abs(uVel), 1.0) * 0.0028;
   vec3 col;
   float glow = 0.0;
-  if (uWipe <= 0.001) col = sampleScene(tA, vUv, ca);
+  // Ground glass: the whole scene is seen through a lightly frosted pane. Each pixel looks a pixel or two
+  // aside, in a direction fixed to the screen, so the tooth of the glass stays put while the scene moves.
+  vec2 cell = floor(gl_FragCoord.xy);
+  vec2 tooth = (vec2(hash(cell), hash(cell + 37.3)) - 0.5) * uFrost / uRes;
+  if (uWipe <= 0.001) col = mix(sampleScene(tA, vUv, ca), sampleScene(tA, vUv + tooth, ca), 0.5);
   else {
     vec2 p = vec2(vUv.x * uAspect, vUv.y);
     float shape = fbm(p * 1.7 + vec2(0.0, uTime * 0.015)) - 0.5;
@@ -88,13 +92,17 @@ void main(){
     float blend = smoothstep(-0.3, 0.3, side);
     vec2 uvA = (vUv - 0.5) * (1.0 - uWipe * 0.045) + 0.5;
     vec2 uvB = (vUv - 0.5) * (1.0 + (1.0 - uWipe) * 0.045) + 0.5;
-    col = mix(sampleScene(tB, uvB, ca), sampleScene(tA, uvA, ca), blend);
+    col = mix(sampleScene(tB, uvB + tooth * 0.5, ca), sampleScene(tA, uvA + tooth * 0.5, ca), blend);
     glow = exp(-side * side * 9.0) * sin(uWipe * 3.14159);
     col += glow * col * 0.35;
   }
   vec2 q = vUv - 0.5; q.x *= uAspect;
   col *= 1.0 - 0.42 * smoothstep(0.35, 1.05, length(q));
   col += (hash(vUv * vec2(1920.0, 1080.0) + fract(uTime) * 61.0) - 0.5) * 0.04;
+  // The pane itself: a faint fixed speckle, and light catching it across one corner.
+  col += (hash(cell * 0.5 + 91.0) - 0.5) * 0.018;
+  float sheen = smoothstep(0.55, 0.0, abs((vUv.x * uAspect * 0.55 + (1.0 - vUv.y)) - 0.32));
+  col += vec3(0.75, 0.82, 1.0) * sheen * 0.022;
   gl_FragColor = vec4(col, 1.0);
 }`;
 
@@ -119,6 +127,8 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
       uTime: { value: 0 },
       uVel: { value: 0 },
       uAspect: { value: 1 },
+      uRes: { value: new THREE.Vector2(1, 1) },
+      uFrost: { value: 1.6 }, // reach of the frosting, in device pixels
     },
     vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
     fragmentShader: compositeFrag,
@@ -225,6 +235,8 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
     rtA2.setSize(width * dpr, height * dpr);
     rtB2.setSize(width * dpr, height * dpr);
     composite.uniforms.uAspect.value = width / height;
+    composite.uniforms.uRes.value.set(width * dpr, height * dpr);
+    composite.uniforms.uFrost.value = 1.5 * dpr;
   }
   resize();
   window.addEventListener("resize", resize);
