@@ -195,3 +195,6 @@ Each seeded point now has velocity and displacement. Cursor attraction acts loca
 
 ### Progress-bar entrance and two-zone cursor force
 Removed visible loading numbers. The centred wordmark now sits above a slim violet progress track with a travelling highlight, quiet framing lines and mono captions. Fill follows the existing actual act-readiness progress; percentage is exposed only through progressbar ARIA. Reduced-motion disables the sweep. Cursor force now has a positive inner core and a negative outer annulus with smooth crossover: inner pull promotes proximity links, outer push stretches/breaks them. Mutual particle attraction, separation, anchor return and the 28/40px link thresholds remain.
+
+### Smooth headline re-entry
+Replace binary raw-pointer text hit testing with continuous aperture-to-text proximity, using the same lagged coordinates as the rendered lens. The effect remains active while its circle overlaps a headline, bridging line gaps; text strength and particle visibility ease independently without resetting node positions or bonds. Keep the crisp spatial text mask and existing particle radius.

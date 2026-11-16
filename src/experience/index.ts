@@ -482,6 +482,8 @@ export function mountExperience(root: HTMLElement) {
   }
   const baselines = new WeakMap<HTMLElement,HTMLElement>();
   let lensOn = false;
+  let lensTarget = 0;
+  let lensStrength = 0;
   let pointerPresent = false;
   let textRadius = 64;
   function sizeLens() {
@@ -494,6 +496,7 @@ export function mountExperience(root: HTMLElement) {
   window.addEventListener("resize", sizeLens);
   function drawLens(time: number, dt: number) {
     lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    lensStrength = damp(lensStrength, lensTarget, 7, dt);
     const visible: typeof nodes = [];
     const local: typeof nodes = [];
     const particleRadius = Math.max(88, textRadius * 1.25);
@@ -509,7 +512,7 @@ export function mountExperience(root: HTMLElement) {
         const q=distance/particleRadius;
         const core=9*(1-smooth(.18,.52,q));
         const shell=7*smooth(.35,.58,q)*(1-smooth(.82,1.08,q));
-        const force=core-shell;
+        const force=(core-shell)*lensStrength;
         n.fx+=dx*force; n.fy+=dy*force;
         local.push(n);
       }
@@ -531,7 +534,7 @@ export function mountExperience(root: HTMLElement) {
       const bx=n.x*innerWidth,by=n.y*innerHeight,dx=cur.x-bx,dy=cur.y-by;
       const distance=Math.hypot(dx,dy);
       const edge=particleRadius*(.88+n.y*.12);
-      const reveal=lensOn?Math.max(0,Math.min(1,(edge-distance)/12)):0;
+      const reveal=lensStrength*Math.max(0,Math.min(1,(edge-distance)/12));
       n.angle=damp(n.angle,reveal>0?dx/particleRadius*2.2+Math.sin(time*.8+n.x*12)*.14:0,4.5,dt);
       n.sx=bx+n.ox+Math.sin(n.angle)*n.z*.8;
       n.sy=by+n.oy+Math.sin(n.angle*.65)*n.z*.4;
@@ -619,17 +622,24 @@ export function mountExperience(root: HTMLElement) {
   document.documentElement.addEventListener("pointerleave", () => {pointerPresent=false;});
   function updateLensHit() {
     lensOn=false;
+    lensTarget=0;
     const enabled=pointerPresent && root.classList.contains("is-interactive") && !root.classList.contains("is-menu") && !document.querySelector(".muscle-orbit[open]");
     for(const el of headSpans){
       const on=enabled && el.closest(".ch")!.classList.contains("is-on");
-      let inside=false;
+      let proximity=0;
       if(on && el.firstChild){
         const range=document.createRange();range.selectNode(el.firstChild);
         const r=range.getBoundingClientRect();
-        inside=cur.tx>r.left && cur.tx<r.right && cur.ty>r.top && cur.ty<r.bottom;
+        const radius=Math.max(60,Math.min(112,parseFloat(getComputedStyle(el).fontSize)*.60));
+        // Use the rendered lens position, not the faster raw pointer. Keep it alive
+        // while its aperture overlaps text, including the space between lines.
+        const dx=Math.max(r.left-cur.x,0,cur.x-r.right);
+        const dy=Math.max(r.top-cur.y,0,cur.y-r.bottom);
+        proximity=1-smooth(radius*.15,radius,Math.hypot(dx,dy));
       }
-      el.dataset.lensTarget=inside?"1":"0";
-      if(inside){
+      el.dataset.lensTarget=String(proximity);
+      lensTarget=Math.max(lensTarget,proximity);
+      if(proximity>0){
         lensOn=true;el.setAttribute("data-lens","");
         textRadius=Math.max(60,Math.min(112,parseFloat(getComputedStyle(el).fontSize)*.60));
         el.style.setProperty("--lens-radius",textRadius+"px");
@@ -679,10 +689,10 @@ export function mountExperience(root: HTMLElement) {
     if (!stage.reduced) drawLens(now / 1000, dt);
     for (const el of headSpans) {
       if (!el.hasAttribute("data-lens")) continue;
-      const strength = damp(Number(el.dataset.lensAlpha || 0), el.dataset.lensTarget === "1" ? 1 : 0, 4, dt);
+      const strength = damp(Number(el.dataset.lensAlpha || 0), Number(el.dataset.lensTarget || 0), 4, dt);
       el.dataset.lensAlpha = String(strength);
       el.style.setProperty("--lens-strength",strength.toFixed(3));
-      if(strength < .005 && el.dataset.lensTarget !== "1") {el.removeAttribute("data-lens");continue;}
+      if(strength < .005 && Number(el.dataset.lensTarget || 0) === 0) {el.removeAttribute("data-lens");continue;}
       const r = el.getBoundingClientRect();
       el.style.setProperty("--mx", `${(cur.x - r.left).toFixed(1)}px`);
       el.style.setProperty("--my", `${(cur.y - r.top).toFixed(1)}px`);
