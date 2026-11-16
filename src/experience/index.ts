@@ -495,6 +495,9 @@ export function mountExperience(root: HTMLElement) {
       return {path:new Path2D(d),length:svgPath.getTotalLength()};
     }));
   }
+  // Whole-glyph paths (outer contour and counters together), used to keep the inward fill inside the letter.
+  const glyphShapes = new Map<string,Path2D>();
+  for(const [char,paths] of Object.entries(headingOutlines.glyphs)) glyphShapes.set(char,new Path2D(paths.join(" ")));
   const baselines = new WeakMap<HTMLElement,HTMLElement>();
   let lensOn = false;
   let lensTarget = 0;
@@ -683,7 +686,7 @@ export function mountExperience(root: HTMLElement) {
       if (!c.on || c.x >= 1) continue;
       for (const { line, trace, fill } of c.lines) {
         if (trace <= 0 || fill >= 1) continue;
-        const alpha = (1 - smooth(0.6, 1, fill)) * (1 - c.x);
+        const alpha = (1 - smooth(0.95, 1, fill)) * (1 - c.x);
         const rect = line.getBoundingClientRect();
         const style = getComputedStyle(line);
         lensCtx.save();
@@ -695,13 +698,27 @@ export function mountExperience(root: HTMLElement) {
         for (let i = 0; i < text.length; i += 1) {
           const contours = glyphContours.get(text[i]);
           if (!contours) continue;
+          const along = i / Math.max(1, text.length - 1);
           // Letters start one after another, left to right, like a hand writing the line.
-          const t = clamp(trace * 1.7 - (i / Math.max(1, text.length - 1)) * 0.7);
+          const t = clamp(trace * 1.7 - along * 0.7);
           if (t <= 0) continue;
           const x = rect.left + lensCtx.measureText(text.slice(0, i + 1)).width - lensCtx.measureText(text[i]).width;
           lensCtx.save();
           lensCtx.translate(x, baseline);
           lensCtx.scale(scale, -scale);
+          // Fill: the traced line thickens inward from every edge of the letter until the strokes meet in the
+          // middle. It is the same contour drawn wider and clipped to the glyph, so it can only grow inside.
+          const f = clamp(fill * 1.5 - along * 0.5);
+          if (f > 0) {
+            lensCtx.save();
+            lensCtx.clip(glyphShapes.get(text[i])!);
+            lensCtx.setLineDash([]);
+            lensCtx.lineJoin = "round";
+            lensCtx.lineWidth = f * f * (3 - 2 * f) * 230; // font units; a bold stem is about 150 wide
+            lensCtx.strokeStyle = `rgba(233,236,242,${alpha.toFixed(3)})`;
+            for (const contour of contours) lensCtx.stroke(contour.path);
+            lensCtx.restore();
+          }
           for (const contour of contours) {
             lensCtx.lineWidth = 1.25 / scale;
             lensCtx.strokeStyle = `rgba(233,236,242,${(alpha * 0.92).toFixed(3)})`;
@@ -829,7 +846,7 @@ export function mountExperience(root: HTMLElement) {
       const stagger = Math.min(0.08, 0.2 / Math.max(1, c.lines.length));
       c.lines.forEach((l, i) => {
         l.trace = clamp((e - i * stagger) / 0.5);
-        l.fill = clamp((e - 0.4 - i * stagger) / 0.4);
+        l.fill = clamp((e - 0.42 - i * stagger) / 0.38);
         l.line.style.setProperty("--f", l.fill.toFixed(3));
       });
     }

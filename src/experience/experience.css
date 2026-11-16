@@ -557,18 +557,20 @@
    span), --x its exit, --f a headline line's fill. Nothing here runs on a timer, so text can never lag the
    hand or play out after it has stopped; scrolling back undoes it. */
 .ch, .ch.is-on { transition: none; }
-.ch.is-on { opacity: calc(1 - var(--x, 0)); translate: 0 calc(var(--x, 0) * -14px); }
+/* No transform or translate on .ch itself: it would become the containing block of the fixed team photo. */
+.ch.is-on { opacity: calc(1 - var(--x, 0)); }
 .ch > * { transition: none; }
 .ch.is-on > * {
   --in: clamp(0, calc((var(--e, 1) - 0.45 - var(--n, 0) * 0.05) * 4), 1);
   opacity: var(--in);
-  transform: translateY(calc((1 - var(--in)) * 16px));
+  transform: translateY(calc((1 - var(--in)) * 16px - var(--x, 0) * 14px));
   transition: none;
 }
-.ch.is-on > h1:has(.ln), .ch.is-on > h2:has(.ln) { opacity: 1; transform: none; }
-/* Headline: the outline is traced on the canvas above; the fill rises inside it from the baseline. */
+.ch.is-on > h1:has(.ln), .ch.is-on > h2:has(.ln) { opacity: 1; transform: translateY(calc(var(--x, 0) * -14px)); }
+/* Headline: the outline is traced on the canvas above, then the fill grows inward from that outline, also on
+   the canvas. The real text only takes over once the letters are solid. */
 .ln > span, .ch.is-on .ln > span, .ch:not(.is-on) .ln > span { transform: none; transition: none; }
-.ln > span::before { clip-path: inset(calc((1 - var(--f, 1)) * 100%) -0.2em -0.2em -0.2em); }
+.ln > span::before { opacity: clamp(0, calc((var(--f, 1) - 0.94) * 17), 1); }
 .xp.is-live .ch.is-on .ln > span::before, .xp.is-live .ch.is-on .ln > span::after { animation: none; }
 
 /* ---- A pane of lightly frosted glass over everything except the top bar (logo, menu, Request a demo sit in
