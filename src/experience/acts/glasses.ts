@@ -35,7 +35,7 @@ export function createGlasses(): Act {
   }).catch(error=>{console.error("Wearable studio model could not load",error);});
   let yaw=.42;
   const steps=["g-optical","g-clock","g-prep","g-modular"];
-  const act:Act={scene,camera,ready,offset:{x:.19,y:0},bg:[0x0e1521,0x05070c,0x192537],tint:[0x8fa5ca,0x9b6cff],anchors:()=>anchors,
+  const act:Act={scene,camera,ready,offset:{x:.19,y:0},bg: [0x20251f, 0x090d0c, 0x2b3a30],tint: [0x299a78, 0x81a991],anchors:()=>anchors,
     update(ctx){
       let active="";
       for(const step of steps)if(ctx.local(step)>0)active=step;

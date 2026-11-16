@@ -323,8 +323,8 @@ export function createSwing(
     camera,
     ready,
     offset: { x: 0.17, y: 0 },
-    bg: [0x061320, 0x04060a, 0x0a3550],
-    tint: [0x4f8cff, 0x35d6c8],
+    bg: [0x17221d, 0x080d0d, 0x20372d],
+    tint: [0x299a78, 0x81a991],
     anchors: () => figures,
     update(ctx: Ctx) {
       if (!data) return;

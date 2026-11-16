@@ -1,5 +1,4 @@
 import headingOutlines from "./heading-outlines.json";
-import { addEnvironments } from "./environments";
 import { mountMuscleOrbit } from "./muscle-orbit";
 import "@fontsource-variable/space-grotesk";
 import "@fontsource/ibm-plex-mono/400.css";
@@ -390,7 +389,6 @@ export function mountExperience(root: HTMLElement) {
     createFlywheel(step => root.querySelectorAll<HTMLButtonElement>("[data-loop]").forEach((button,i)=>button.setAttribute("aria-current",String(i===step)))),
     createField(),
   ];
-  addEnvironments(acts);
   const stage = createStage($<HTMLCanvasElement>(".xp-canvas"), acts, $(".xp-anchors"));
 
   // ---- Loader.
@@ -478,6 +476,8 @@ export function mountExperience(root: HTMLElement) {
   }
   const baselines = new WeakMap<HTMLElement,HTMLElement>();
   let lensOn = false;
+  let lastLensMove = -Infinity;
+  let lensPointerPresent = false;
   function sizeLens() {
     const k = Math.min(window.devicePixelRatio || 1, 2);
     lens.width = Math.round(window.innerWidth * k);
@@ -494,7 +494,8 @@ export function mountExperience(root: HTMLElement) {
       const dx=cur.x-bx, dy=cur.y-by;
       const distance=Math.hypot(dx,dy);
       const active = lensOn && root.classList.contains("is-interactive");
-      const influence = active ? Math.max(0, 1-distance/250) : 0;
+      const idle = Math.max(0, Math.min(1, (time - lastLensMove - 1.2) / 1.8));
+      const influence = active ? Math.max(0, 1-distance/230) * (1-idle) : 0;
       const theta = Math.atan2(-dy,-dx);
       n.angle=damp(n.angle,influence * dx/180,3,dt);
       // Each particle owns a permanent rest position. The pointer attracts it toward a loose
@@ -565,22 +566,27 @@ export function mountExperience(root: HTMLElement) {
     el.append(marker);baselines.set(el,marker);
   }
   window.addEventListener("pointermove", (e) => {
-    if (e.pointerType === "touch" || !root.classList.contains("is-interactive")) return;
+    if (e.pointerType !== "touch") {lastLensMove = performance.now()/1000;lensPointerPresent = true;}
+  });
+  function updateLensHit() {
     let hit = false;
+    const enabled = lensPointerPresent && root.classList.contains("is-interactive") && !root.classList.contains("is-menu") && !document.querySelector(".muscle-orbit[open]");
     for (const el of headSpans) {
-      const on = el.closest(".ch")!.classList.contains("is-on");
-      const r = on ? el.getBoundingClientRect() : null;
-      const inside = !!r && e.clientX > r.left - 80 && e.clientX < r.right + 80 && e.clientY > r.top - 80 && e.clientY < r.bottom + 80;
-      if (inside && r) {
-        el.setAttribute("data-lens", "");
-        el.dataset.lensTarget = "1";
-        hit = hit || (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom);
-      } else el.dataset.lensTarget = "0";
+      const on = enabled && el.closest(".ch")!.classList.contains("is-on");
+      // Test the actual text, not the full-width block. Re-evaluate on scroll even
+      // when the pointer is stationary, so a previous chapter cannot leave a cloud behind.
+      const range = document.createRange();
+      if(el.firstChild)range.selectNode(el.firstChild);
+      const r = on ? range.getBoundingClientRect() : null;
+      const inside = !!r && cur.tx > r.left && cur.tx < r.right && cur.ty > r.top && cur.ty < r.bottom;
+      el.dataset.lensTarget = inside ? "1" : "0";
+      if (inside) {el.setAttribute("data-lens", "");hit=true;}
     }
     lensOn = hit;
-  });
+  }
   document.documentElement.addEventListener("pointerleave", () => {
     lensOn = false;
+    lensPointerPresent = false;
     for (const el of headSpans) el.dataset.lensTarget = "0";
   });
 
@@ -622,6 +628,7 @@ export function mountExperience(root: HTMLElement) {
       hudBar.tabIndex = scrubbing ? 0 : -1;
       if (!scrubbing) scrub = null;
     }
+    updateLensHit();
     if (!stage.reduced) drawLens(now / 1000, dt);
     for (const el of headSpans) {
       if (!el.hasAttribute("data-lens")) continue;

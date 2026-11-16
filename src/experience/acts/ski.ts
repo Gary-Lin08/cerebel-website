@@ -58,8 +58,8 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
       transparent: true,
       depthWrite: false,
       uniforms: { uAt: { value: new THREE.Vector3() } },
-      vertexShader: `uniform vec3 uAt; varying float vA; void main(){ vec3 p = position; p.y += sin(p.x * 0.35) * 0.25 + sin(p.z * 0.21 + p.x * 0.1) * 0.3 - 0.36; vA = 1.0 - smoothstep(4.0, 24.0, length(p.xz - uAt.xz)); vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = 30.0 / -mv.z; }`,
-      fragmentShader: `precision highp float; varying float vA; void main(){ float a = smoothstep(0.5, 0.15, length(gl_PointCoord - 0.5)); gl_FragColor = vec4(vec3(0.86, 0.96, 1.0), a * vA * 0.9); }`,
+      vertexShader: `uniform vec3 uAt; varying float vA; void main(){ vec3 p = position; p.y += sin(p.x * 0.35) * 0.25 + sin(p.z * 0.21 + p.x * 0.1) * 0.3 - 0.36; vA = 1.0 - smoothstep(4.0, 24.0, length(p.xz - uAt.xz)); vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = 12.0 / -mv.z; }`,
+      fragmentShader: `precision highp float; varying float vA; void main(){ float a = smoothstep(0.5, 0.15, length(gl_PointCoord - 0.5)); gl_FragColor = vec4(vec3(0.86, 0.96, 1.0), a * vA * 0.22); }`,
     }),
   );
   snow.frustumCulled = false;
@@ -89,38 +89,6 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
     }
   }
   {
-    const ring: number[] = [];
-    const tint: number[] = [];
-    for (let n = 1; n <= 11; n += 1) {
-      const s = n * 9;
-      const centre = path(s);
-      const dir = new THREE.Vector3(SKI.amplitude * K * Math.cos(K * s), 0, -1).normalize();
-      const side = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
-      for (let layer = 0; layer < 3; layer += 1) {
-        const radius = 1.55 + layer * 0.22;
-        const count = 90 + layer * 30;
-        for (let i = 0; i < count; i += 1) {
-          const ang = (i / count) * Math.PI * 2;
-          const p = centre.clone().addScaledVector(side, Math.cos(ang) * radius).add(new THREE.Vector3(0, 1.15 + Math.sin(ang) * radius, 0)).addScaledVector(dir, layer * 0.25);
-          if (p.y < 0) continue;
-          ring.push(p.x, p.y, p.z);
-          tint.push(n % 2);
-        }
-      }
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(ring), 3));
-    geo.setAttribute("aTint", new THREE.BufferAttribute(new Float32Array(tint), 1));
-    const hoops = new THREE.Points(geo, new THREE.ShaderMaterial({
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      vertexShader: `attribute float aTint; varying float vT; void main(){ vT = aTint; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = 26.0 / -mv.z; }`,
-      fragmentShader: `precision highp float; varying float vT; void main(){ float a = smoothstep(0.5, 0.0, length(gl_PointCoord - 0.5)); gl_FragColor = vec4(mix(vec3(0.66, 0.48, 1.0), vec3(0.25, 0.95, 0.68), vT), a * 0.8); }`,
-    }));
-    hoops.frustumCulled = false;
-    slope.add(hoops);
-
     let seed = 5;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     const trees: number[] = [];
@@ -137,7 +105,7 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
     }
     const forest = new THREE.Points(
       new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(trees), 3)),
-      new THREE.PointsMaterial({ color: 0x4fd6b4, size: 0.05, transparent: true, opacity: 0.5, depthWrite: false }),
+      new THREE.PointsMaterial({ color: 0x6e979a, size: 0.035, transparent: true, opacity: 0.16, depthWrite: false }),
     );
     forest.frustumCulled = false;
     slope.add(forest);
@@ -309,8 +277,8 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
     camera,
     ready,
     offset: { x: 0.17, y: 0 },
-    bg: [0x0b2230, 0x04080c, 0x0f4a52],
-    tint: [0x8fe9ff, 0x39e6b0],
+    bg: [0x15282b, 0x070c10, 0x203c3c],
+    tint: [0x299a78, 0x81a991],
     anchors: () => anchors,
     update(ctx: Ctx) {
       if (!rigged) return;

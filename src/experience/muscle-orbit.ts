@@ -49,17 +49,6 @@ export function mountMuscleOrbit(root: HTMLElement, data: SwingData) {
     entry.disabled = false;
     entry.setAttribute("aria-label", "Explore muscle groups");
   }).catch(() => {entry.disabled = false; entry.setAttribute("aria-label", "Explore muscle paths; bone context unavailable");});
-  const rings = new THREE.Group(); scene.add(rings);
-  for (let i = 0; i < 3; i++) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.65 + i * .18, .003, 6, 120), new THREE.MeshBasicMaterial({color:i === 1 ? 0xa0dc8b : 0x9b6cff, transparent:true, opacity:.12}));
-    ring.rotation.set(.7 + i * .4, i * .5, 0); rings.add(ring);
-  }
-  const satellites = data.muscleGroups.map((group, i) => {
-    const dot = new THREE.Mesh(new THREE.IcosahedronGeometry(.055, 1), new THREE.MeshStandardMaterial({color:group.color, emissive:group.color, emissiveIntensity:.8}));
-    const angle = i / data.muscleGroups.length * Math.PI * 2;
-    dot.position.set(Math.cos(angle)*1.65, Math.sin(angle)*1.15, Math.sin(angle)*.5);
-    dot.userData.index = i; scene.add(dot); return dot;
-  });
   const buttons: HTMLButtonElement[] = [];
   let selected = -1;
   let entering = false;
@@ -105,7 +94,6 @@ export function mountMuscleOrbit(root: HTMLElement, data: SwingData) {
     dialog.querySelector(".orbit-detail")!.textContent = finding?.detail ?? "Explore the reconstructed muscle paths.";
     dialog.querySelector(".orbit-cue")!.textContent = finding?.cue ?? "";
     buttons.forEach((button, i) => button.setAttribute("aria-pressed", String(index === i)));
-    satellites.forEach((dot, i) => dot.scale.setScalar(index === i ? 1.8 : 1));
   }
   data.muscleGroups.forEach((group, i) => {
     const button = document.createElement("button");
@@ -125,7 +113,6 @@ export function mountMuscleOrbit(root: HTMLElement, data: SwingData) {
       camera.position.multiplyScalar(1 + (5.8/camera.position.length()-1)*(1-Math.exp(-dt*3)));
       if (Math.abs(camera.position.length()-5.8)<.02) entering=false;
     }
-    if (!reduced) rings.rotation.y += dt*.045;
     controls.update(); renderer.render(scene,camera);
     animation=requestAnimationFrame(draw);
   }
@@ -143,11 +130,5 @@ export function mountMuscleOrbit(root: HTMLElement, data: SwingData) {
     previousFocus?.focus({preventScroll:true});
   });
   controls.addEventListener("start",()=>{entering=false;});
-  const raycaster=new THREE.Raycaster();
-  canvas.addEventListener("click",event=>{
-    raycaster.setFromCamera(new THREE.Vector2((event.clientX-canvas.getBoundingClientRect().left)/canvas.clientWidth*2-1,1-event.clientY/canvas.clientHeight*2),camera);
-    const hit=raycaster.intersectObjects(satellites)[0];
-    if(hit)select(hit.object.userData.index as number);
-  });
   window.addEventListener("resize",()=>{if(dialog.open)resize();});
 }

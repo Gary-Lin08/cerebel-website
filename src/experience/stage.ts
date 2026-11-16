@@ -71,7 +71,7 @@ void main(){
   float edge = vUv.y - slope * (vUv.x - 0.5);
   float line = mix(-slope * 0.5 - 0.02, 1.0 + slope * 0.5 + 0.02, uWipe);
   float side = edge - line;
-  float ca = 0.0006 + min(abs(uVel), 1.0) * 0.008;
+  float ca = min(abs(uVel), 1.0) * 0.0006;
   // Each scene drifts a little against the edge so the cut reads as two planes.
   float travel = sin(uWipe * 3.14159);
   vec2 uvA = (vUv - .5) * (1.0 - travel * .035) + .5 + vec2(-uWipe * .018, uWipe * .09);
@@ -83,7 +83,7 @@ void main(){
   col += on * exp(-abs(side) * 30.0) * vec3(0.61, 0.42, 1.0) * 0.1;
   vec2 q = vUv - 0.5; q.x *= uAspect;
   col *= 1.0 - 0.42 * smoothstep(0.35, 1.05, length(q));
-  col += (hash(vUv * vec2(1920.0, 1080.0) + fract(uTime) * 61.0) - 0.5) * 0.045;
+  col += (hash(vUv * vec2(1920.0, 1080.0) + fract(uTime) * 61.0) - 0.5) * 0.010;
   gl_FragColor = vec4(col, 1.0);
 }`;
 
@@ -119,15 +119,25 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
     fragmentShader: /* glsl */ `
       precision highp float;
       uniform vec3 uTop, uBottom, uGlow; uniform float uTime, uAspect; uniform vec2 uCentre; varying vec2 vUv;
+      float noise(vec2 p){
+        vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+        vec3 k=vec3(127.1,311.7,43758.5453);
+        float a=fract(sin(dot(i,k.xy))*k.z), b=fract(sin(dot(i+vec2(1,0),k.xy))*k.z);
+        float c=fract(sin(dot(i+vec2(0,1),k.xy))*k.z), d=fract(sin(dot(i+vec2(1,1),k.xy))*k.z);
+        return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+      }
       float blob(vec2 p, vec2 c, float r){ return exp(-dot(p - c, p - c) / (r * r)); }
       void main(){
         vec2 p = vUv; p.x *= uAspect;
         vec2 c = uCentre; c.x *= uAspect;
         vec3 col = mix(uBottom, uTop, smoothstep(0.0, 1.0, vUv.y + 0.25 * (vUv.x - 0.5)));
-        float g = blob(p, c, 0.55) * 0.85;
-        g += blob(p, c + vec2(sin(uTime * 0.11) * 0.5, cos(uTime * 0.09) * 0.3), 0.32) * 0.45;
-        g += blob(p, c + vec2(cos(uTime * 0.07) * 0.7, sin(uTime * 0.13) * 0.4 - 0.2), 0.24) * 0.3;
-        col += uGlow * g;
+        // A broad, quiet side light behind the subject; copy remains in shadow.
+        // No wandering hotspots: movement belongs to the subject and the camera.
+        float g = blob(p, c + vec2(0.16, 0.15), 0.70) * 0.65;
+        vec2 drift = vec2(uTime * 0.006, -uTime * 0.003);
+        float mist = noise(p * 3.2 + drift) * .62 + noise(p * 7.1 - drift) * .26 + noise(p * 14.0) * .12;
+        col *= .72 + mist * .48;
+        col += uGlow * g * (.45 + mist * .85);
         gl_FragColor = vec4(col, 1.0);
       }`,
     depthTest: false,
@@ -158,7 +168,10 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
   const mixA = new THREE.Color();
   const mixB = new THREE.Color();
   const other = new THREE.Color();
+  const dustOpacity = [1.0, 0.72, 0.48, 0.55, 0.60, 0.72, 0.85];
+  let mixDust = 0;
   function palette(index: number, u: number) {
+    mixDust = dustOpacity[index] ?? 0;
     const span = actSpans[index];
     const towardNext = u > (span.start + span.end) / 2;
     const neighbour = towardNext ? index + 1 : index - 1;
@@ -175,6 +188,7 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
     // 0 on this act's side, 1 on the neighbour's; exactly one half at the boundary for both acts.
     const across = smooth(edge - DRIFT, edge + DRIFT, u);
     const k = towardNext ? across : 1 - across;
+    mixDust = THREE.MathUtils.lerp(mixDust, dustOpacity[neighbour] ?? 0, k);
     const there = acts[neighbour];
     const nbg = there.bg ?? [0x050507, 0x050507, 0x000000];
     const ntint = there.tint ?? [0x9b6cff, 0x39e6b0];
@@ -240,6 +254,7 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
     bgMaterial.uniforms.uTop.value.copy(mixTop);
     bgMaterial.uniforms.uBottom.value.copy(mixBottom);
     bgMaterial.uniforms.uGlow.value.copy(mixGlow);
+    cloud.uniforms.uOpacity.value = mixDust;
     cloud.uniforms.uA.value.copy(mixA);
     cloud.uniforms.uB.value.copy(mixB);
     bgMaterial.uniforms.uTime.value = reduced ? 0 : time;
@@ -288,7 +303,7 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
     cloudSpin.vx *= coast;
     cloudSpin.y += cloudSpin.vy * h;
     cloudSpin.x = THREE.MathUtils.clamp(cloudSpin.x + cloudSpin.vx * h, -0.6, 0.6);
-    cloudRig.rotation.set(cloudSpin.x, cloudSpin.y + u * 0.14, 0);
+    cloudRig.rotation.set(cloudSpin.x * .12, Math.sin(cloudSpin.y * .15) * .08 + Math.sin(u * .09) * .025, 0);
     cloudGlow.vx += ((pointer.x - cloudGlow.x) * 9 - cloudGlow.vx * 6.6) * h;
     cloudGlow.vy += ((pointer.y - cloudGlow.y) * 9 - cloudGlow.vy * 6.6) * h;
     cloudGlow.x += cloudGlow.vx * h;
