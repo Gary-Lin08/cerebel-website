@@ -44,6 +44,7 @@
     { "source": "/viewer", "destination": "/index.html" },
     { "source": "/viewer/:path*", "destination": "/index.html" },
     { "source": "/logo", "destination": "/index.html" },
+    { "source": "/classic", "destination": "/index.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/playground", "destination": "/playground/index.html" },
     { "source": "/playground/", "destination": "/playground/index.html" }
