@@ -72,6 +72,7 @@ export function createField(): Act {
     camera,
     ready: Promise.resolve(),
     offset: { x: 0, y: 0 },
+    bg: [0x16071f, 0x050507, 0x3b1260],
     update(ctx: Ctx) {
       time.value = ctx.reduced ? 0 : ctx.time;
       const y = 2 - smooth(-0.1, 1.05, ctx.t) * 27;

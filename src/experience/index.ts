@@ -7,10 +7,11 @@ import { type Act, TOTAL, createStage, damp, spans } from "./stage";
 import { createOrigin } from "./acts/origin";
 import { type SwingData, createSwing } from "./acts/swing";
 import { createBenchmark } from "./acts/benchmark";
+import { createSki, skiPeak } from "./acts/ski";
 import { createGlasses } from "./acts/glasses";
 import { createField } from "./acts/field";
 
-const lines = (...text: string[]) => text.map((t, i) => `<span class="ln" style="--i:${i}"><span>${t}</span></span>`).join("");
+const lines = (...text: string[]) => text.map((t, i) => `<span class="ln" style="--i:${i}"><span data-t="${t}">${t}</span></span>`).join("");
 const orb = (label: string, href: string, extra = "") =>
   `<a class="orb" href="${href}" ${extra} data-cursor><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="58"/><circle class="orb__arc" cx="60" cy="60" r="58"/></svg><span>${label}</span></a>`;
 
@@ -23,6 +24,7 @@ const groupSpan = (g: string) => {
 
 function markup() {
   const seq = benchmark["32"];
+  const peak = skiPeak();
   return /* html */ `
   <canvas class="xp-canvas" aria-hidden="true"></canvas>
   <div class="xp-grid" aria-hidden="true"><i></i><i></i><i></i><i></i><b></b><b></b></div>
@@ -74,6 +76,35 @@ function markup() {
       <ul class="plain" data-swing="highlights"></ul>
       <p class="fine" data-swing="coaching"></p>
       <p class="row"><a class="xp-pill" href="/playground" data-cursor>Analyse your swing</a><span class="fine">Free covers three swings a month.</span></p>
+    </section>
+
+    <section class="ch ch--find" data-ch="find">
+      <h2>${lines("Your turn.")}</h2>
+      <p>Drag the timeline. Find the frame where the hips slide furthest away from the target.</p>
+      <p class="metric num"><span data-find="value">0.0</span><small>cm</small></p>
+      <p class="metric-cap" data-find="status">Hip shift toward the target</p>
+    </section>
+
+    <section class="ch ch--ski" data-ch="ski-intro">
+      <p class="badge badge--teal">Illustrative model · not a capture</p>
+      <h2>${lines("Next: the load", "a turn puts", "on a skeleton.")}</h2>
+      <p>We have not published a ski capture yet. This is a carving turn modelled from two inputs, ${peak.kmh.toFixed(0)} km/h and an ${peak.radius.toFixed(0)} m arc, to show what the analysis reads on snow.</p>
+    </section>
+
+    <section class="ch ch--ski" data-ch="ski-load">
+      <p class="metric num"><span data-ski="load">1.0</span><small>× body weight</small></p>
+      <p class="metric-cap">Carried through the legs, right now</p>
+      <h2 class="h-sm">${lines("Load follows the turn.")}</h2>
+      <p>Gravity is constant; the turn is not. At the apex of this arc the two add up to ${peak.load.toFixed(1)} times body weight, and most of it goes through the outside leg.</p>
+      <p class="fine">Computed from the modelled speed and arc. Not measured.</p>
+    </section>
+
+    <section class="ch ch--ski" data-ch="ski-edge">
+      <p class="metric num"><span data-ski="lean">0</span><small>° lean</small></p>
+      <p class="metric-cap">The angle that balances the load</p>
+      <h2 class="h-sm">${lines("Lean is the answer", "to the force.")}</h2>
+      <p>The body tilts until gravity and the turn line up through the ski. The model computes that angle, up to ${peak.lean.toFixed(0)}° here. A capture will measure it, joint by joint.</p>
+      <p class="fine">Computed from the modelled speed and arc. Not measured.</p>
     </section>
 
     <section class="ch ch--bench" data-ch="benchmark">
@@ -141,14 +172,24 @@ function markup() {
     ${seq.map((row, i) => `<div class="tag tag--bar${i === 0 ? " is-lead" : ""}" data-anchor="bar-${i}"><b>${row[0]}</b><span class="num" data-bar="${i}">0.0</span></div>`).join("")}
     ${[0, 20, 40, 60, 80].map((mm) => `<div class="tag tag--tick num" data-anchor="tick-${mm}">${mm}</div>`).join("")}
     <div class="tag tag--gap" data-anchor="gap"><span class="num" data-bench="gap"></span><em>mm between them</em></div>
+    <div class="tag tag--ski" data-anchor="ski-force"><b class="num"><span data-ski="load2">1.0</span>×</b><span>ground reaction</span></div>
+    <div class="joint" data-anchor="joint"><i></i><div><b class="num" data-joint="value"></b><span data-joint="caption"></span></div></div>
     <div class="tag tag--fig" data-anchor="fig-surface">Body surface</div>
     <div class="tag tag--fig" data-anchor="fig-skeleton">Skeleton + muscles</div>
-    ${glassesParts.map((p) => `<div class="hot" data-anchor="h-${p.id.slice(2)}" data-hot="${p.id}"><i></i><span class="num">${p.n}</span></div>`).join("")}
+    ${glassesParts.map((p) => `<div class="hot" data-anchor="h-${p.id.slice(2)}" data-hot="${p.id}"><i></i><span><b class="num">${p.n}</b>${p.title}</span></div>`).join("")}
   </div>
 
-  <div class="xp-swinghud" aria-hidden="true">
-    <div class="xp-swinghud__row"><span data-hud="phase">Address</span><span class="num" data-hud="frame">000 / 096</span></div>
-    <div class="xp-swinghud__bar"><i data-hud="head"></i><div data-hud="phases"></div></div>
+  <div class="xp-swinghud">
+    <div class="xp-readout" data-hud="readout" aria-hidden="true"></div>
+    <div class="xp-swinghud__row" aria-hidden="true"><span data-hud="phase">Address</span><span class="num" data-hud="frame">000 / 096</span></div>
+    <div class="xp-swinghud__bar" data-hud="bar" role="slider" aria-label="Swing frame" aria-valuemin="0" aria-valuemax="96" aria-valuenow="0" tabindex="-1"><i data-hud="head"></i><u data-hud="knob"></u><div data-hud="phases"></div></div>
+  </div>
+
+  <div class="xp-skidata" aria-hidden="true">
+    <div><span>Speed</span><b class="num" data-ski="kmh">0</b><em>km/h</em></div>
+    <div><span>Turn radius</span><b class="num" data-ski="radius">0</b><em>m</em></div>
+    <div><span>Lean</span><b class="num" data-ski="lean2">0</b><em>°</em></div>
+    <div><span>Load</span><b class="num" data-ski="load3">1.0</b><em>× BW</em></div>
   </div>
 
   <div class="xp-hint" aria-hidden="true"><span>Scroll to discover</span><i></i></div>
@@ -164,6 +205,7 @@ function markup() {
   </div>
 
   <div class="xp-loader" role="status"><img src="/assets/cerebel-wordmark.png" alt="Cerebel" width="595" height="194"><b class="num">0%</b><span>Loading the experience.</span></div>
+  <svg class="xp-lens" viewBox="-90 -90 180 180" aria-hidden="true"></svg>
   <div class="xp-cursor" aria-hidden="true"></div>`;
 }
 
@@ -219,18 +261,65 @@ export function mountExperience(root: HTMLElement) {
       host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><rect class="win" x="${x(a.start)}" width="${x(a.end) - x(a.start)}" y="0" height="${H}"/>${goal}<path d="${path}"/><circle r="3.5"/></svg><span>${series.label} (${series.unit})</span>`;
       traceDots.push({ el: host.querySelector("circle")!, values: series.values, min, max });
     }
+    $('[data-hud="readout"]').innerHTML = d.series.map((sr) => `<div data-series="${sr.id}"><span>${sr.label}</span><b class="num">0.0</b><em>${sr.unit}</em></div>`).join("");
+    readouts = d.series.map((sr) => ({ id: sr.id, values: sr.values, el: root.querySelector<HTMLElement>(`[data-series="${sr.id}"] b`)!, cell: root.querySelector<HTMLElement>(`[data-series="${sr.id}"]`)! }));
+    const sway = d.series.find((sr) => sr.id === "sway")!;
+    swayValues = sway.values;
+    bestFrame = sway.values.indexOf(Math.min(...sway.values));
     const last = d.frameCount - 1;
+    hudBar.setAttribute("aria-valuemax", String(last));
     $('[data-hud="phases"]').innerHTML = d.phases.map((p) => `<span style="left:${(p.start / last) * 100}%">${p.label}</span>`).join("");
   }
+  let readouts: { id: string; values: number[]; el: HTMLElement; cell: HTMLElement }[] = [];
+  let swayValues: number[] = [];
+  let bestFrame = 0;
+  let scrub: number | null = null;
+  let found = false;
+  const at = (values: number[], frame: number) => {
+    const i = Math.max(0, Math.min(Math.floor(frame), values.length - 2));
+    return values[i] + (values[i + 1] - values[i]) * (frame - i);
+  };
+  const hudBar = $('[data-hud="bar"]');
+  const hudKnob = $('[data-hud="knob"]');
+  const jointEl = $('[data-anchor="joint"]');
+  const jointValue = $('[data-joint="value"]');
+  const jointCaption = $('[data-joint="caption"]');
+  const findValue = $('[data-find="value"]');
+  const findStatus = $('[data-find="status"]');
+  let jointShown: string | null = null;
   const hudPhase = $('[data-hud="phase"]');
   const hudFrame = $('[data-hud="frame"]');
   const hudHead = $('[data-hud="head"]');
   let lastFrameShown = -1;
-  function showFrame(frame: number) {
+  function showFrame(frame: number, focus: string | null, zoom: number) {
     if (!swing) return;
     const f = Math.round(frame);
     const last = swing.frameCount - 1;
     hudHead.style.transform = `scaleX(${frame / last})`;
+    hudKnob.style.left = `${(frame / last) * 100}%`;
+    const activeSeries = swing.annotations.find((a) => a.id === focus)?.series;
+    for (const r of readouts) {
+      r.el.textContent = at(r.values, frame).toFixed(1);
+      r.cell.classList.toggle("is-on", r.id === activeSeries);
+    }
+    // The measured value rides on the joint it belongs to.
+    if (focus && focus !== jointShown) {
+      const a = swing.annotations.find((x) => x.id === focus)!;
+      jointValue.textContent = a.metric.value;
+      jointCaption.textContent = a.metric.caption;
+      jointShown = focus;
+    }
+    jointEl.classList.toggle("is-on", zoom > 0.55);
+    if (root.classList.contains("is-scrub")) {
+      const v = at(swayValues, frame);
+      findValue.textContent = v.toFixed(1);
+      const hit = scrub !== null && Math.abs(frame - bestFrame) <= 1.5;
+      if (hit) found = true;
+      findStatus.textContent = hit
+        ? `Found it. Frame ${String(bestFrame).padStart(3, "0")}: ${Math.abs(swayValues[bestFrame]).toFixed(0)} cm away from the target.`
+        : found ? "Hip shift toward the target. You found the frame; keep exploring." : "Hip shift toward the target";
+      findStatus.classList.toggle("is-hit", hit);
+    }
     for (const t of traceDots) {
       const i = Math.min(Math.floor(frame), t.values.length - 2);
       const v = t.values[i] + (t.values[i + 1] - t.values[i]) * (frame - i);
@@ -268,9 +357,19 @@ export function mountExperience(root: HTMLElement) {
     root.style.setProperty("--gap", gapOn.toFixed(3));
   }
 
+  const skiEls = Object.fromEntries($$<HTMLElement>("[data-ski]").map((el) => [el.dataset.ski!, el]));
+  function showSki(v: { kmh: number; radius: number; lean: number; load: number }) {
+    const load = v.load.toFixed(1);
+    skiEls.load.textContent = skiEls.load2.textContent = skiEls.load3.textContent = load;
+    skiEls.lean.textContent = skiEls.lean2.textContent = v.lean.toFixed(0);
+    skiEls.kmh.textContent = v.kmh.toFixed(0);
+    skiEls.radius.textContent = Number.isFinite(v.radius) && v.radius < 400 ? v.radius.toFixed(0) : "–";
+  }
+
   const acts: Act[] = [
     createOrigin(),
-    createSwing(fillSwing, showFrame),
+    createSwing(fillSwing, showFrame, () => scrub),
+    createSki(showSki),
     createBenchmark(() => seqKey, showBench),
     createGlasses(),
     createField(),
@@ -320,6 +419,68 @@ export function mountExperience(root: HTMLElement) {
     cursor.classList.toggle("is-hover", !!(e.target as Element).closest?.("a, button, [data-cursor]"));
   });
 
+  // ---- Scrubbing the swing in the last Motion chapter.
+  const scrubTo = (clientX: number) => {
+    if (!swing) return;
+    const r = hudBar.getBoundingClientRect();
+    scrub = Math.min(1, Math.max(0, (clientX - r.left) / r.width)) * (swing.frameCount - 1);
+    hudBar.setAttribute("aria-valuenow", String(Math.round(scrub)));
+  };
+  hudBar.addEventListener("pointerdown", (e) => {
+    if (!root.classList.contains("is-scrub")) return;
+    hudBar.setPointerCapture(e.pointerId);
+    scrubTo(e.clientX);
+  });
+  hudBar.addEventListener("pointermove", (e) => hudBar.hasPointerCapture(e.pointerId) && scrubTo(e.clientX));
+  hudBar.addEventListener("keydown", (e) => {
+    if (!swing || !root.classList.contains("is-scrub")) return;
+    const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    scrub = Math.min(swing.frameCount - 1, Math.max(0, (scrub ?? 0) + step));
+    hudBar.setAttribute("aria-valuenow", String(Math.round(scrub)));
+  });
+
+  // ---- Headline lens: under the pointer the letters fall back to outlines and a small constellation shows.
+  const lens = root.querySelector<SVGElement>(".xp-lens")!;
+  {
+    let seed = 11;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const pts = Array.from({ length: 18 }, () => {
+      const a = rnd() * 6.283;
+      const r = 14 + rnd() * 66;
+      return [Math.cos(a) * r, Math.sin(a) * r, 1.2 + rnd() * 2.2];
+    });
+    let html = "";
+    pts.forEach((p, i) => {
+      const near = pts.map((q, j) => [Math.hypot(q[0] - p[0], q[1] - p[1]), j]).filter(([d, j]) => j > i && d < 46).slice(0, 2);
+      for (const [, j] of near) html += `<line x1="${p[0].toFixed(1)}" y1="${p[1].toFixed(1)}" x2="${pts[j][0].toFixed(1)}" y2="${pts[j][1].toFixed(1)}"/>`;
+    });
+    html += pts.map((p) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${p[2].toFixed(1)}"/>`).join("");
+    lens.innerHTML = html;
+  }
+  const headSpans = $$<HTMLElement>(".ln > span");
+  let lensOn = false;
+  window.addEventListener("pointermove", (e) => {
+    if (e.pointerType === "touch") return;
+    let hit = false;
+    for (const el of headSpans) {
+      if (!el.closest(".ch")!.classList.contains("is-on")) continue;
+      const r = el.getBoundingClientRect();
+      const inside = e.clientX > r.left - 70 && e.clientX < r.right + 70 && e.clientY > r.top - 50 && e.clientY < r.bottom + 50;
+      el.style.setProperty("--lr", inside ? "78px" : "0px");
+      if (inside) {
+        el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+        el.style.setProperty("--my", `${e.clientY - r.top}px`);
+        hit = hit || (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom);
+      }
+    }
+    if (hit !== lensOn) {
+      lensOn = hit;
+      lens.classList.toggle("is-on", hit);
+    }
+  });
+
   // ---- Loop.
   let u = window.scrollY / vh;
   let prev = performance.now();
@@ -352,6 +513,13 @@ export function mountExperience(root: HTMLElement) {
     const active = spans.find((s) => u >= s.start && u < s.end)?.id;
     for (const h of hots) h.classList.toggle("is-on", h.dataset.hot === active);
     root.classList.toggle("is-top", u < 0.25);
+    const scrubbing = active === "find";
+    if (scrubbing !== root.classList.contains("is-scrub")) {
+      root.classList.toggle("is-scrub", scrubbing);
+      hudBar.tabIndex = scrubbing ? 0 : -1;
+      if (!scrubbing) scrub = null;
+    }
+    lens.style.transform = `translate3d(${cur.tx}px, ${cur.ty}px, 0)`;
 
     cur.x = damp(cur.x, cur.tx, 18, dt);
     cur.y = damp(cur.y, cur.ty, 18, dt);
@@ -365,6 +533,8 @@ export function mountExperience(root: HTMLElement) {
         started = true;
         root.classList.add("is-ready");
         setTimeout(() => loader.remove(), 1200);
+        // The subject holds the screen alone for a beat before any interface arrives.
+        setTimeout(() => root.classList.add("is-live"), stage.reduced ? 0 : 1900);
       }
     }
     requestAnimationFrame(tick);

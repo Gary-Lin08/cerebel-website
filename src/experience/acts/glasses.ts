@@ -8,6 +8,7 @@ type Part = {
   tags: string[];
   fill: THREE.MeshBasicMaterial;
   line: THREE.LineBasicMaterial;
+  mesh: THREE.LineBasicMaterial;
 };
 
 const COOL = new THREE.Color(0xe9ecf2);
@@ -43,14 +44,17 @@ export function createGlasses(): Act {
     const line = new THREE.LineBasicMaterial({ color: COOL.clone(), transparent: true, opacity: 0.9 });
     const root = new THREE.Mesh(geometry, fill);
     root.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry, angle), line));
+    // The whole triangle mesh, drawn faintly under the outline, so the part reads as a wireframe model.
+    const mesh = new THREE.LineBasicMaterial({ color: COOL.clone(), transparent: true, opacity: 0.16 });
+    root.add(new THREE.LineSegments(new THREE.WireframeGeometry(geometry), mesh));
     root.position.set(...position);
     rig.add(root);
-    const part = { root, home: root.position.clone(), explode: new THREE.Vector3(...explode), tags, fill, line };
+    const part = { root, home: root.position.clone(), explode: new THREE.Vector3(...explode), tags, fill, line, mesh };
     parts.push(part);
     return part;
   }
 
-  const extrude = (shape: THREE.Shape, depth: number) => new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 10 }).translate(0, 0, -depth / 2);
+  const extrude = (shape: THREE.Shape, depth: number) => new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 6 }).translate(0, 0, -depth / 2);
 
   const LX = 0.96;
   for (const side of [-1, 1]) {
@@ -124,6 +128,7 @@ export function createGlasses(): Act {
     camera,
     ready: Promise.resolve(),
     offset: { x: 0.17, y: 0 },
+    bg: [0x0e1118, 0x07080c, 0x1c2232],
     anchors: () => anchors,
     update(ctx: Ctx) {
       const wide = ctx.aspect > 1.05;
@@ -153,6 +158,8 @@ export function createGlasses(): Act {
         const k = 1 - Math.exp(-6 * ctx.dt);
         part.line.color.lerp(on ? VIOLET : COOL, k);
         part.line.opacity += ((on ? 1 : active ? 0.38 : 0.9) - part.line.opacity) * k;
+        part.mesh.color.copy(part.line.color);
+        part.mesh.opacity += ((on ? 0.42 : active ? 0.07 : 0.16) - part.mesh.opacity) * k;
         part.fill.opacity += ((on ? 0.86 : 0.7) - part.fill.opacity) * k;
         part.fill.color.lerp(on ? new THREE.Color(0x1d1238) : new THREE.Color(0x10101c), k);
       }

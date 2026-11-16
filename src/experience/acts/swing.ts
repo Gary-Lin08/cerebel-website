@@ -59,7 +59,11 @@ const pointFragment = /* glsl */ `
   }`;
 
 // Act 1 — the team's own 60 fps golf capture. Scroll is the clock.
-export function createSwing(onData: (d: SwingData) => void, onFrame: (frame: number) => void): Act {
+export function createSwing(
+  onData: (d: SwingData) => void,
+  onFrame: (frame: number, focus: string | null, zoom: number) => void,
+  getScrub: () => number | null,
+): Act {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 60);
   // The capture is z-up; stand it up in three's y-up world.
@@ -89,7 +93,19 @@ export function createSwing(onData: (d: SwingData) => void, onFrame: (frame: num
   let muscleGroupOf: (string | null)[] = [];
   let skeletonClub: THREE.Line;
   const side = new THREE.Vector3();
-  const figures = { "fig-surface": new THREE.Vector3(), "fig-skeleton": new THREE.Vector3() };
+  const figures = { "fig-surface": new THREE.Vector3(), "fig-skeleton": new THREE.Vector3(), joint: new THREE.Vector3() };
+  // Each finding pushes the camera in on the joint it is about, from the angle that shows it.
+  const focusFor: Record<string, { bone: string; yaw: number; dist: number; lift: number }> = {
+    sway: { bone: "pelvis", yaw: 0.25, dist: 3.3, lift: 0.1 },
+    "trail-knee": { bone: "tibia_r", yaw: -1.2, dist: 2.5, lift: 0.25 },
+    "lead-arm": { bone: "ulna_l", yaw: 0.7, dist: 2.5, lift: 0.3 },
+    "hang-back": { bone: "pelvis", yaw: -0.5, dist: 3.9, lift: 0.5 },
+  };
+  const camTarget = new THREE.Vector3(0, 0.86, 0);
+  const bonePos = new THREE.Vector3();
+  const wantTarget = new THREE.Vector3();
+  let camRadius = 7;
+  let camLift = 0.35;
   const qa = new THREE.Quaternion();
   const qb = new THREE.Quaternion();
   const BONE = new THREE.Color(0xd4d8e6);
@@ -283,16 +299,20 @@ export function createSwing(onData: (d: SwingData) => void, onFrame: (frame: num
       if (c <= 0) break;
       frame = lerp(from, to, smooth(0, 0.55, c));
     }
+    // Last chapter: the visitor owns the clock.
+    const find = ctx.local("find");
+    if (find > 0) frame = getScrub() ?? lerp(data.frameCount - 1, 0, smooth(0, 0.3, find));
     return frame;
   }
 
-  const yawFor: Record<string, number> = { "swing-intro": 0.32, sway: 0.0, "trail-knee": -0.42, "lead-arm": 0.26, "hang-back": 0.0, finish: 0.42 };
+  const yawFor: Record<string, number> = { "swing-intro": 0.32, sway: 0.0, "trail-knee": -0.42, "lead-arm": 0.26, "hang-back": 0.0, finish: 0.42, find: 0.0 };
 
   const act: Act = {
     scene,
     camera,
     ready,
     offset: { x: 0.17, y: 0 },
+    bg: [0x061320, 0x04060a, 0x0a3550],
     anchors: () => figures,
     update(ctx: Ctx) {
       if (!data) return;
@@ -373,20 +393,40 @@ export function createSwing(onData: (d: SwingData) => void, onFrame: (frame: num
       // Camera walks to the angle that shows the active finding.
       let wanted = yawFor["swing-intro"];
       for (const id in yawFor) if (ctx.local(id) > 0) wanted = yawFor[id];
-      yaw = damp(yaw, wanted, 2.2, ctx.dt);
       const intro = clamp01(ctx.local("swing-intro"));
       const finish = clamp01(ctx.local("finish"));
-      const radius = (wide ? 6.8 : 12.5) - smooth(0, 1, intro) * 0.6 + smooth(0.2, 1, finish) * 0.8;
-      const angle = faceAngle + yaw + ctx.pointer.x * 0.1 + (ctx.reduced ? 0 : Math.sin(ctx.time * 0.25) * 0.03);
-      const lookY = 0.86;
-      // Frame the pair: aim at the midpoint between the two figures.
+      let radius = (wide ? 6.8 : 12.5) - smooth(0, 1, intro) * 0.6 + smooth(0.2, 1, finish) * 0.8;
+      let lift = 0.35;
       const mx = side.x * 0.5;
       const mz = -side.y * 0.5;
-      camera.position.set(mx + Math.sin(angle) * radius, lookY + 0.35 + ctx.pointer.y * 0.2, mz + Math.cos(angle) * radius);
-      camera.lookAt(mx, lookY, mz);
+      wantTarget.set(mx, 0.86, mz);
+      let focusId: string | null = null;
+      let zoom = 0;
+      if (note && focusFor[note.id]) {
+        const f = focusFor[note.id];
+        const c = ctx.local(note.id);
+        zoom = smooth(0.4, 0.7, c) * (1 - smooth(0.92, 1.0, c));
+        focusId = note.id;
+        scene.updateMatrixWorld(true);
+        boneNodes[sk.bodyNames.indexOf(f.bone)]?.getWorldPosition(bonePos);
+        figures.joint.copy(bonePos);
+        wantTarget.lerp(bonePos, zoom * 0.9);
+        wanted = lerp(wanted, f.yaw, zoom);
+        radius = lerp(radius, wide ? f.dist : f.dist * 1.5, zoom);
+        lift = lerp(lift, f.lift, zoom);
+      }
+      yaw = damp(yaw, wanted, 3, ctx.dt);
+      camTarget.x = damp(camTarget.x, wantTarget.x, 3.4, ctx.dt);
+      camTarget.y = damp(camTarget.y, wantTarget.y, 3.4, ctx.dt);
+      camTarget.z = damp(camTarget.z, wantTarget.z, 3.4, ctx.dt);
+      camRadius = damp(camRadius, radius, 3.4, ctx.dt);
+      camLift = damp(camLift, lift, 3, ctx.dt);
+      const angle = faceAngle + yaw + ctx.pointer.x * 0.08 + (ctx.reduced ? 0 : Math.sin(ctx.time * 0.25) * 0.02);
+      camera.position.set(camTarget.x + Math.sin(angle) * camRadius, camTarget.y + camLift + ctx.pointer.y * 0.15, camTarget.z + Math.cos(angle) * camRadius);
+      camera.lookAt(camTarget);
       figures["fig-surface"].set(0, 0, 0);
       figures["fig-skeleton"].set(side.x, 0, -side.y);
-      onFrame(frameNow);
+      onFrame(frameNow, focusId, zoom);
     },
   };
   return act;

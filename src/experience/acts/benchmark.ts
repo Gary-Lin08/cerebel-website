@@ -75,6 +75,7 @@ export function createBenchmark(getSeq: () => "32" | "128", onValues: (shown: nu
     camera,
     ready: Promise.resolve(),
     offset: { x: 0, y: 0 },
+    bg: [0x090b26, 0x050507, 0x14176a],
     anchors: () => anchors,
     update(ctx: Ctx) {
       const wide = ctx.aspect > 1.05;

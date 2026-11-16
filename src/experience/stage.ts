@@ -20,6 +20,8 @@ export interface Act {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   ready: Promise<unknown>;
+  /** Backdrop for this act: top, bottom and glow colours. Every act has its own. */
+  bg?: [number, number, number];
   /** Subject offset on screen as a fraction of the viewport (x right, y up). */
   offset?: { x: number; y: number };
   update(ctx: Ctx): void;
@@ -104,6 +106,30 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
   });
   quadScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), composite));
 
+  // Backdrop: a slow two-colour field with a glow behind the subject, different for every act.
+  const bgMaterial = new THREE.ShaderMaterial({
+    uniforms: { uTop: { value: new THREE.Color() }, uBottom: { value: new THREE.Color() }, uGlow: { value: new THREE.Color() }, uTime: { value: 0 }, uAspect: { value: 1 }, uCentre: { value: new THREE.Vector2(0.5, 0.5) } },
+    vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+    fragmentShader: /* glsl */ `
+      precision highp float;
+      uniform vec3 uTop, uBottom, uGlow; uniform float uTime, uAspect; uniform vec2 uCentre; varying vec2 vUv;
+      float blob(vec2 p, vec2 c, float r){ return exp(-dot(p - c, p - c) / (r * r)); }
+      void main(){
+        vec2 p = vUv; p.x *= uAspect;
+        vec2 c = uCentre; c.x *= uAspect;
+        vec3 col = mix(uBottom, uTop, smoothstep(0.0, 1.0, vUv.y + 0.25 * (vUv.x - 0.5)));
+        float g = blob(p, c, 0.55) * 0.85;
+        g += blob(p, c + vec2(sin(uTime * 0.11) * 0.5, cos(uTime * 0.09) * 0.3), 0.32) * 0.45;
+        g += blob(p, c + vec2(cos(uTime * 0.07) * 0.7, sin(uTime * 0.13) * 0.4 - 0.2), 0.24) * 0.3;
+        col += uGlow * g;
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const bgScene = new THREE.Scene();
+  bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMaterial));
+
   let width = 1;
   let height = 1;
   let dpr = 1;
@@ -153,7 +179,19 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
     act.update(ctx);
     act.camera.updateMatrixWorld();
     renderer.setRenderTarget(target);
+    const bg = act.bg ?? [0x050507, 0x050507, 0x000000];
+    bgMaterial.uniforms.uTop.value.setHex(bg[0]);
+    bgMaterial.uniforms.uBottom.value.setHex(bg[1]);
+    bgMaterial.uniforms.uGlow.value.setHex(bg[2]);
+    bgMaterial.uniforms.uTime.value = reduced ? 0 : time;
+    bgMaterial.uniforms.uAspect.value = aspect;
+    bgMaterial.uniforms.uCentre.value.set(0.5 + off.x, 0.52 + off.y * 0.5);
+    renderer.autoClear = true;
+    renderer.render(bgScene, quadCam);
+    renderer.autoClear = false;
+    renderer.clearDepth();
     renderer.render(act.scene, act.camera);
+    renderer.autoClear = true;
   }
 
   function placeAnchors(index: number, visible: boolean) {
