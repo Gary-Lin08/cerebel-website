@@ -25,8 +25,8 @@ const BONE = 0xd4d8e6;
 // front, high overhead, the far side, a chase from behind, and a wide pull-out.
 const SHOTS: [number, number, number][] = [
   [2.2, 0.9, -3.8],
-  [3.6, 0.35, -0.6],
-  [1.6, 0.3, -3.2],
+  [4.6, 0.55, -0.9],
+  [2.2, 0.4, -4.0],
   [0.4, 5.6, 2.2],
   [-2.8, 0.7, -2.6],
   [-0.6, 1.5, 4.2],
@@ -381,10 +381,16 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
         arrows[i].setLength(length, 0.16, 0.09);
         if (sd < 0) anchors["ski-force"].copy(tmp).addScaledVector(up, length);
 
-        // Arms relaxed, hands low and in front of the body; the leading hand reaches a little toward the nose.
+        // Arms balance the rider: out along the board, the leading one toward the nose and the trailing one
+        // toward the tail, held below shoulder height with soft elbows. They see-saw against the lean, the
+        // outside arm lifting as the body tips in, and spread a little wider at the apex.
         carried(body[`humerus_${tag}`].p0, body.torso.p0, chest, qTorso, shoulder);
-        hand.copy(shoulder).addScaledVector(trunk, -0.36 + idle * 0.008).addScaledVector(facing, 0.24).addScaledVector(shoulderDir, sd * 0.1).addScaledVector(f, sd < 0 ? 0.12 : -0.04);
-        pole.copy(shoulderDir).multiplyScalar(sd).addScaledVector(facing, -0.6).addScaledVector(Y, -0.2);
+        const seesaw = sd * swing * 0.2 * (toe > 0.5 ? -1 : 1);
+        hand.copy(shoulder)
+          .addScaledVector(shoulderDir, sd * (0.4 + 0.06 * apex))
+          .addScaledVector(Y, -0.16 + seesaw + idle * 0.012 * sd)
+          .addScaledVector(facing, 0.13);
+        pole.copy(Y).multiplyScalar(-1).addScaledVector(facing, -0.5).addScaledVector(shoulderDir, sd * 0.2);
         bend(shoulder, hand, rest.upper, rest.fore, pole, elbow);
         setGroup([`humerus_${tag}`], body[`humerus_${tag}`].p0, shoulder, carry(tmp.subVectors(body[`ulna_${tag}`].p0, body[`humerus_${tag}`].p0), rest.shoulderLine, edge.subVectors(elbow, shoulder), shoulderDir, turn));
         setGroup([`ulna_${tag}`, `radius_${tag}`, `hand_${tag}`], body[`ulna_${tag}`].p0, elbow, carry(tmp.subVectors(body[`hand_${tag}`].p0, body[`ulna_${tag}`].p0), rest.shoulderLine, edge.subVectors(hand, elbow), shoulderDir, turn));

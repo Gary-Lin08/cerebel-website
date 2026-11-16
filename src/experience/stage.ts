@@ -269,17 +269,23 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
 
   let lastAct = -1;
   function frame(u: number, time: number, dt: number, velocity: number) {
-    pointer.x = damp(pointer.x, pointer.tx, 5, dt);
-    pointer.y = damp(pointer.y, pointer.ty, 5, dt);
+    pointer.x = damp(pointer.x, pointer.tx, 3, dt);
+    pointer.y = damp(pointer.y, pointer.ty, 3, dt);
     // The cloud turns with the pointer on a heavy spring and rolls slowly as the page scrolls.
     const h = Math.min(dt, 0.033);
-    cloudSpin.vy += ((pointer.x * 0.5 + u * 0.14 - cloudSpin.y) * 8 - cloudSpin.vy * 2.5) * h;
-    cloudSpin.vx += ((-pointer.y * 0.28 - cloudSpin.x) * 8 - cloudSpin.vx * 2.5) * h;
+    // The cloud is stirred, not steered: moving the pointer pushes it round like a hand through water.
+    // It takes the push slowly, keeps turning for a while and coasts to a stop. Nothing pulls it back.
+    const push = 1 - Math.exp(-1.6 * h);
+    cloudSpin.vy += ((pointer.x - pointerWas.x) / h * 0.55 - cloudSpin.vy) * push;
+    cloudSpin.vx += (-(pointer.y - pointerWas.y) / h * 0.3 - cloudSpin.vx) * push;
+    const coast = Math.exp(-0.5 * h);
+    cloudSpin.vy *= coast;
+    cloudSpin.vx *= coast;
     cloudSpin.y += cloudSpin.vy * h;
-    cloudSpin.x += cloudSpin.vx * h;
-    cloudRig.rotation.set(cloudSpin.x, cloudSpin.y, 0);
-    cloudGlow.vx += ((pointer.x - cloudGlow.x) * 26 - cloudGlow.vx * 4.6) * h;
-    cloudGlow.vy += ((pointer.y - cloudGlow.y) * 26 - cloudGlow.vy * 4.6) * h;
+    cloudSpin.x = THREE.MathUtils.clamp(cloudSpin.x + cloudSpin.vx * h, -0.6, 0.6);
+    cloudRig.rotation.set(cloudSpin.x, cloudSpin.y + u * 0.14, 0);
+    cloudGlow.vx += ((pointer.x - cloudGlow.x) * 9 - cloudGlow.vx * 6.6) * h;
+    cloudGlow.vy += ((pointer.y - cloudGlow.y) * 9 - cloudGlow.vy * 6.6) * h;
     cloudGlow.x += cloudGlow.vx * h;
     cloudGlow.y += cloudGlow.vy * h;
     pointerVel.x = damp(pointerVel.x, (pointer.x - pointerWas.x) / h, 6, h);
@@ -288,7 +294,7 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
     pointerWas.y = pointer.y;
     cloud.uniforms.uGlow.value.set(cloudGlow.x, cloudGlow.y);
     cloud.uniforms.uVel.value.set(THREE.MathUtils.clamp(pointerVel.x, -2, 2) * 0.3, THREE.MathUtils.clamp(pointerVel.y, -2, 2) * 0.3);
-    cloud.uniforms.uTime.value = reduced ? 0 : time;
+    cloud.uniforms.uTime.value = reduced ? 0 : time * 0.45;
     cloud.uniforms.uAspect.value = width / height;
     cloud.uniforms.uSize.value = (width > height ? 1.5 : 1.15) * dpr;
     let a = actSpans.findIndex((s) => u < s.end);

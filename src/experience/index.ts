@@ -450,7 +450,7 @@ export function mountExperience(root: HTMLElement) {
     const a = i * 2.399963;
     const y = 1 - (2 * (i + 0.5)) / LN;
     const rad = Math.sqrt(1 - y * y) * (0.55 + 0.45 * ((i * 0.618) % 1));
-    return { x: Math.cos(a) * rad, y: y * (0.55 + 0.45 * ((i * 0.382) % 1)), z: Math.sin(a) * rad, cx: -999, cy: -999, vx: 0, vy: 0, lag: 70 + (i % 7) * 14, size: 1.2 + ((i * 0.37) % 1) * 2.4, sx: 0, sy: 0, d: 0 };
+    return { x: Math.cos(a) * rad, y: y * (0.55 + 0.45 * ((i * 0.382) % 1)), z: Math.sin(a) * rad, cx: -999, cy: -999, vx: 0, vy: 0, lag: 16 + (i % 7) * 6, size: 1.2 + ((i * 0.37) % 1) * 2.4, sx: 0, sy: 0, d: 0 };
   });
   let lensAlpha = 0;
   // Pointer speed shapes the cloud: it stretches along the motion, thins across it and spins faster.
@@ -486,7 +486,7 @@ export function mountExperience(root: HTMLElement) {
     const speed = Math.hypot(lensVel.x, lensVel.y);
     const pull = Math.min(1, speed / 1400);
     lensVel.squash = damp(lensVel.squash, pull, 5, dt);
-    lensVel.spin += dt * (0.7 + lensVel.squash * 2);
+    lensVel.spin += dt * (0.28 + lensVel.squash * 0.9);
     const ux = speed > 1 ? lensVel.x / speed : 1;
     const uy = speed > 1 ? lensVel.y / speed : 0;
     const ry = lensVel.spin;
@@ -497,8 +497,8 @@ export function mountExperience(root: HTMLElement) {
         n.cx = cur.x;
         n.cy = cur.y;
       }
-      // Each node hangs off the pointer on its own spring: heavy, late, with a small overshoot when it stops.
-      const c = 1.3 * Math.sqrt(n.lag);
+      // Each node drags behind the ring at its own slow pace and comes to rest without overshoot.
+      const c = 2.2 * Math.sqrt(n.lag);
       const h = Math.min(dt, 0.033);
       n.vx += ((cur.x - n.cx) * n.lag - n.vx * c) * h;
       n.vy += ((cur.y - n.cy) * n.lag - n.vy * c) * h;
@@ -605,10 +605,10 @@ export function mountExperience(root: HTMLElement) {
       el.style.setProperty("--my", `${(cur.y - r.top).toFixed(1)}px`);
     }
 
-    // The cursor ring is on a spring too, so it trails and settles with a small rebound.
+    // The cursor ring trails the pointer slowly and settles without overshoot.
     const ch = Math.min(dt, 0.033);
-    cur.vx += ((cur.tx - cur.x) * 90 - cur.vx * 7.5) * ch;
-    cur.vy += ((cur.ty - cur.y) * 90 - cur.vy * 7.5) * ch;
+    cur.vx += ((cur.tx - cur.x) * 36 - cur.vx * 13) * ch;
+    cur.vy += ((cur.ty - cur.y) * 36 - cur.vy * 13) * ch;
     cur.x += cur.vx * ch;
     cur.y += cur.vy * ch;
     cursor.style.transform = `translate3d(${cur.x}px, ${cur.y}px, 0)`;
