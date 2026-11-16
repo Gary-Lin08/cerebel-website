@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { createSurfaceSampler } from "../../viewer/particle-surface";
 import { type Act, type Ctx, clamp01, damp, lerp, smooth } from "../stage";
 
@@ -11,19 +12,25 @@ export type SwingData = {
   series: { id: string; label: string; unit: string; values: number[] }[];
   annotations: {
     id: string; title: string; detail: string; hold: number; cue: string; series: string;
-    start: number; end: number;
+    start: number; end: number; bones?: string[]; group?: string | null;
     metric: { value: string; caption: string };
     goal?: { value: number; label: string };
   }[];
+  muscleGroups: { id: string; label: string; muscles: string[] }[];
+  skeleton: {
+    boneModelUrl: string; toSurfaceAxes: number[][]; scaleToSurface: number; ground: number;
+    bodyNames: string[]; frames: number[][]; muscleNames: string[]; muscles: number[][][][]; club: number[][];
+  };
   surface: {
     vertexCount: number; facesUrl: string; verticesUrl: string;
     quantisation: { offset: number[]; scale: number[] };
-    ground: number; forward: number[]; ball: number[]; club: number[][];
+    ground: number; forward: number[]; target: number[]; ball: number[]; club: number[][];
   };
 };
 
 const DATA_URL = "/viewer-data/golf-1872/swing-analysis.json";
-const BODY_POINTS = 22000;
+const BODY_POINTS = 15000;
+const SEPARATION = 1.25; // metres between the surface figure and the skeleton
 const GHOST_POINTS = 5200;
 
 const pointVertex = /* glsl */ `
@@ -36,9 +43,9 @@ const pointVertex = /* glsl */ `
     vec3 v = normalize(-mv.xyz);
     float facing = abs(dot(n, v));
     // Rim-lit silver: edges of the body glow, faces stay quiet.
-    vLight = 0.25 + 0.75 * pow(1.0 - facing, 1.6) + 0.25 * max(dot(n, normalize(vec3(0.4, 0.8, 0.5))), 0.0);
+    vLight = 0.34 + 0.6 * pow(1.0 - facing, 2.0) + 0.26 * max(dot(n, normalize(vec3(0.4, 0.8, 0.5))), 0.0);
     gl_Position = projectionMatrix * mv;
-    gl_PointSize = max(1.0, uSize * (0.75 + 0.5 * aSeed) * (4.2 / -mv.z));
+    gl_PointSize = max(1.0, uSize * (0.7 + 0.4 * aSeed) * (4.2 / -mv.z));
     vSeed = aSeed;
   }`;
 const pointFragment = /* glsl */ `
@@ -75,6 +82,20 @@ export function createSwing(onData: (d: SwingData) => void, onFrame: (frame: num
   let faceAngle = 0;
   let yaw = 0.5;
   let frameNow = 0;
+  // Skeleton: its own reconstruction, so it stands beside the surface rather than inside it.
+  let boneNodes: (THREE.Object3D | null)[] = [];
+  let boneMaterials: THREE.MeshStandardMaterial[] = [];
+  let muscleLines: THREE.LineSegments;
+  let muscleGroupOf: (string | null)[] = [];
+  let skeletonClub: THREE.Line;
+  const side = new THREE.Vector3();
+  const figures = { "fig-surface": new THREE.Vector3(), "fig-skeleton": new THREE.Vector3() };
+  const qa = new THREE.Quaternion();
+  const qb = new THREE.Quaternion();
+  const BONE = new THREE.Color(0xd4d8e6);
+  const BONE_LIT = new THREE.Color(0xa77bff);
+  const MUSCLE = new THREE.Color(0x5a5078);
+  const MUSCLE_LIT = new THREE.Color(0xb48cff);
 
   const makeMaterial = (color: number, opacity: number, size: number, additive = true) =>
     new THREE.ShaderMaterial({
@@ -98,9 +119,10 @@ export function createSwing(onData: (d: SwingData) => void, onFrame: (frame: num
   const ready = fetch(DATA_URL)
     .then((r) => r.json())
     .then(async (json: SwingData) => {
-      const [vb, fb] = await Promise.all([
+      const [vb, fb, gltf] = await Promise.all([
         fetch(json.surface.verticesUrl).then((r) => r.arrayBuffer()),
         fetch(json.surface.facesUrl).then((r) => r.arrayBuffer()),
+        new GLTFLoader().loadAsync(json.skeleton.boneModelUrl),
       ]);
       const packed = new Int16Array(vb);
       const { offset, scale } = json.surface.quantisation;
@@ -122,7 +144,7 @@ export function createSwing(onData: (d: SwingData) => void, onFrame: (frame: num
       bodyGeometry.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(BODY_POINTS * 3), 3));
       bodyGeometry.setAttribute("aSeed", new THREE.BufferAttribute(sampler.seeds, 1));
       bodyGeometry.boundingSphere = new THREE.Sphere(centre.clone(), 5);
-      bodyMaterial = makeMaterial(0xdfe4f2, 0.9, 5);
+      bodyMaterial = makeMaterial(0xe2e6f2, 0.8, 3.4, false);
       world.add(new THREE.Points(bodyGeometry, bodyMaterial));
 
       // Earlier poses stay behind as violet exposures: address, top, impact.
@@ -192,6 +214,55 @@ export function createSwing(onData: (d: SwingData) => void, onFrame: (frame: num
         }),
       );
       world.add(floor);
+
+      // ---- Skeleton and muscle paths, mapped into the surface's axes and stood beside it.
+      const sk = json.skeleton;
+      const ax = sk.toSurfaceAxes;
+      const k = sk.scaleToSurface;
+      const opensim = new THREE.Group();
+      opensim.matrixAutoUpdate = false;
+      opensim.matrix.set(
+        ax[0][0] * k, ax[0][1] * k, ax[0][2] * k, 0,
+        ax[1][0] * k, ax[1][1] * k, ax[1][2] * k, 0,
+        ax[2][0] * k, ax[2][1] * k, ax[2][2] * k, 0,
+        0, 0, 0, 1,
+      );
+      opensim.add(gltf.scene);
+      boneNodes = sk.bodyNames.map((name) => gltf.scene.getObjectByName(name) ?? null);
+      boneMaterials = boneNodes.map((node) => {
+        const material = new THREE.MeshStandardMaterial({ color: BONE.clone(), roughness: 0.62, metalness: 0.05, emissive: 0x000000 });
+        node?.traverse((child) => {
+          if (child instanceof THREE.Mesh) child.material = material;
+        });
+        return material;
+      });
+      muscleGroupOf = sk.muscleNames.map((name) => json.muscleGroups.find((g) => g.muscles.includes(name))?.id ?? null);
+      const segments = sk.muscles[0].reduce((n, pts) => n + pts.length - 1, 0);
+      const muscleGeometry = new THREE.BufferGeometry();
+      muscleGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(segments * 6), 3));
+      muscleGeometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(segments * 6), 3));
+      muscleLines = new THREE.LineSegments(muscleGeometry, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95 }));
+      muscleLines.frustumCulled = false;
+      opensim.add(muscleLines);
+      skeletonClub = new THREE.Line(
+        new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3)),
+        new THREE.LineBasicMaterial({ color: 0x9b6cff, transparent: true, opacity: 0.95 }),
+      );
+      skeletonClub.frustumCulled = false;
+      opensim.add(skeletonClub);
+
+      const pelvisIndex = sk.bodyNames.indexOf("pelvis") * 7;
+      const pelvis = new THREE.Vector3(sk.frames[0][pelvisIndex], sk.frames[0][pelvisIndex + 1], sk.frames[0][pelvisIndex + 2]).applyMatrix4(opensim.matrix);
+      // Stand it along the target line, on the side away from the copy.
+      side.set(json.surface.target[0], json.surface.target[1], 0).normalize().multiplyScalar(-SEPARATION);
+      const skeletonRig = new THREE.Group();
+      skeletonRig.add(opensim);
+      skeletonRig.position.set(centre.x + side.x - pelvis.x, centre.y + side.y - pelvis.y, json.surface.ground - sk.ground * k);
+      world.add(skeletonRig);
+      scene.add(new THREE.HemisphereLight(0xe6e9ff, 0x2a1f4a, 2.2));
+      const key = new THREE.DirectionalLight(0xffffff, 2.6);
+      key.position.set(2, 4, 3);
+      scene.add(key);
       onData(json);
     });
 
@@ -215,17 +286,18 @@ export function createSwing(onData: (d: SwingData) => void, onFrame: (frame: num
     return frame;
   }
 
-  const yawFor: Record<string, number> = { "swing-intro": 0.55, sway: 0.0, "trail-knee": -0.75, "lead-arm": 0.35, "hang-back": 0.0, finish: 0.8 };
+  const yawFor: Record<string, number> = { "swing-intro": 0.32, sway: 0.0, "trail-knee": -0.42, "lead-arm": 0.26, "hang-back": 0.0, finish: 0.42 };
 
   const act: Act = {
     scene,
     camera,
     ready,
     offset: { x: 0.17, y: 0 },
+    anchors: () => figures,
     update(ctx: Ctx) {
       if (!data) return;
       const wide = ctx.aspect > 1.05;
-      act.offset!.x = wide ? 0.17 : 0;
+      act.offset!.x = wide ? 0.19 : 0;
       act.offset!.y = wide ? 0 : 0.16;
       const target = frameFor(ctx);
       frameNow = damp(frameNow, target, 14, ctx.dt);
@@ -235,10 +307,10 @@ export function createSwing(onData: (d: SwingData) => void, onFrame: (frame: num
       bodyGeometry.attributes.position.needsUpdate = true;
       bodyGeometry.attributes.normal.needsUpdate = true;
       const px = Math.min(window.devicePixelRatio || 1, 1.5);
-      bodyMaterial.uniforms.uSize.value = (wide ? 5.2 : 4.2) * px;
+      bodyMaterial.uniforms.uSize.value = (wide ? 3.4 : 3.0) * px;
       for (const g of ghosts) {
-        g.material.uniforms.uSize.value = 4.2 * px;
-        g.material.uniforms.uOpacity.value = 0.36 * smooth(2, 9, frameNow - g.frame);
+        g.material.uniforms.uSize.value = 2.8 * px;
+        g.material.uniforms.uOpacity.value = 0.22 * smooth(2, 9, frameNow - g.frame);
       }
 
       const club = data.surface.club;
@@ -252,17 +324,68 @@ export function createSwing(onData: (d: SwingData) => void, onFrame: (frame: num
       trail.geometry.setDrawRange(0, drawn);
       trailGlow.geometry.setDrawRange(0, drawn);
 
+      // Skeleton pose, muscle paths and the bones the active finding is about.
+      const sk = data.skeleton;
+      const s0 = Math.min(f0, sk.frames.length - 1);
+      const s1 = Math.min(f1, sk.frames.length - 1);
+      const fa = sk.frames[s0];
+      const fbn = sk.frames[s1];
+      let note: SwingData["annotations"][number] | undefined;
+      for (const a of data.annotations) if (ctx.local(a.id) > 0 && ctx.local(a.id) < 1) note = a;
+      const ease = 1 - Math.exp(-6 * ctx.dt);
+      boneNodes.forEach((node, b) => {
+        if (!node) return;
+        const o = b * 7;
+        node.position.set(lerp(fa[o], fbn[o], k), lerp(fa[o + 1], fbn[o + 1], k), lerp(fa[o + 2], fbn[o + 2], k));
+        qa.set(fa[o + 3], fa[o + 4], fa[o + 5], fa[o + 6]);
+        qb.set(fbn[o + 3], fbn[o + 4], fbn[o + 5], fbn[o + 6]);
+        node.quaternion.slerpQuaternions(qa, qb, k);
+        const lit = !!note?.bones?.includes(sk.bodyNames[b]);
+        boneMaterials[b].color.lerp(lit ? BONE_LIT : BONE, ease);
+        boneMaterials[b].emissive.lerp(lit ? new THREE.Color(0x3a1c8a) : new THREE.Color(0x000000), ease);
+      });
+      const mp = muscleLines.geometry.attributes.position.array as Float32Array;
+      const mc = muscleLines.geometry.attributes.color.array as Float32Array;
+      const ma = sk.muscles[s0];
+      const mb = sk.muscles[s1];
+      let w = 0;
+      for (let m = 0; m < ma.length; m += 1) {
+        const lit = note?.group != null && muscleGroupOf[m] === note.group;
+        const c = lit ? MUSCLE_LIT : MUSCLE;
+        for (let i = 0; i < ma[m].length - 1; i += 1) {
+          for (const j of [i, i + 1]) {
+            mp[w] = lerp(ma[m][j][0], mb[m][j][0], k);
+            mp[w + 1] = lerp(ma[m][j][1], mb[m][j][1], k);
+            mp[w + 2] = lerp(ma[m][j][2], mb[m][j][2], k);
+            mc[w] += (c.r - mc[w]) * ease;
+            mc[w + 1] += (c.g - mc[w + 1]) * ease;
+            mc[w + 2] += (c.b - mc[w + 2]) * ease;
+            w += 3;
+          }
+        }
+      }
+      muscleLines.geometry.attributes.position.needsUpdate = true;
+      muscleLines.geometry.attributes.color.needsUpdate = true;
+      const sc = skeletonClub.geometry.attributes.position.array as Float32Array;
+      for (let i = 0; i < 6; i += 1) sc[i] = lerp(sk.club[s0][i], sk.club[s1][i], k);
+      skeletonClub.geometry.attributes.position.needsUpdate = true;
+
       // Camera walks to the angle that shows the active finding.
       let wanted = yawFor["swing-intro"];
       for (const id in yawFor) if (ctx.local(id) > 0) wanted = yawFor[id];
       yaw = damp(yaw, wanted, 2.2, ctx.dt);
       const intro = clamp01(ctx.local("swing-intro"));
       const finish = clamp01(ctx.local("finish"));
-      const radius = (wide ? 6.0 : 8.4) - smooth(0, 1, intro) * 0.8 + smooth(0.2, 1, finish) * 1.2;
+      const radius = (wide ? 6.8 : 12.5) - smooth(0, 1, intro) * 0.6 + smooth(0.2, 1, finish) * 0.8;
       const angle = faceAngle + yaw + ctx.pointer.x * 0.1 + (ctx.reduced ? 0 : Math.sin(ctx.time * 0.25) * 0.03);
       const lookY = 0.86;
-      camera.position.set(Math.sin(angle) * radius, lookY + 0.35 + ctx.pointer.y * 0.2, Math.cos(angle) * radius);
-      camera.lookAt(0, lookY, 0);
+      // Frame the pair: aim at the midpoint between the two figures.
+      const mx = side.x * 0.5;
+      const mz = -side.y * 0.5;
+      camera.position.set(mx + Math.sin(angle) * radius, lookY + 0.35 + ctx.pointer.y * 0.2, mz + Math.cos(angle) * radius);
+      camera.lookAt(mx, lookY, mz);
+      figures["fig-surface"].set(0, 0, 0);
+      figures["fig-skeleton"].set(side.x, 0, -side.y);
       onFrame(frameNow);
     },
   };

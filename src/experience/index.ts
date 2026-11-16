@@ -95,7 +95,7 @@ function markup() {
       <p class="badge">Development concept</p>
       <h2>${lines("The glasses,", "taken apart.")}</h2>
       <p>In-lens display and camera capture are intended capabilities of this concept. It is not a working product yet, and features and timing can change.</p>
-      ${orb("Become a backer", "/classic#wearable")}
+      ${orb("Become a backer", "/#wearable")}
     </section>
 
     ${glassesParts.map((p) => `
@@ -131,7 +131,7 @@ function markup() {
           <img class="nv" src="/assets/nvidia-inception-program-badge.svg" alt="Cerebel is a member of NVIDIA Inception">
           <span class="usc"><img src="/assets/affiliations/usc-marshall-white.svg" alt="USC Marshall"><em>Greif Incubator</em></span>
         </div>
-        <p><a href="mailto:hello@cerebel.tech" data-cursor>hello@cerebel.tech</a> · <a href="/privacy.html" data-cursor>Privacy</a> · <a href="/classic" data-cursor>Previous site</a></p>
+        <p><a href="mailto:hello@cerebel.tech" data-cursor>hello@cerebel.tech</a> · <a href="/privacy.html" data-cursor>Privacy</a> · <a href="/" data-cursor>Previous site</a></p>
         <p class="legal">© ${new Date().getFullYear()} NVIDIA, the NVIDIA logo, and NVIDIA Inception are trademarks and/or registered trademarks of NVIDIA Corporation in the U.S. and other countries.</p>
       </footer>
     </section>
@@ -141,6 +141,8 @@ function markup() {
     ${seq.map((row, i) => `<div class="tag tag--bar${i === 0 ? " is-lead" : ""}" data-anchor="bar-${i}"><b>${row[0]}</b><span class="num" data-bar="${i}">0.0</span></div>`).join("")}
     ${[0, 20, 40, 60, 80].map((mm) => `<div class="tag tag--tick num" data-anchor="tick-${mm}">${mm}</div>`).join("")}
     <div class="tag tag--gap" data-anchor="gap"><span class="num" data-bench="gap"></span><em>mm between them</em></div>
+    <div class="tag tag--fig" data-anchor="fig-surface">Body surface</div>
+    <div class="tag tag--fig" data-anchor="fig-skeleton">Skeleton + muscles</div>
     ${glassesParts.map((p) => `<div class="hot" data-anchor="h-${p.id.slice(2)}" data-hot="${p.id}"><i></i><span class="num">${p.n}</span></div>`).join("")}
   </div>
 
@@ -157,7 +159,7 @@ function markup() {
     <div class="xp-menu__side">
       <a href="mailto:hello@cerebel.tech?subject=Demo%20request" data-cursor>Request a demo</a>
       <a href="/playground" data-cursor>Playground ↗</a>
-      <a href="/classic" data-cursor>Previous site</a>
+      <a href="/" data-cursor>Previous site</a>
     </div>
   </div>
 

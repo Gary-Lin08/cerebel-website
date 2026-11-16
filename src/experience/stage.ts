@@ -65,7 +65,7 @@ void main(){
   float edge = vUv.y - slope * (vUv.x - 0.5);
   float line = mix(-slope * 0.5 - 0.02, 1.0 + slope * 0.5 + 0.02, uWipe);
   float side = edge - line;
-  float ca = 0.002 + min(abs(uVel), 1.0) * 0.012;
+  float ca = 0.0006 + min(abs(uVel), 1.0) * 0.008;
   // Each scene drifts a little against the edge so the cut reads as two planes.
   vec2 uvA = vUv + vec2(0.0, uWipe * 0.06);
   vec2 uvB = vUv - vec2(0.0, (1.0 - uWipe) * 0.06);

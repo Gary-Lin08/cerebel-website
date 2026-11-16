@@ -3,7 +3,7 @@
 import { chromium } from "@playwright/test";
 import fs from "node:fs";
 
-const [base = "http://localhost:5173", out = "/tmp/shots", w = "1440", h = "900", ...stops] = process.argv.slice(2);
+const [base = "http://localhost:5173/experience.html", out = "/tmp/shots", w = "1440", h = "900", ...stops] = process.argv.slice(2);
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({
   executablePath: process.env.CHROME_PATH || "/usr/bin/google-chrome",

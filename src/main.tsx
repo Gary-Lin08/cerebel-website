@@ -1,5 +1,10 @@
 import React, { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
+import { App } from "./App";
+import "./styles.css";
+import "./refinements.css";
+import "./polish.css";
+import "./quiet-labels.css";
 
 const ViewerApp = lazy(() =>
   import("./viewer/ViewerApp").then((module) => ({ default: module.ViewerApp })),
@@ -9,33 +14,16 @@ const AdminApp = lazy(() =>
   import("./admin/AdminApp").then((module) => ({ default: module.AdminApp })),
 );
 
-// The scroll experience owns "/". The previous homepage stays reachable at /classic.
-const classicStyles = () =>
-  Promise.all([
-    import("./styles.css"),
-    import("./refinements.css"),
-    import("./polish.css"),
-    import("./quiet-labels.css"),
-  ]);
-const ClassicApp = lazy(() => import("./App").then((module) => ({ default: module.App })));
+const isAdmin =
+  window.location.pathname.startsWith("/admin")
+  || new URLSearchParams(window.location.search).get("admin") === "1";
+const isViewer = window.location.pathname.startsWith("/viewer");
+const RootApp = isAdmin ? AdminApp : isViewer ? ViewerApp : App;
 
-const path = window.location.pathname;
-const isAdmin = path.startsWith("/admin") || new URLSearchParams(window.location.search).get("admin") === "1";
-const isViewer = path.startsWith("/viewer");
-const isClassic = path.startsWith("/classic") || path === "/logo";
-const rootElement = document.getElementById("root")!;
-
-if (!isAdmin && !isViewer && !isClassic) {
-  void import("./experience").then(({ mountExperience }) => mountExperience(rootElement));
-} else {
-  const RootApp = isAdmin ? AdminApp : isViewer ? ViewerApp : ClassicApp;
-  void classicStyles().then(() => {
-    createRoot(rootElement).render(
-      <React.StrictMode>
-        <Suspense fallback={isViewer ? <div className="viewer-boot" role="status">Loading Motion Lab</div> : null}>
-          <RootApp />
-        </Suspense>
-      </React.StrictMode>,
-    );
-  });
-}
+createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <Suspense fallback={isViewer ? <div className="viewer-boot" role="status">Loading Motion Lab</div> : null}>
+      <RootApp />
+    </Suspense>
+  </React.StrictMode>,
+);

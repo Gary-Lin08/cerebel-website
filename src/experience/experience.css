@@ -53,16 +53,18 @@
 
 /* Chapters */
 .xp-chapters { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
-.ch { position: absolute; left: var(--pad); bottom: clamp(88px, 15vh, 150px); width: min(520px, 42vw); display: grid; gap: 16px; justify-items: start; visibility: hidden; transition: visibility 0s 0.7s; }
-.ch.is-on { visibility: visible; transition-delay: 0s; pointer-events: auto; }
+.ch { position: absolute; left: var(--pad); bottom: clamp(88px, 15vh, 150px); width: min(520px, 42vw); display: grid; gap: 16px; justify-items: start; visibility: hidden; opacity: 0; transition: opacity 0.22s, visibility 0s 0.22s; }
+/* The outgoing chapter is gone before the incoming one starts, so two never share the screen. */
+.ch.is-on { visibility: visible; opacity: 1; transition: opacity 0.35s 0.24s, visibility 0s 0.24s; pointer-events: auto; }
 .ch > * { margin: 0; opacity: 0; transform: translateY(18px); transition: opacity 0.5s, transform 0.7s var(--ease); }
-.ch.is-on > * { opacity: 1; transform: none; transition-delay: calc(0.28s + var(--n, 0) * 0.07s); }
+.ch.is-on > * { opacity: 1; transform: none; transition-delay: calc(0.3s + var(--n, 0) * 0.07s); }
 .ch > :nth-child(2) { --n: 1; } .ch > :nth-child(3) { --n: 2; } .ch > :nth-child(4) { --n: 3; } .ch > :nth-child(5) { --n: 4; } .ch > :nth-child(6) { --n: 5; }
 .ch h1, .ch h2 { width: max-content; max-width: 92vw; font-weight: 700; text-transform: uppercase; letter-spacing: -0.02em; line-height: 0.94; font-size: clamp(2.5rem, 5.3vw, 5.4rem); opacity: 1; transform: none; }
 .ch .h-sm { font-size: clamp(1.6rem, 2.5vw, 2.5rem); line-height: 1; }
 .ln { display: block; overflow: hidden; padding-bottom: 0.06em; }
 .ln > span { display: block; transform: translateY(108%) rotate(2deg); transform-origin: left bottom; transition: transform 0.9s var(--ease); }
-.ch.is-on .ln > span { transform: none; transition-delay: calc(0.2s + var(--i) * 0.09s); }
+.ch.is-on .ln > span { transform: none; transition-delay: calc(0.3s + var(--i) * 0.09s); }
+.ch:not(.is-on) .ln > span { transition-duration: 0s; transition-delay: 0.22s; }
 .ch p { max-width: 46ch; color: rgba(233, 236, 242, 0.82); font-size: 1.0625rem; }
 .ch .fine, .xp .fine { font-size: 0.8125rem; color: var(--muted); max-width: 58ch; line-height: 1.45; }
 .ch .badge { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 1px solid rgba(155, 108, 255, 0.55); border-radius: 999px; color: #d9caff; font-size: 0.8125rem; }
@@ -139,6 +141,8 @@
 .tag--bar { display: flex; align-items: baseline; gap: 10px; translate: -100% -190%; color: rgba(233, 236, 242, 0.75); }
 .tag--bar b { font-weight: 500; } .tag--bar .num { font-size: 1rem; color: var(--ink); }
 .tag--bar.is-lead b, .tag--bar.is-lead .num { color: #cdb9ff; }
+.tag--fig { translate: -50% 14px; color: var(--muted); }
+.xp[data-act="2"] .tag--fig { opacity: 0; } .xp[data-act="1"] .tag--fig { opacity: 1; }
 .tag--tick { margin: 8px 0 0 -8px; color: var(--muted); }
 .tag--gap { margin: -34px 0 0 -70px; padding: 6px 12px; border-radius: 999px; background: rgba(67, 56, 255, 0.3); border: 1px solid rgba(120, 110, 255, 0.6); backdrop-filter: blur(8px); color: #fff; display: flex; gap: 8px; align-items: baseline; }
 .xp[data-act="2"] .tag--gap { opacity: var(--gap, 0); } .tag--gap em { font-style: normal; color: rgba(255, 255, 255, 0.75); }

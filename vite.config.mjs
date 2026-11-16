@@ -9,6 +9,8 @@ export default defineConfig({
       input: {
         main: "index.html",
         admin: "admin.html",
+        // The scroll experience is its own page; the homepage does not load it.
+        experience: "experience.html",
       },
     },
   },
