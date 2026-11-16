@@ -278,3 +278,6 @@ The reference frame has three things the first glass pass lacked: visible film g
 ### Headline fill grows inward from the outline (user rejected the bottom-up fill as ugly)
 After the trace, `traceHeadlines()` draws the same contours again with a growing line width, clipped to the glyph (`glyphShapes`), so the fill starts at every edge and closes toward the middle of each stroke, letter after letter. The DOM text (`::before`) only fades in over the last 6% of `--f`, once the canvas letters are solid. Do not bring back the `clip-path` wipe.
 Also fixed: `.ch` must not carry `transform` / `translate` (even `0 0`): it becomes the containing block of the `position: fixed` team photo (`.slant`), which then lands on top of the company headline. The exit lift is on the children instead.
+
+### Grain slowed (user: too fast, too much)
+Scene grain now holds a pattern for 1/6 s and cross-fades to the next (it used to change every frame) and is about a quarter weaker. The grain tile over the copy steps roughly three times a second instead of nine. Keep it slow.

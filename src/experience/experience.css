@@ -582,9 +582,9 @@
 }
 /* Film grain over the copy as well as the scene, so text sits in the picture and not on top of it. The tile
    is larger than the screen and jumps a few times a second, like the grain in the scene. */
-.xp-glass::after { content: ""; position: absolute; inset: -220px; opacity: 0.3; mix-blend-mode: soft-light;
+.xp-glass::after { content: ""; position: absolute; inset: -220px; opacity: 0.24; mix-blend-mode: soft-light;
   background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='220' height='220' filter='url(%23n)'/></svg>");
-  animation: xp-grain 0.9s steps(1) infinite;
+  animation: xp-grain 2.8s steps(1) infinite;
 }
 @keyframes xp-grain {
   0% { transform: translate(0, 0); } 12% { transform: translate(-63px, 41px); } 25% { transform: translate(87px, -102px); } 37% { transform: translate(-121px, -37px); }

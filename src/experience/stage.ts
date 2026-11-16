@@ -117,9 +117,13 @@ void main(){
   col *= 1.0 - 0.42 * smoothstep(0.35, 1.05, length(q));
   // Film grain: coarse enough to see, moving every frame, strongest in the mid-tones.
   vec2 gcell = floor(gl_FragCoord.xy / (uFrost / 1.5 * 1.35));
-  float grain = hash(gcell + fract(uTime * 7.0) * 113.0) + hash(gcell * 1.7 + fract(uTime * 5.0) * 71.0) - 1.0;
+  // The grain holds for a sixth of a second and cross-fades to the next pattern, so it drifts instead of fizzing.
+  float gt = uTime * 6.0;
+  float g0 = hash(gcell + floor(gt) * 17.13) + hash(gcell * 1.7 + floor(gt) * 9.71) - 1.0;
+  float g1 = hash(gcell + (floor(gt) + 1.0) * 17.13) + hash(gcell * 1.7 + (floor(gt) + 1.0) * 9.71) - 1.0;
+  float grain = mix(g0, g1, smoothstep(0.0, 1.0, fract(gt)));
   float luma = dot(col, vec3(0.3, 0.59, 0.11));
-  col += grain * (0.03 + 0.055 * smoothstep(0.0, 0.35, luma) * (1.0 - 0.6 * smoothstep(0.6, 1.0, luma)));
+  col += grain * (0.024 + 0.042 * smoothstep(0.0, 0.35, luma) * (1.0 - 0.6 * smoothstep(0.6, 1.0, luma)));
   float sheen = smoothstep(0.55, 0.0, abs((vUv.x * uAspect * 0.55 + (1.0 - vUv.y)) - 0.32));
   col += vec3(0.75, 0.82, 1.0) * sheen * 0.022;
   gl_FragColor = vec4(col, 1.0);
