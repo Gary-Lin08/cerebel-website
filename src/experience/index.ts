@@ -143,7 +143,6 @@ function markup() {
     </section>`).join("")}
 
     ${flywheelSteps.map((step,i)=>`<section class="ch ch--flywheel" data-ch="loop-${i}">
-      <p class="badge">THE DATA FLYWHEEL · 0${i+1} / 04</p>
       <h2 class="h-sm">${lines(...step.head)}</h2>
       <p>${step.copy}</p>
       <p class="loop-detail num">${step.detail}</p>
