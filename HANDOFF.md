@@ -86,7 +86,7 @@ reconstructions (hands differ by up to 0.68 m). They stand side by side.
 - Intro order: subject alone for a beat, then top bar, rail and headline (`is-ready` → `is-live`).
 - Headline lens: under the pointer, letters fall back to outlines and a live 3D node cloud (2D canvas, `drawLens` in `index.ts`) trails it. The masks apply only while `data-lens` is set; an earlier version left the headline invisible once the pointer moved away.
 - Per-act backdrops (`bg` on each act, drawn in `stage.ts`).
-- Origin: strand morph (violet rail, green rail, white rungs) and bokeh lights.
+- Origin: the strand is a bundle of 56 woven fibres (lines + beads, `FIBER` GLSL in `acts/origin.ts`) that the particles gather onto; an irregular 3D cloud (clumps, arcs, scatter); the whole scene turns with the pointer on a mass-spring; the pointer's light and speed act on fibres and cloud. The user wants this weight and density everywhere.
 - Motion: skeleton + muscles beside the surface; camera pushes in on pelvis / right knee / left elbow
   per finding; the measured value rides on the joint with a dashed ring and leader; live readout of
   all four series; last chapter ("Your turn") lets the visitor drag the timeline to find the frame of

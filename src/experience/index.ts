@@ -453,6 +453,8 @@ export function mountExperience(root: HTMLElement) {
     return { x: Math.cos(a) * rad, y: y * (0.55 + 0.45 * ((i * 0.382) % 1)), z: Math.sin(a) * rad, cx: -999, cy: -999, lag: 5 + (i % 7) * 2.2, size: 1.2 + ((i * 0.37) % 1) * 2.4, sx: 0, sy: 0, d: 0 };
   });
   let lensAlpha = 0;
+  // Pointer speed shapes the cloud: it stretches along the motion, thins across it and spins faster.
+  const lensVel = { x: 0, y: 0, px: 0, py: 0, spin: 0, squash: 0 };
   let lensOn = false;
   function sizeLens() {
     const k = Math.min(window.devicePixelRatio || 1, 2);
@@ -474,9 +476,19 @@ export function mountExperience(root: HTMLElement) {
     }
     lens.dataset.clear = "0";
     lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-    const ry = time * 0.7;
-    const rx = time * 0.43;
-    const R = 78 * (1 + 0.06 * Math.sin(time * 1.7));
+    lensVel.x = damp(lensVel.x, (cur.tx - lensVel.px) / Math.max(dt, 0.001), 8, dt);
+    lensVel.y = damp(lensVel.y, (cur.ty - lensVel.py) / Math.max(dt, 0.001), 8, dt);
+    lensVel.px = cur.tx;
+    lensVel.py = cur.ty;
+    const speed = Math.hypot(lensVel.x, lensVel.y);
+    const pull = Math.min(1, speed / 1400);
+    lensVel.squash = damp(lensVel.squash, pull, 5, dt);
+    lensVel.spin += dt * (0.7 + lensVel.squash * 7);
+    const ux = speed > 1 ? lensVel.x / speed : 1;
+    const uy = speed > 1 ? lensVel.y / speed : 0;
+    const ry = lensVel.spin;
+    const rx = lensVel.spin * 0.61;
+    const R = 78 * (1 + 0.06 * Math.sin(time * 1.7) + lensVel.squash * 0.25);
     for (const n of nodes) {
       if (n.cx < -900) {
         n.cx = cur.tx;
@@ -490,8 +502,12 @@ export function mountExperience(root: HTMLElement) {
       const y1 = n.y * Math.cos(rx) - z1 * Math.sin(rx);
       const z2 = n.y * Math.sin(rx) + z1 * Math.cos(rx);
       const persp = 2.6 / (2.6 - z2);
-      n.sx = n.cx + x1 * R * persp;
-      n.sy = n.cy + y1 * R * persp;
+      const ox = x1 * R * persp;
+      const oy = y1 * R * persp;
+      const along = (ox * ux + oy * uy) * (1 + 1.5 * lensVel.squash);
+      const across = (-ox * uy + oy * ux) * (1 - 0.45 * lensVel.squash);
+      n.sx = n.cx + along * ux - across * uy;
+      n.sy = n.cy + along * uy + across * ux;
       n.d = persp;
     }
     lensCtx.lineWidth = 0.8;
