@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { type Act, type Ctx, clamp01, damp, lerp, smooth } from "../stage";
+import { loadBinary } from "../paths";
 
 const FIBERS = 56;
 const SEGMENTS = 240;
@@ -193,7 +194,7 @@ export function createOrigin(): Act {
     uAspect: { value: 1 },
   };
 
-  const load = (url: string) => fetch(url).then((r) => r.arrayBuffer()).then((b) => new Float32Array(b));
+  const load = (url: string) => loadBinary(url).then((b) => new Float32Array(b));
   const ready = Promise.all([
     load("/assets/cerebel-cerebellum-points.bin"),
     load("/assets/cerebel-kinetic-human-points.bin"),

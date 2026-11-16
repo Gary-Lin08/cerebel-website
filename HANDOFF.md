@@ -14,6 +14,7 @@ is borrowed. No code, models or copy from those sites.
 - **The original site must not change.** `/`, `index.html`, `src/main.tsx`, `src/App.tsx` are as on
   `main`. The experience is a separate page: `experience.html` → `src/experience/main.ts`.
 - Run: `npm install && npm run dev`, open `http://localhost:5173/experience.html`.
+- Preview link (private, owner shares it from claude.ai): https://claude.ai/artifact/46Zeph2oqYfWhTZ5hjofMJ, built with `npm run build:experience` (see AGENTS.md).
   On Vercel it is `/experience` (rewrite in `vercel.json`). Deploys are manual (Vercel CLI; see the
   October 6 note in `AGENTS.md`). Nothing has been deployed.
 - Owner of this work: Keith (Creative & Product). He reviews on a retina Mac in Chrome.

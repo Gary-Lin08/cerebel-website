@@ -3,6 +3,7 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "./experience.css";
 import { benchmark, chapters, glassesParts } from "./data";
+import { asset, page } from "./paths";
 import { type Act, TOTAL, createStage, damp, spans } from "./stage";
 import { createOrigin, originIntro } from "./acts/origin";
 import { type SwingData, createSwing } from "./acts/swing";
@@ -31,9 +32,9 @@ function markup() {
 
   <header class="xp-top">
     <button class="xp-burger" type="button" aria-label="Open menu" aria-expanded="false" data-cursor><i></i><i></i></button>
-    <a class="xp-mark" href="#hero" data-jump="0" aria-label="Cerebel AI"><img src="/assets/cerebel-wordmark.png" alt="Cerebel" width="595" height="194"></a>
+    <a class="xp-mark" href="#hero" data-jump="0" aria-label="Cerebel AI"><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"></a>
     <nav class="xp-top__links" aria-label="Shortcuts">
-      <a href="/playground" data-cursor>Playground ↗</a>
+      <a href="${page("/playground")}" data-cursor>Playground ↗</a>
       <a class="xp-pill" href="mailto:hello@cerebel.tech?subject=Demo%20request" data-cursor>Request a demo</a>
     </nav>
   </header>
@@ -75,7 +76,7 @@ function markup() {
       <h2>${lines("And what", "already works.")}</h2>
       <ul class="plain" data-swing="highlights"></ul>
       <p class="fine" data-swing="coaching"></p>
-      <p class="row"><a class="xp-pill" href="/playground" data-cursor>Analyse your swing</a><span class="fine">Free covers three swings a month.</span></p>
+      <p class="row"><a class="xp-pill" href="${page("/playground")}" data-cursor>Analyse your swing</a><span class="fine">Free covers three swings a month.</span></p>
     </section>
 
     <section class="ch ch--find" data-ch="find">
@@ -126,7 +127,7 @@ function markup() {
       <p class="badge">Development concept</p>
       <h2>${lines("The glasses,", "taken apart.")}</h2>
       <p>In-lens display and camera capture are intended capabilities of this concept. It is not a working product yet, and features and timing can change.</p>
-      ${orb("Become a backer", "/#wearable")}
+      ${orb("Become a backer", page("/#wearable"))}
     </section>
 
     ${glassesParts.map((p) => `
@@ -141,7 +142,7 @@ function markup() {
       <h2>${lines("Already", "in the field.")}</h2>
       <ul class="partners">
         <li><a href="https://apocynthion.ai/" target="_blank" rel="noreferrer" data-cursor><b>Apocynthion</b><span>Humanoid partnership. Its ArenaLabs line builds AlphaMotion, described on its site as the cerebellum for humanoid robots.</span><i>↗</i></a></li>
-        <li><a href="/playground" data-cursor><b>Athletic coaching</b><span>Ski, golf and tennis: edge, rotation, contact.</span><i>↗</i></a></li>
+        <li><a href="${page("/playground")}" data-cursor><b>Athletic coaching</b><span>Ski, golf and tennis: edge, rotation, contact.</span><i>↗</i></a></li>
         <li><a href="https://www.instagram.com/overide_snowboards/" target="_blank" rel="noreferrer" data-cursor><b>Overide</b><span>Snowboard brand partnership. 雪鸮科技 / 风脊者, Overide Halo.</span><i>↗</i></a></li>
       </ul>
     </section>
@@ -150,7 +151,7 @@ function markup() {
       <h2>${lines("Built by people", "who move.")}</h2>
       <p>The founding team comes from Babson / Olin, Duke, USC Marshall and USC Viterbi, with an adviser from the Wharton School.</p>
       <p class="fine">Academic affiliations of the team, not institutional partnerships.</p>
-      <figure class="slant"><img src="/assets/founders/founder-team-sm.jpg" alt="The Cerebel team" loading="lazy"></figure>
+      <figure class="slant"><img src="${asset("/assets/founders/founder-team-sm.jpg")}" alt="The Cerebel team" loading="lazy"></figure>
     </section>
 
     <section class="ch ch--contact" data-ch="contact">
@@ -158,11 +159,11 @@ function markup() {
       ${orb("Request a demo", "mailto:hello@cerebel.tech?subject=Demo%20request")}
       <footer class="xp-foot">
         <div class="xp-foot__marks">
-          <img class="wm" src="/assets/cerebel-wordmark.png" alt="Cerebel" width="595" height="194">
-          <img class="nv" src="/assets/nvidia-inception-program-badge.svg" alt="Cerebel is a member of NVIDIA Inception">
-          <span class="usc"><img src="/assets/affiliations/usc-marshall-white.svg" alt="USC Marshall"><em>Greif Incubator</em></span>
+          <img class="wm" src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194">
+          <img class="nv" src="${asset("/assets/nvidia-inception-program-badge.svg")}" alt="Cerebel is a member of NVIDIA Inception">
+          <span class="usc"><img src="${asset("/assets/affiliations/usc-marshall-white.svg")}" alt="USC Marshall"><em>Greif Incubator</em></span>
         </div>
-        <p><a href="mailto:hello@cerebel.tech" data-cursor>hello@cerebel.tech</a> · <a href="/privacy.html" data-cursor>Privacy</a> · <a href="/" data-cursor>Previous site</a></p>
+        <p><a href="mailto:hello@cerebel.tech" data-cursor>hello@cerebel.tech</a> · <a href="${page("/privacy.html")}" data-cursor>Privacy</a> · <a href="${page("/")}" data-cursor>Previous site</a></p>
         <p class="legal">© ${new Date().getFullYear()} NVIDIA, the NVIDIA logo, and NVIDIA Inception are trademarks and/or registered trademarks of NVIDIA Corporation in the U.S. and other countries.</p>
       </footer>
     </section>
@@ -199,12 +200,12 @@ function markup() {
     <ol>${groups.map((g, i) => `<li><button type="button" data-group="${g}" data-cursor><em>Chapter ${i + 1}</em>${g}</button></li>`).join("")}</ol>
     <div class="xp-menu__side">
       <a href="mailto:hello@cerebel.tech?subject=Demo%20request" data-cursor>Request a demo</a>
-      <a href="/playground" data-cursor>Playground ↗</a>
-      <a href="/" data-cursor>Previous site</a>
+      <a href="${page("/playground")}" data-cursor>Playground ↗</a>
+      <a href="${page("/")}" data-cursor>Previous site</a>
     </div>
   </div>
 
-  <div class="xp-loader" role="status"><img src="/assets/cerebel-wordmark.png" alt="Cerebel" width="595" height="194"><b class="num">0%</b><span>Loading the experience.</span></div>
+  <div class="xp-loader" role="status"><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"><b class="num">0%</b><span>Loading the experience.</span></div>
   <canvas class="xp-lens" aria-hidden="true"></canvas>
   <div class="xp-cursor" aria-hidden="true"></div>`;
 }

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { createSurfaceSampler } from "../../viewer/particle-surface";
 import { createMuscleVolume } from "../../viewer/muscle-volumes";
+import { asset, loadBinary } from "../paths";
 import { type Act, type Ctx, clamp01, damp, lerp, smooth } from "../stage";
 
 export type SwingData = {
@@ -29,7 +30,7 @@ export type SwingData = {
   };
 };
 
-const DATA_URL = "/viewer-data/golf-1872/swing-analysis.json";
+const DATA_URL = asset("/viewer-data/golf-1872/swing-analysis.json");
 const BODY_POINTS = 15000;
 const SEPARATION = 1.25; // metres between the surface figure and the skeleton
 const GHOST_POINTS = 5200;
@@ -139,9 +140,9 @@ export function createSwing(
     .then((r) => r.json())
     .then(async (json: SwingData) => {
       const [vb, fb, gltf] = await Promise.all([
-        fetch(json.surface.verticesUrl).then((r) => r.arrayBuffer()),
-        fetch(json.surface.facesUrl).then((r) => r.arrayBuffer()),
-        new GLTFLoader().loadAsync(json.skeleton.boneModelUrl),
+        loadBinary(json.surface.verticesUrl),
+        loadBinary(json.surface.facesUrl),
+        loadBinary(json.skeleton.boneModelUrl).then((b) => new GLTFLoader().parseAsync(b, "")),
       ]);
       const packed = new Int16Array(vb);
       const { offset, scale } = json.surface.quantisation;

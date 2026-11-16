@@ -16,7 +16,8 @@
     "test:sites": "node --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "test": "npm run test:sites && npm run test:e2e"
+    "test": "npm run test:sites && npm run test:e2e",
+    "build:experience": "node scripts/build-experience.mjs"
   },
   "dependencies": {
     "@fontsource-variable/space-grotesk": "^5.2.8",

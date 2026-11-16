@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { type Act, type Ctx, clamp01, damp, lerp, smooth } from "../stage";
+import { asset, loadBinary } from "../paths";
 
 // Act 2 — a modelled snowboard carve. There is no snow capture in the repo yet, so nothing here is a
 // measurement: the capture's bone model is posed by code and every figure follows from the two stated inputs
@@ -160,8 +161,8 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
   };
   let rigged = false;
   const ready = Promise.all([
-    fetch("/viewer-data/golf-1872/swing-analysis.json").then((res) => res.json()),
-    new GLTFLoader().loadAsync("/viewer-data/golf-1872/opensim/rajagopal-bones.glb"),
+    fetch(asset("/viewer-data/golf-1872/swing-analysis.json")).then((res) => res.json()),
+    loadBinary("/viewer-data/golf-1872/opensim/rajagopal-bones.glb").then((b) => new GLTFLoader().parseAsync(b, "")),
   ]).then(([json, gltf]) => {
     const names: string[] = json.skeleton.bodyNames;
     const frame: number[] = json.skeleton.frames[0];
