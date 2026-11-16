@@ -1,8 +1,10 @@
+import { addEnvironments } from "./environments";
+import { mountMuscleOrbit } from "./muscle-orbit";
 import "@fontsource-variable/space-grotesk";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "./experience.css";
-import { benchmark, chapters, glassesParts } from "./data";
+import { benchmark, chapters, glassesParts, flywheelSteps } from "./data";
 import { asset, page } from "./paths";
 import { type Act, TOTAL, createStage, damp, spans } from "./stage";
 import { createOrigin } from "./acts/origin";
@@ -10,6 +12,7 @@ import { type SwingData, createSwing } from "./acts/swing";
 import { createBenchmark } from "./acts/benchmark";
 import { createSki, skiPeak } from "./acts/ski";
 import { createGlasses } from "./acts/glasses";
+import { createFlywheel } from "./acts/flywheel";
 import { createField } from "./acts/field";
 
 const lines = (...text: string[]) => text.map((t, i) => `<span class="ln" style="--i:${i}"><span data-t="${t}">${t}</span></span>`).join("");
@@ -138,6 +141,14 @@ function markup() {
       <p class="fine">Schematic of the development configuration.</p>
     </section>`).join("")}
 
+    ${flywheelSteps.map((step,i)=>`<section class="ch ch--flywheel" data-ch="loop-${i}">
+      <p class="badge">THE DATA FLYWHEEL · 0${i+1} / 04</p>
+      <h2 class="h-sm">${lines(...step.head)}</h2>
+      <p>${step.copy}</p>
+      <p class="loop-detail num">${step.detail}</p>
+      <div class="loop-total"><strong class="num">20,000<span> h</span></strong><p>5,000 real / 15,000 simulated</p></div>
+      <p class="fine">Team-reported dataset. Every deployment can strengthen the motion model. Loop shown schematically.</p>
+    </section>`).join("")}
     <section class="ch ch--field" data-ch="field">
       <h2>${lines("Already", "in the field.")}</h2>
       <ul class="partners">
@@ -169,6 +180,7 @@ function markup() {
     </section>
   </main>
 
+  <nav class="loop-nav" aria-label="Data flywheel stages">${flywheelSteps.map((step,i)=>`<button data-loop="${i}" data-jump="${spans.find(s=>s.id===`loop-${i}`)!.start+.1}"><span>0${i+1}</span>${step.title}<i>↗</i></button>`).join("")}</nav>
   <div class="xp-anchors" aria-hidden="true">
     ${seq.map((row, i) => `<div class="tag tag--bar${i === 0 ? " is-lead" : ""}" data-anchor="bar-${i}"><b>${row[0]}</b><span class="num" data-bar="${i}">0.0</span></div>`).join("")}
     ${[0, 20, 40, 60, 80].map((mm) => `<div class="tag tag--tick num" data-anchor="tick-${mm}">${mm}</div>`).join("")}
@@ -241,6 +253,7 @@ export function mountExperience(root: HTMLElement) {
   const H = 70;
   function fillSwing(d: SwingData) {
     swing = d;
+    mountMuscleOrbit(root, d);
     $('[data-swing="badge"]').textContent = d.disclosure.badge;
     $('[data-swing="club"]').textContent = d.disclosure.club;
     $('[data-swing="coaching"]').textContent = d.disclosure.coaching;
@@ -373,8 +386,10 @@ export function mountExperience(root: HTMLElement) {
     createSki(showSki),
     createBenchmark(() => seqKey, showBench),
     createGlasses(),
+    createFlywheel(step => root.querySelectorAll<HTMLButtonElement>("[data-loop]").forEach((button,i)=>button.setAttribute("aria-current",String(i===step)))),
     createField(),
   ];
+  addEnvironments(acts);
   const stage = createStage($<HTMLCanvasElement>(".xp-canvas"), acts, $(".xp-anchors"));
 
   // ---- Loader.
@@ -391,7 +406,7 @@ export function mountExperience(root: HTMLElement) {
   const hots = $$<HTMLElement>("[data-hot]");
   $$<HTMLElement>("[data-group]").forEach((el) => el.addEventListener("click", () => {
     setMenu(false);
-    jump(groupSpan(el.dataset.group!).start);
+    jump(groupSpan(el.dataset.group!).start + (el.dataset.group === "Origin" ? 0 : .86));
   }));
   $$<HTMLElement>("[data-jump]").forEach((el) => el.addEventListener("click", (e) => {
     e.preventDefault();
@@ -446,7 +461,7 @@ export function mountExperience(root: HTMLElement) {
   // The constellation is a small 3D cloud drawn live: it turns, breathes, and each node trails the pointer at its own pace.
   const lens = root.querySelector<HTMLCanvasElement>(".xp-lens")!;
   const lensCtx = lens.getContext("2d")!;
-  const LN = 26;
+  const LN = 42;
   const nodes = Array.from({ length: LN }, (_, i) => {
     const a = i * 2.399963;
     const y = 1 - (2 * (i + 0.5)) / LN;
@@ -492,7 +507,7 @@ export function mountExperience(root: HTMLElement) {
     const uy = speed > 1 ? lensVel.y / speed : 0;
     const ry = lensVel.spin;
     const rx = lensVel.spin * 0.61;
-    const R = 78 * (1 + 0.06 * Math.sin(time * 1.7) + lensVel.squash * 0.08);
+    const R = 94 * (1 + 0.06 * Math.sin(time * 1.7) + lensVel.squash * 0.08);
     for (const n of nodes) {
       if (n.cx < -900) {
         n.cx = cur.x;
@@ -536,7 +551,7 @@ export function mountExperience(root: HTMLElement) {
     for (const n of nodes) {
       lensCtx.fillStyle = `rgba(255,255,255,${(lensAlpha * Math.min(1, 0.35 + (n.d - 0.7) * 1.1)).toFixed(3)})`;
       lensCtx.beginPath();
-      lensCtx.arc(n.sx, n.sy, n.size * n.d, 0, 6.283);
+      lensCtx.arc(n.sx, n.sy, n.size * n.d * .75, 0, 6.283);
       lensCtx.fill();
     }
   }

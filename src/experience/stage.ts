@@ -52,7 +52,7 @@ export const actSpans = ACTS.map((_, i) => {
   const mine = spans.filter((s) => s.act === i);
   return { start: mine[0].start, end: mine[mine.length - 1].end };
 });
-const WIPE = 0.6; // half-width of a scene wipe, in viewport heights
+const WIPE = 0.85; // half-width of a scene wipe, in viewport heights
 
 const compositeFrag = /* glsl */ `
 precision highp float;
@@ -65,15 +65,16 @@ vec3 sampleScene(sampler2D t, vec2 uv, float ca){
   return vec3(texture2D(t, uv + d).r, texture2D(t, uv).g, texture2D(t, uv - d).b);
 }
 void main(){
-  float slope = 0.34;
+  float slope = 0.34 + sin(uWipe * 3.14159) * 0.08;
   // The incoming scene rises from the bottom behind a slanted edge.
   float edge = vUv.y - slope * (vUv.x - 0.5);
   float line = mix(-slope * 0.5 - 0.02, 1.0 + slope * 0.5 + 0.02, uWipe);
   float side = edge - line;
   float ca = 0.0006 + min(abs(uVel), 1.0) * 0.008;
   // Each scene drifts a little against the edge so the cut reads as two planes.
-  vec2 uvA = vUv + vec2(0.0, uWipe * 0.06);
-  vec2 uvB = vUv - vec2(0.0, (1.0 - uWipe) * 0.06);
+  float travel = sin(uWipe * 3.14159);
+  vec2 uvA = (vUv - .5) * (1.0 - travel * .035) + .5 + vec2(-uWipe * .018, uWipe * .09);
+  vec2 uvB = (vUv - .5) * (1.0 + travel * .035) + .5 - vec2(-(1.0-uWipe)*.018, (1.0-uWipe)*.09);
   // A soft, wide edge: the two scenes dissolve through each other rather than cut.
   float on = step(0.001, uWipe) * step(uWipe, 0.999);
   float blend = smoothstep(-0.16, 0.16, side);

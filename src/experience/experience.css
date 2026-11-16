@@ -279,3 +279,71 @@
 .xp-skidata span { grid-column: 1 / -1; font-size: 0.8125rem; color: var(--muted); }
 .xp-skidata b { font-size: 1.25rem; font-weight: 500; min-width: 3.6ch; } .xp-skidata em { font-style: normal; font-size: 0.8125rem; color: var(--muted); }
 @media (max-width: 860px), (max-aspect-ratio: 21/20) { .xp-skidata { left: var(--pad); right: var(--pad); bottom: 18px; justify-content: space-between; gap: 8px; } .xp-skidata span { display: none; } .xp-skidata b { font-size: 0.9375rem; } }
+
+/* Spatial exploration: a separate, reversible layer above the scroll story. */
+.muscle-entry{position:fixed;right:7vw;bottom:150px;z-index:25;display:none;align-items:center;gap:16px;border:0;background:none;color:#f5f3ff;font:inherit;cursor:pointer}
+.xp[data-act="1"] .muscle-entry{display:flex}
+.muscle-entry span{display:grid;place-items:center;width:62px;height:62px;border:1px solid #bba0ff;border-radius:50%;font-size:30px;transition:background .3s,transform .5s}
+.muscle-entry:hover span,.muscle-entry:focus-visible span{background:#7950c9;transform:rotate(90deg)}
+.muscle-orbit{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;color:#f5f3ff;background:radial-gradient(ellipse at 60% 40%,#192d2c,#100e20 55%,#06070c);overflow:hidden}
+.muscle-orbit::backdrop{background:#06070c}
+.muscle-orbit canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.orbit-close{position:absolute;right:4vw;top:32px;width:54px;height:54px;border:1px solid #aaa2c2;border-radius:50%;background:transparent;color:white;font-size:32px;cursor:pointer;transition:transform .4s,background .3s}
+.orbit-close:hover{transform:rotate(90deg);background:#5a2fb0}
+.orbit-copy{position:absolute;left:5vw;top:16%;width:min(27vw,370px);pointer-events:none}
+.orbit-copy>p:first-child{color:#b6a9cd;font-size:14px}
+.orbit-copy h2{font-size:clamp(28px,3vw,48px);line-height:1.08;font-weight:500}
+.orbit-copy p{line-height:1.6}
+.orbit-cue{border-left:2px solid #b69aff;padding-left:18px;color:#bde7c2}
+.muscle-orbit nav{position:absolute;right:4vw;bottom:100px;display:flex;flex-direction:column;gap:10px}
+.muscle-orbit nav button{border:1px solid #7d748d;border-radius:40px;padding:13px 24px;background:#11111dcc;color:#dfdbea;font:inherit;text-align:left;cursor:pointer;transition:background .3s,transform .3s}
+.muscle-orbit nav button[aria-pressed="true"]{background:#c5eea7;color:#142019;border-color:#c5eea7;transform:translateX(-12px)}
+.muscle-orbit footer{position:absolute;bottom:28px;left:5vw;max-width:430px;color:#aaa7ba;font-size:12px;line-height:1.6;pointer-events:none}
+.xp-pill{transition:background .3s,box-shadow .3s,transform .3s}
+.xp-pill:hover{transform:translateY(-3px);box-shadow:0 0 0 7px #9b6cff20}
+.xp-rail button:hover{filter:brightness(1.5)}
+@media(max-width:700px){
+ .muscle-entry{right:20px;bottom:145px;font-size:12px;gap:8px}.muscle-entry span{width:40px;height:40px}
+ .orbit-copy{left:6vw;top:65px;width:85vw}.orbit-copy h2{font-size:28px;margin:8px 0}
+ .orbit-copy p{font-size:13px;margin:8px 0}.orbit-cue{display:none}
+ .muscle-orbit nav{right:5vw;left:5vw;bottom:98px;flex-direction:row;flex-wrap:wrap;gap:6px}
+ .muscle-orbit nav button{padding:8px 12px;font-size:12px}.muscle-orbit nav button[aria-pressed="true"]{transform:none}
+ .muscle-orbit footer{font-size:10px;bottom:20px;max-width:85vw}.orbit-close{top:12px;width:38px;height:38px}
+}
+@media(prefers-reduced-motion:reduce){.muscle-entry span,.orbit-close,.xp-pill,.muscle-orbit nav button{transition:none}}
+
+/* Corn's local outline lens: the surrounding headline stays solid. */
+.ln > span[data-lens]::before{-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),transparent 64px,#000 110px);mask-image:radial-gradient(circle at var(--mx) var(--my),transparent 64px,#000 110px)}
+.ln > span[data-lens]::after{-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),#000 64px,transparent 110px);mask-image:radial-gradient(circle at var(--mx) var(--my),#000 64px,transparent 110px)}
+/* Rectangular primary actions: a leading strip sweeps underneath the label. */
+.xp .xp-pill{position:relative;isolation:isolate;overflow:hidden;border-radius:0;background:#f4f5f2;color:#11151b;height:54px;min-width:210px;padding:0 28px 0 34px;letter-spacing:.14em;text-transform:uppercase;font-size:12px;gap:24px;justify-content:space-between;box-shadow:none}
+.xp .xp-pill::before{content:"";position:absolute;z-index:-1;left:0;top:0;bottom:0;width:7px;background:#b8a1ff;transition:width .55s cubic-bezier(.2,.8,.2,1)}
+.xp .xp-pill::after{content:"↗";font-size:19px;transition:transform .45s}
+.xp .xp-pill:hover,.xp .xp-pill:focus-visible{transform:none;box-shadow:none}
+.xp .xp-pill:hover::before,.xp .xp-pill:focus-visible::before{width:100%}
+.xp .xp-pill:hover::after{transform:translate(3px,-3px)}
+.orb:hover::before{inset:17px;background:rgba(233,236,242,.08);border-color:#fff}
+.orb:hover svg{animation-duration:5s}.orb:hover .orb__arc{stroke-dasharray:180 185}
+.xp .muscle-entry{width:130px;height:130px;border:1px solid #b4adbf66;border-radius:50%;font-size:10px;letter-spacing:.1em;line-height:1.4;text-transform:uppercase;padding:30px;right:8vw;bottom:175px;text-align:center;justify-content:center}
+.muscle-entry::after{content:"";position:absolute;inset:10px;border:1px solid #d9d2e8;border-radius:50%;transition:inset .5s,transform .5s;border-right-color:transparent}
+.muscle-entry:hover::after{inset:15px;transform:rotate(100deg)}
+.xp .muscle-entry span{display:none}
+.muscle-orbit{font-family:"Space Grotesk Variable","Space Grotesk",system-ui,sans-serif;font-size:15px;line-height:1.5}
+.muscle-orbit *{box-sizing:border-box}
+.muscle-orbit canvas{left:38%;width:62%}
+.orbit-copy{top:19%;width:29vw}.orbit-copy h2{letter-spacing:-.04em;font-size:clamp(28px,3.3vw,48px)}
+.orbit-copy>p:first-child{text-transform:uppercase;letter-spacing:.17em;font-family:"IBM Plex Mono",monospace;font-size:11px}
+.muscle-orbit :focus-visible{outline:2px solid #c5eea7;outline-offset:5px}
+.ch--flywheel{bottom:16vh;max-width:36vw}
+.ch--flywheel .h-sm{font-size:clamp(30px,3.6vw,56px);line-height:1.02;max-width:40vw}
+.ch--flywheel .loop-detail{color:#c5eea7;font-size:12px;letter-spacing:.05em}
+.loop-total{margin-top:14px;padding-top:20px;border-top:1px solid #a5b2b633;width:100%}
+.loop-total strong{font-weight:400;font-size:clamp(32px,4vw,60px);line-height:1.1;color:#e9ecf2}
+.loop-total strong span{font-size:20px;color:#a3acae}.ch .loop-total p{font-size:12px;color:#a3acae;margin:8px 0 0}
+.loop-nav{position:absolute;right:12vw;bottom:9vh;z-index:16;display:flex;gap:22px;visibility:hidden;opacity:0;transform:translateY(20px);transition:opacity .4s,transform .6s}
+.xp[data-act="5"] .loop-nav{visibility:visible;opacity:1;transform:none}
+.xp .loop-nav button{display:grid;grid-template-columns:1fr auto;gap:10px;text-align:left;min-width:82px;padding:14px 0;border-top:1px solid #e9ecf244;transition:color .3s,border-color .3s}
+.loop-nav button span{grid-column:1/-1;font-family:"IBM Plex Mono",monospace;font-size:10px;color:#999eae}.loop-nav button i{font-style:normal;transition:transform .3s}
+.xp .loop-nav button[aria-current="true"]{color:#c5eea7;border-color:#c5eea7}.loop-nav button:hover i{transform:translate(3px,-3px)}
+@media(prefers-reduced-motion:reduce){.muscle-orbit *{transition:none!important}.orb svg{animation:none}}
+.xp-cursor.is-hover{width:48px;height:48px;left:-24px;top:-24px;background:transparent;border-color:rgba(233,236,242,.65)}

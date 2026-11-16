@@ -1,0 +1,27 @@
+import {chromium} from '@playwright/test';
+const browser=await chromium.launch({executablePath:process.env.CHROME_PATH || '/usr/bin/google-chrome',args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const page=await browser.newPage({viewport:{width:1440,height:900}});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')console.log(m.text())});
+await page.goto(process.argv[2] || 'http://127.0.0.1:5177/experience.html');
+await page.waitForSelector('.xp.is-live',{timeout:60000});
+await page.evaluate(()=>scrollTo(0,6*innerHeight));
+await page.waitForTimeout(3000);
+
+await page.locator('.muscle-entry').click();
+await page.waitForTimeout(2000);
+await page.screenshot({path:'/tmp/cerebel-orbit.png'});
+await page.locator('.muscle-orbit nav button').last().click();
+await page.keyboard.press('Escape');
+if(await page.locator('dialog').evaluate(d=>d.open))throw Error('Escape failed');
+await page.locator('[data-group="Data loop"]').first().click();
+await page.waitForTimeout(2800);
+await page.locator('[data-loop="3"]').click();
+await page.waitForTimeout(2800);
+await page.screenshot({path:'/tmp/cerebel-flywheel.png'});
+if (await page.locator('[data-loop="3"]').getAttribute('aria-current') !== 'true') throw Error('Flywheel selection failed');
+await page.locator('[data-group="Origin"]').first().click();
+await page.waitForTimeout(3000);
+await page.screenshot({path:'/tmp/cerebel-home.png'});
+if(errors.length) throw Error(errors.join('\n'));
+console.log('Passed: modal open, group switch, Escape, flywheel selection; no page errors.');
+await browser.close();

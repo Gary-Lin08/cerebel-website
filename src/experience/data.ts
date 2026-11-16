@@ -8,7 +8,7 @@ export type Chapter = {
   length: number; // scroll length in viewport heights
 };
 
-export const ACTS = ["origin", "swing", "ski", "benchmark", "glasses", "field"] as const;
+export const ACTS = ["origin", "swing", "ski", "benchmark", "glasses", "flywheel", "field"] as const;
 
 export const chapters: Chapter[] = [
   { id: "hero", act: 0, group: "Origin", length: 1.1 },
@@ -29,9 +29,13 @@ export const chapters: Chapter[] = [
   { id: "g-clock", act: 4, group: "Glasses", length: 0.9 },
   { id: "g-prep", act: 4, group: "Glasses", length: 0.9 },
   { id: "g-modular", act: 4, group: "Glasses", length: 0.9 },
-  { id: "field", act: 5, group: "Field", length: 1.5 },
-  { id: "company", act: 5, group: "Field", length: 1.2 },
-  { id: "contact", act: 5, group: "Field", length: 1.2 },
+  { id: "loop-0", act: 5, group: "Data loop", length: 0.9 },
+  { id: "loop-1", act: 5, group: "Data loop", length: 0.9 },
+  { id: "loop-2", act: 5, group: "Data loop", length: 0.9 },
+  { id: "loop-3", act: 5, group: "Data loop", length: 0.9 },
+  { id: "field", act: 6, group: "Field", length: 1.5 },
+  { id: "company", act: 6, group: "Field", length: 1.2 },
+  { id: "contact", act: 6, group: "Field", length: 1.2 },
 ];
 
 // [method, MPJPE, PA-MPJPE, GND, T-head] — published AMASS comparison, as in the existing site.
@@ -75,4 +79,11 @@ export const glassesParts = [
     title: "Modular architecture",
     copy: "Sensing, compute and power sit in separable modules, so the development configuration can change without redrawing the frame.",
   },
+] as const;
+
+export const flywheelSteps = [
+  {title: "Deploy", head: ["Every deployment.", "A new beginning."], copy: "Partner apps and devices bring the motion model into real movement. Sports is the first deployment path.", detail: "Partner apps + devices"},
+  {title: "Capture", head: ["Movement becomes", "training material."], copy: "With consent, video and optional IMU become inputs for a growing motion dataset.", detail: "Video + optional IMU · with consent"},
+  {title: "Validate", head: ["Useful data.", "Not just more data."], copy: "Synchronize, filter and review sessions before they enter the training loop. Quality makes a capture useful beyond its first application.", detail: "Sync → filter → review"},
+  {title: "Improve", head: ["Back to the model.", "Forward to robots."], copy: "Train, test and release the next motion model. The planned second revenue stream licenses motion datasets to robotics teams by hour or contract.", detail: "Train → test → release"},
 ] as const;

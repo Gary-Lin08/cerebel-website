@@ -136,3 +136,18 @@ npx eslint src/experience
 npm run build && npm run test:sites
 git diff main --stat -- src/main.tsx src/App.tsx index.html   # must print nothing
 ```
+
+## November 16: Corn / Orano desktop interaction pass
+
+Work is isolated on `codex/muscle-orbit`, based on `07b4a34`, to avoid overwriting the other scroll-experience worker.
+References inspected live: https://cornrevolution.resn.global and https://www.orano.group/experience/innovation/en (not just /protect).
+
+- Added a seventh act, Data loop, between Glasses and Field. Four scroll chapters / selectable phases: Deploy → Capture → Validate → Improve. A procedural orbit diagram rotates to the active stage with travelling particles. Copy uses the user-confirmed 20,000 h split (5,000 real / 15,000 simulated); robotics licensing is explicitly planned, not revenue.
+- Added the Motion circular exploration entrance and a modal orbit view of the two available muscle groups. Uses actual muscle paths at the existing annotation frames; no made-up anatomy measurements or force values. Drag to orbit, wheel to zoom, click satellites or named buttons; Escape/close returns focus and scroll state.
+- Procedural spatial linework per existing act (origin contour shells, snow contours / tree edges, evidence rails, optical rings, field structures). These are decorative, not new capture assets.
+- Broader slanted transition with counter-moving scene planes and a slight depth push. Shared cloud and native scroll preserved.
+- Corn headline treatment extended from the existing implementation: more depth-varied nodes, soft local solid-to-outline mask, inherited overdamped lag. Orano-style primary CTA: off-white rectangle, lavender leading strip that expands on hover, arrow movement. Circular exploration actions retain thin double rings.
+- Desktop was visually inspected at 1280×720 and interaction tested at 1440×900. Mobile refinement is deferred at the user's explicit request; this is a desktop review build.
+- Original homepage source untouched. No goggles intro restored.
+
+Validation: TypeScript, ESLint on src/experience, production build, 10 Sites tests; desktop smoke checks modal selection/Escape and flywheel selection. Build with `npx vite build --configLoader runner` if the worktree uses symlinked dependencies. `npm run preview -- --host 127.0.0.1 --port 5177` serves the built `/experience.html` without dev-server font symlink restrictions.
