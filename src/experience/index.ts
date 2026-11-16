@@ -492,20 +492,23 @@ export function mountExperience(root: HTMLElement) {
   function drawLens(time: number, dt: number) {
     lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     const visible: typeof nodes = [];
-    const particleRadius = Math.max(135, textRadius * 1.85);
+    const particleRadius = Math.max(88, textRadius * 1.25);
     for(const n of nodes) {
       const bx=n.x*innerWidth, by=n.y*innerHeight;
       const dx=cur.x-bx, dy=cur.y-by;
-      const inside=lensOn && Math.hypot(dx,dy)<particleRadius;
+      const distance=Math.hypot(dx,dy);
+      const edge=particleRadius*(.88+n.y*.12);
+      const reveal=lensOn ? Math.max(0,Math.min(1,(edge-distance)/12)) : 0;
+      const inside=reveal>0;
       // Rest positions never travel with the cursor. Only a slight local depth tilt reacts.
       n.angle=damp(n.angle,inside ? dx/particleRadius*.3 : 0,3,dt);
       n.sx=bx+Math.sin(n.angle)*n.z*.25;
       n.sy=by+Math.sin(n.angle*.7)*n.z*.15;
-      n.alpha=damp(n.alpha,inside ? .55+n.x*.3 : 0,4,dt);
+      n.alpha=damp(n.alpha,reveal*(.55+n.x*.3),7,dt);
       if(n.alpha>.015)visible.push(n);
     }
     lensCtx.save();
-    lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,particleRadius,0,Math.PI*2);lensCtx.clip();
+    // Individual points fade near staggered edges; never slice dots or links with a circular clip.
     lensCtx.lineWidth=.65;
     const degrees=new Map<typeof nodes[number],number>();
     for(let i=0;i<visible.length;i++) {

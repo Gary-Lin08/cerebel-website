@@ -183,3 +183,6 @@ Observed in the live reference with small moves and pauses: points and sparse li
 
 ### Hover correction: viewport field, not cursor-carried volume
 User rejected the rotating cursor-centred volume. Restore 1,650 permanent seeded rest positions distributed across the viewport. Only points within the hover aperture become visible; tiny depth tilt stays relative to each point’s own rest position. No spherical gathering, no autonomous rotation, and no cloud travelling with the cursor. Keep larger irregular sizes, sparse links, font-relative text aperture and removed grey ring. Background unchanged.
+
+### Smaller particle reveal without a visible cut edge
+Reduce particle window from max(135px, 1.85×text radius) to max(88px, 1.25×text radius). Remove the particle canvas circle clip. Each seeded point has a slightly different outer threshold and a narrow 12px reveal transition; alpha settles over time and links inherit endpoint alpha. This avoids clipped half-dots and a shared circular cut without returning to a broad radial glow. The text aperture remains sharp and unchanged.
