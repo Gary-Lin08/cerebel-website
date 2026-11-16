@@ -186,3 +186,6 @@ User rejected the rotating cursor-centred volume. Restore 1,650 permanent seeded
 
 ### Smaller particle reveal without a visible cut edge
 Reduce particle window from max(135px, 1.85×text radius) to max(88px, 1.25×text radius). Remove the particle canvas circle clip. Each seeded point has a slightly different outer threshold and a narrow 12px reveal transition; alpha settles over time and links inherit endpoint alpha. This avoids clipped half-dots and a shared circular cut without returning to a broad radial glow. The text aperture remains sharp and unchanged.
+
+### Sparse larger points with visible local depth turn
+Reduce seeded field to 1,080 points; enlarge point radii to 1.8–6.4px before depth modulation. Increase local yaw from 0.3 to 2.2 radians across the hover window, with stronger depth displacement, size and facing variation. Each point still pivots around its own fixed rest position and returns when the hover leaves; no cursor-carried sphere. Keep the compact staggered reveal edge.

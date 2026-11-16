@@ -464,11 +464,11 @@ export function mountExperience(root: HTMLElement) {
   const lens = root.querySelector<HTMLCanvasElement>(".xp-lens")!;
   const lensCtx = lens.getContext("2d")!;
   // Permanent seeded particles across the viewport; the pointer reveals a local window.
-  const nodes = Array.from({length: 1650}, (_,i) => ({
+  const nodes = Array.from({length: 1080}, (_,i) => ({
     x: ((Math.sin(i * 127.1 + 3.7) * 43758.5453) % 1 + 1) % 1,
     y: ((Math.sin(i * 311.7 + 9.1) * 19341.337) % 1 + 1) % 1,
     z: Math.sin(i * 19.17) * 32, angle: 0, alpha: 0, sx: 0, sy: 0,
-    size: .9 + Math.pow(((i * .61803398875) % 1), 2.1) * 3.9,
+    size: 1.8 + Math.pow(((i * .61803398875) % 1), 1.7) * 4.6,
   }));
   const glyphContours = new Map<string,{path:Path2D;length:number}[]>();
   for(const [char,paths] of Object.entries(headingOutlines.glyphs)) {
@@ -500,11 +500,12 @@ export function mountExperience(root: HTMLElement) {
       const edge=particleRadius*(.88+n.y*.12);
       const reveal=lensOn ? Math.max(0,Math.min(1,(edge-distance)/12)) : 0;
       const inside=reveal>0;
-      // Rest positions never travel with the cursor. Only a slight local depth tilt reacts.
-      n.angle=damp(n.angle,inside ? dx/particleRadius*.3 : 0,3,dt);
-      n.sx=bx+Math.sin(n.angle)*n.z*.25;
-      n.sy=by+Math.sin(n.angle*.7)*n.z*.15;
-      n.alpha=damp(n.alpha,reveal*(.55+n.x*.3),7,dt);
+      // Each point turns through depth around its own fixed rest position, then returns.
+      n.angle=damp(n.angle,inside ? dx/particleRadius*2.2 + Math.sin(time*.8+n.x*12)*.14 : 0,4.5,dt);
+      n.sx=bx+Math.sin(n.angle)*n.z*.8;
+      n.sy=by+Math.sin(n.angle*.65)*n.z*.4;
+      const facing=.6+.4*(.5+.5*Math.cos(n.angle+n.y*2));
+      n.alpha=damp(n.alpha,reveal*facing,7,dt);
       if(n.alpha>.015)visible.push(n);
     }
     lensCtx.save();
@@ -524,7 +525,7 @@ export function mountExperience(root: HTMLElement) {
         }
       }
       lensCtx.fillStyle=`rgba(245,250,255,${Math.min(1,a.alpha*1.7)})`;
-      lensCtx.beginPath();lensCtx.arc(a.sx,a.sy,a.size*(.82+Math.sin(a.angle)*.15),0,Math.PI*2);lensCtx.fill();
+      lensCtx.beginPath();lensCtx.arc(a.sx,a.sy,a.size*(.85+Math.sin(a.angle)*.25),0,Math.PI*2);lensCtx.fill();
     }
     lensCtx.restore();
     // Moving bright segments run along the letter contours inside a crisp circular aperture.
