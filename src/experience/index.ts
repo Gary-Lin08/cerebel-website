@@ -450,7 +450,7 @@ export function mountExperience(root: HTMLElement) {
     const a = i * 2.399963;
     const y = 1 - (2 * (i + 0.5)) / LN;
     const rad = Math.sqrt(1 - y * y) * (0.55 + 0.45 * ((i * 0.618) % 1));
-    return { x: Math.cos(a) * rad, y: y * (0.55 + 0.45 * ((i * 0.382) % 1)), z: Math.sin(a) * rad, cx: -999, cy: -999, vx: 0, vy: 0, lag: 26 + (i % 7) * 16, size: 1.2 + ((i * 0.37) % 1) * 2.4, sx: 0, sy: 0, d: 0 };
+    return { x: Math.cos(a) * rad, y: y * (0.55 + 0.45 * ((i * 0.382) % 1)), z: Math.sin(a) * rad, cx: -999, cy: -999, vx: 0, vy: 0, lag: 70 + (i % 7) * 14, size: 1.2 + ((i * 0.37) % 1) * 2.4, sx: 0, sy: 0, d: 0 };
   });
   let lensAlpha = 0;
   // Pointer speed shapes the cloud: it stretches along the motion, thins across it and spins faster.
@@ -486,22 +486,22 @@ export function mountExperience(root: HTMLElement) {
     const speed = Math.hypot(lensVel.x, lensVel.y);
     const pull = Math.min(1, speed / 1400);
     lensVel.squash = damp(lensVel.squash, pull, 5, dt);
-    lensVel.spin += dt * (0.7 + lensVel.squash * 7);
+    lensVel.spin += dt * (0.7 + lensVel.squash * 2);
     const ux = speed > 1 ? lensVel.x / speed : 1;
     const uy = speed > 1 ? lensVel.y / speed : 0;
     const ry = lensVel.spin;
     const rx = lensVel.spin * 0.61;
-    const R = 78 * (1 + 0.06 * Math.sin(time * 1.7) + lensVel.squash * 0.25);
+    const R = 78 * (1 + 0.06 * Math.sin(time * 1.7) + lensVel.squash * 0.08);
     for (const n of nodes) {
       if (n.cx < -900) {
-        n.cx = cur.tx;
-        n.cy = cur.ty;
+        n.cx = cur.x;
+        n.cy = cur.y;
       }
       // Each node hangs off the pointer on its own spring: heavy, late, with a small overshoot when it stops.
-      const c = 0.9 * Math.sqrt(n.lag);
+      const c = 1.3 * Math.sqrt(n.lag);
       const h = Math.min(dt, 0.033);
-      n.vx += ((cur.tx - n.cx) * n.lag - n.vx * c) * h;
-      n.vy += ((cur.ty - n.cy) * n.lag - n.vy * c) * h;
+      n.vx += ((cur.x - n.cx) * n.lag - n.vx * c) * h;
+      n.vy += ((cur.y - n.cy) * n.lag - n.vy * c) * h;
       n.cx += n.vx * h;
       n.cy += n.vy * h;
       // Rotate about y, then x; project with a little perspective.
@@ -512,8 +512,8 @@ export function mountExperience(root: HTMLElement) {
       const persp = 2.6 / (2.6 - z2);
       const ox = x1 * R * persp;
       const oy = y1 * R * persp;
-      const along = (ox * ux + oy * uy) * (1 + 1.5 * lensVel.squash);
-      const across = (-ox * uy + oy * ux) * (1 - 0.45 * lensVel.squash);
+      const along = (ox * ux + oy * uy) * (1 + 0.45 * lensVel.squash);
+      const across = (-ox * uy + oy * ux) * (1 - 0.15 * lensVel.squash);
       n.sx = n.cx + along * ux - across * uy;
       n.sy = n.cy + along * uy + across * ux;
       n.d = persp;
@@ -548,8 +548,6 @@ export function mountExperience(root: HTMLElement) {
       const r = on ? el.getBoundingClientRect() : null;
       const inside = !!r && e.clientX > r.left - 80 && e.clientX < r.right + 80 && e.clientY > r.top - 80 && e.clientY < r.bottom + 80;
       if (inside && r) {
-        el.style.setProperty("--mx", `${e.clientX - r.left}px`);
-        el.style.setProperty("--my", `${e.clientY - r.top}px`);
         el.setAttribute("data-lens", "");
         hit = hit || (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom);
       } else if (el.hasAttribute("data-lens")) el.removeAttribute("data-lens");
@@ -600,11 +598,17 @@ export function mountExperience(root: HTMLElement) {
       if (!scrubbing) scrub = null;
     }
     if (!stage.reduced) drawLens(now / 1000, dt);
+    for (const el of headSpans) {
+      if (!el.hasAttribute("data-lens")) continue;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", `${(cur.x - r.left).toFixed(1)}px`);
+      el.style.setProperty("--my", `${(cur.y - r.top).toFixed(1)}px`);
+    }
 
     // The cursor ring is on a spring too, so it trails and settles with a small rebound.
     const ch = Math.min(dt, 0.033);
-    cur.vx += ((cur.tx - cur.x) * 120 - cur.vx * 13) * ch;
-    cur.vy += ((cur.ty - cur.y) * 120 - cur.vy * 13) * ch;
+    cur.vx += ((cur.tx - cur.x) * 90 - cur.vx * 7.5) * ch;
+    cur.vy += ((cur.ty - cur.y) * 90 - cur.vy * 7.5) * ch;
     cur.x += cur.vx * ch;
     cur.y += cur.vy * ch;
     cursor.style.transform = `translate3d(${cur.x}px, ${cur.y}px, 0)`;
