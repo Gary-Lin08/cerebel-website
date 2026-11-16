@@ -5,6 +5,7 @@ import "@fontsource-variable/space-grotesk";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "./experience.css";
+import { createSound } from "./sound";
 import { benchmark, chapters, glassesParts, flywheelSteps } from "./data";
 import { asset, page } from "./paths";
 import { type Act, TOTAL, WIPE, createStage, damp, smooth, spans } from "./stage";
@@ -40,6 +41,7 @@ function markup() {
     <a class="xp-mark" href="#hero" data-jump="0" aria-label="Cerebel AI"><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"></a>
 
     <nav class="xp-top__links" aria-label="Shortcuts">
+      <button class="xp-sound" type="button" aria-pressed="true" aria-label="Sound" data-cursor><span aria-hidden="true"><i></i><i></i><i></i><i></i></span><em>Sound</em></button>
       <a href="${page("/")}" data-cursor>Previous site ↗</a>
       <a class="xp-pill" href="mailto:hello@cerebel.tech?subject=Demo%20request" data-cursor><span class="xp-pill__line" aria-hidden="true"></span><span class="xp-pill__label">Request a demo</span></a>
     </nav>
@@ -798,6 +800,8 @@ export function mountExperience(root: HTMLElement) {
     }
   }
 
+  const sound = createSound(root.querySelector<HTMLButtonElement>(".xp-sound")!);
+
   // ---- Loop.
   let u = window.scrollY / vh;
   let prev = performance.now();
@@ -856,6 +860,7 @@ export function mountExperience(root: HTMLElement) {
       r.arc.style.strokeDashoffset = String(1 - Math.min(1, Math.max(0, (u - r.start) / (r.end - r.start))));
     }
     const active = spans.find((s) => u >= s.start && u < s.end)?.id;
+    if (started) sound.update(front, active, velocity);
     for (const h of hots) h.classList.toggle("is-on", h.dataset.hot === active);
     root.classList.toggle("is-top", u < 0.25);
     const scrubbing = active === "find";

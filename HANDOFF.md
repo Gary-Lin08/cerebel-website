@@ -287,3 +287,7 @@ Two causes, both fixed in `stage.ts`: the `sin()` hash lined up in columns on la
 
 ### Headline halo box
 The halo round headlines was cut off in a rectangle by `.ln { overflow: hidden }`, left over from the old slide-up. `.ln` is now `overflow: visible`.
+
+## November 16: sound (user: add some subtle sound)
+`src/experience/sound.ts`, synthesised with Web Audio, no audio files. A low pad that glides to a new chord per act (`CHORDS`), air (filtered noise) that rises with scroll speed and is stronger in the snow act, a soft glass note on each chapter change, a tiny tick when the pointer reaches anything pressable and a soft press on click. Everything goes through one quiet master with a short generated reverb and a limiter.
+Browsers allow audio only after a press or key, so nothing plays before the visitor's first one. The "Sound" toggle (four bars) sits in the top bar before "Previous site"; the choice is remembered in `localStorage` (`cerebel-xp-sound`). Audio suspends when the tab is hidden. Tested in headless Chrome that it starts, toggles and throws no errors; nobody has listened to it yet, so levels are a first guess: master 0.5, pad 0.09, air up to 0.075, notes 0.012–0.05.
