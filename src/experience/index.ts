@@ -22,6 +22,7 @@ const orb = (label: string, href: string, extra = "") =>
 
 const findingIds = ["sway", "trail-knee", "lead-arm", "hang-back"];
 const groups = [...new Set(chapters.map((c) => c.group))];
+const chapterLabels: Record<string,string> = {"hero":"Introduction","legible":"Physical intelligence","swing-intro":"Swing overview","sway":"Hip shift","trail-knee":"Right knee","lead-arm":"Lead arm","hang-back":"Impact","finish":"Finish","find":"Explore swing","ski-intro":"Snowboard turn","ski-load":"Body load","ski-edge":"Edge control","benchmark":"Model comparison","glasses-intro":"Concept","g-optical":"Optical path","g-clock":"Shared clock","g-prep":"Data preparation","g-modular":"Modular design","loop-0":"Deploy","loop-1":"Capture","loop-2":"Validate","loop-3":"Improve","field":"Applications","company":"Team","contact":"Contact"};
 const groupSpan = (g: string) => {
   const mine = spans.filter((s) => s.group === g);
   return { start: mine[0].start, end: mine[mine.length - 1].end };
@@ -38,7 +39,7 @@ function markup() {
     <button class="xp-burger" type="button" aria-label="Open menu" aria-expanded="false" data-cursor><i></i><i></i></button>
     <a class="xp-mark" href="#hero" data-jump="0" aria-label="Cerebel AI"><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"></a>
     <nav class="xp-top__links" aria-label="Shortcuts">
-      <a href="${page("/playground")}" data-cursor>Playground ↗</a>
+      <a href="${page("/")}" data-cursor>Previous site ↗</a>
       <a class="xp-pill" href="mailto:hello@cerebel.tech?subject=Demo%20request" data-cursor><span class="xp-pill__line" aria-hidden="true"></span><span class="xp-pill__label">Request a demo</span></a>
     </nav>
   </header>
@@ -80,7 +81,6 @@ function markup() {
       <h2>${lines("And what", "already works.")}</h2>
       <ul class="plain" data-swing="highlights"></ul>
       <p class="fine" data-swing="coaching"></p>
-      <p class="row"><a class="xp-pill" href="${page("/playground")}" data-cursor><span class="xp-pill__line" aria-hidden="true"></span><span class="xp-pill__label">Analyse your swing</span></a><span class="fine">Free covers three swings a month.</span></p>
     </section>
 
     <section class="ch ch--find" data-ch="find">
@@ -154,7 +154,7 @@ function markup() {
       <h2>${lines("Already", "in the field.")}</h2>
       <ul class="partners">
         <li><a href="https://apocynthion.ai/" target="_blank" rel="noreferrer" data-cursor><b>Apocynthion</b><span>Humanoid partnership. Its ArenaLabs line builds AlphaMotion, described on its site as the cerebellum for humanoid robots.</span><i>↗</i></a></li>
-        <li><a href="${page("/playground")}" data-cursor><b>Athletic coaching</b><span>Ski, golf and tennis: edge, rotation, contact.</span><i>↗</i></a></li>
+        <li><a href="${page("/")}" data-cursor><b>Athletic coaching</b><span>Ski, golf and tennis: edge, rotation, contact.</span><i>↗</i></a></li>
         <li><a href="https://www.instagram.com/overide_snowboards/" target="_blank" rel="noreferrer" data-cursor><b>Overide</b><span>Snowboard brand partnership. 雪鸮科技 / 风脊者, Overide Halo.</span><i>↗</i></a></li>
       </ul>
     </section>
@@ -206,14 +206,14 @@ function markup() {
     <div><span>Load</span><b class="num" data-ski="load3">1.0</b><em>× BW</em></div>
   </div>
 
+  ${[1,2].map(act=>{ const sections=spans.filter(s=>s.act===act); return `<nav class="scene-timeline" data-timeline="${act}" aria-label="${act===1?"Golf":"Snow"} chapter navigation"><div class="scene-timeline__top"><span>${act===1?"Golf swing":"Snowboard"}</span><span data-timeline-label></span></div><input type="range" min="${sections[0].start+.02}" max="${sections[sections.length-1].end-.08}" step="0.005" value="${sections[0].start+.02}" aria-label="${act===1?"Golf":"Snow"} chapter progress"><div class="scene-timeline__stops">${sections.map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</div></nav>`; }).join("")}
   <div class="xp-hint" aria-hidden="true"><span>Scroll to discover</span><i></i></div>
 
   <div class="xp-menu" aria-hidden="true">
     <p class="fine">Explore the story</p>
-    <ol>${groups.map((g, i) => `<li><button type="button" data-group="${g}" data-cursor><em>Chapter ${i + 1}</em>${g}</button></li>`).join("")}</ol>
+    <ol>${groups.map((g, i) => `<li><button class="menu-chapter" type="button" data-group="${g}" data-cursor><em>Chapter ${i + 1}</em>${g}</button><nav class="menu-subchapters" aria-label="${g} subchapters">${spans.filter(s=>s.group===g).map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</nav></li>`).join("")}</ol>
     <div class="xp-menu__side">
       <a href="mailto:hello@cerebel.tech?subject=Demo%20request" data-cursor>Request a demo</a>
-      <a href="${page("/playground")}" data-cursor>Playground ↗</a>
       <a href="${page("/")}" data-cursor>Previous site</a>
     </div>
   </div>
@@ -415,6 +415,7 @@ export function mountExperience(root: HTMLElement) {
   }));
   $$<HTMLElement>("[data-jump]").forEach((el) => el.addEventListener("click", (e) => {
     e.preventDefault();
+    setMenu(false);
     jump(Number(el.dataset.jump));
   }));
   hots.forEach((el) => {
@@ -462,6 +463,15 @@ export function mountExperience(root: HTMLElement) {
     scrub = Math.min(swing.frameCount - 1, Math.max(0, (scrub ?? 0) + step));
     hudBar.setAttribute("aria-valuenow", String(Math.round(scrub)));
   });
+
+  const timelines = $$<HTMLElement>("[data-timeline]").map(el=>({el,input:el.querySelector<HTMLInputElement>("input")!,label:el.querySelector<HTMLElement>("[data-timeline-label]")!}));
+  let timelineDragging = false;
+  for (const {input} of timelines) {
+    input.addEventListener("pointerdown",()=>{timelineDragging=true;});
+    for(const event of ["pointerup","pointercancel","lostpointercapture"]) input.addEventListener(event,()=>{timelineDragging=false;});
+    input.addEventListener("input",()=>{scrub=null;u=Number(input.value);window.scrollTo({top:u*vh,behavior:"instant"});});
+  }
+  const subchapterButtons=$$<HTMLElement>("[data-subchapter]");
 
   // ---- Headline lens: under the pointer the letters fall back to outlines and a small constellation shows.
   // The constellation is a small 3D cloud drawn live: it turns, breathes, and each node trails the pointer at its own pace.
@@ -658,13 +668,23 @@ export function mountExperience(root: HTMLElement) {
     const dt = Math.max(0.001, Math.min(0.05, (now - prev) / 1000)) || 0.016;
     prev = now;
     const target = Math.min(TOTAL - 0.001, Math.max(0, window.scrollY / vh));
-    u = stage.reduced ? target : damp(u, target, 7, dt);
+    u = stage.reduced || timelineDragging ? target : damp(u, target, 7, dt);
     if (Math.abs(u - target) < 0.0005) u = target;
     const velocity = (u - lastU) / dt;
     lastU = u;
 
     const front = stage.frame(u, now / 1000, dt, velocity);
     root.dataset.act = String(front);
+    const activeChapter=spans.find(s=>u>=s.start && u<s.end);
+    for(const {el,input,label} of timelines){
+      el.inert=Number(el.dataset.timeline)!==front || root.classList.contains("is-menu");
+      if(!timelineDragging) input.value=String(u);
+      const progress=Math.max(0,Math.min(1,(u-Number(input.min))/(Number(input.max)-Number(input.min))));
+      input.style.setProperty("--progress", `${progress*100}%`);
+      label.textContent=activeChapter?chapterLabels[activeChapter.id]:"";
+      input.setAttribute("aria-valuetext",label.textContent);
+    }
+    subchapterButtons.forEach(el=>el.setAttribute("aria-current",String(el.dataset.subchapter===activeChapter?.id)));
 
     for (const { el, span } of chEls) {
       const on = u >= span.start && (u < span.end || span.end >= TOTAL);
@@ -724,7 +744,7 @@ export function mountExperience(root: HTMLElement) {
         setTimeout(() => loader.remove(), stage.reduced ? 0 : 600);
         setTimeout(() => root.classList.add("is-live"), stage.reduced ? 0 : 450);
         // Enable the pointer only after the title and opening turn have settled.
-        setTimeout(() => root.classList.add("is-interactive"), stage.reduced ? 0 : 1750);
+        setTimeout(() => root.classList.add("is-interactive"), stage.reduced ? 0 : 1050);
       }
     }
     requestAnimationFrame(tick);

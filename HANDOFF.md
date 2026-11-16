@@ -222,3 +222,6 @@ Menu type now depends on viewport height as well as width, with fixed header cle
 
 ### Paced opening restored at user request
 User wants the loading interface visible again, with a brief designed rhythm. Minimum presentation is 1400ms, still gated only by actual Origin readiness; progress is presentation-paced and capped before ready. Loader wipes out in 550ms; brain makes a one-time 0.65-radian yaw settle over 1200ms, starting 150ms into reveal. Text begins 450ms after reveal starts and hover unlocks at 1750ms. Reduced motion skips holds and turn. Later model loads never block the opening.
+
+### Direct navigation and quicker hover readiness
+Removed every Playground link and the swing-app promotional CTA from the experience; Previous site remains. Menu chapter rows now show small clickable subchapters on the right. Golf and Snow get thin native-range chapter scrubbers with named clickable stops; dragging updates scroll and scene directly, keyboard arrows/Home/End work natively. Existing golf frame scrub remains separate above the chapter navigator. Readouts raised to clear the new control. Opening hover unlock moved from 1750ms to 1050ms after reveal begins.
