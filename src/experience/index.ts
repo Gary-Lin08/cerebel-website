@@ -7,7 +7,7 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "./experience.css";
 import { benchmark, chapters, glassesParts, flywheelSteps } from "./data";
 import { asset, page } from "./paths";
-import { type Act, TOTAL, createStage, damp, smooth, spans } from "./stage";
+import { type Act, TOTAL, WIPE, createStage, damp, smooth, spans } from "./stage";
 import { createOrigin } from "./acts/origin";
 import { type SwingData, createSwing } from "./acts/swing";
 import { createBenchmark } from "./acts/benchmark";
@@ -661,6 +661,125 @@ export function mountExperience(root: HTMLElement) {
     }
   }
 
+  // ---- Copy belongs to the scroll. A chapter's text comes in over the first ENTER of its span and leaves over
+  // the last EXIT, as a function of position: scroll back and it undoes itself. Headlines are first traced
+  // (each letter's outline drawn round from the font's own contours), then filled inside that outline from the
+  // baseline up. Only the opening headline runs on time, because the page has not been scrolled yet.
+  const ENTER = 0.34;
+  const EXIT = 0.16;
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  const copy = chEls.map(({ el, span }) => ({
+    el,
+    span,
+    lines: Array.from(el.querySelectorAll<HTMLElement>(".ln > span")).map((line) => ({ line, trace: 1, fill: 1 })),
+    e: 0,
+    x: 0,
+    on: false,
+  }));
+  let heroLiveAt: number | null = null;
+  function traceHeadlines() {
+    for (const c of copy) {
+      if (!c.on || c.x >= 1) continue;
+      for (const { line, trace, fill } of c.lines) {
+        if (trace <= 0 || fill >= 1) continue;
+        const alpha = (1 - smooth(0.6, 1, fill)) * (1 - c.x);
+        const rect = line.getBoundingClientRect();
+        const style = getComputedStyle(line);
+        lensCtx.save();
+        lensCtx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        lensCtx.letterSpacing = style.letterSpacing;
+        const baseline = baselines.get(line)?.getBoundingClientRect().top ?? rect.bottom;
+        const text = (line.dataset.t || line.textContent || "").toUpperCase();
+        const scale = parseFloat(style.fontSize) / headingOutlines.units;
+        for (let i = 0; i < text.length; i += 1) {
+          const contours = glyphContours.get(text[i]);
+          if (!contours) continue;
+          // Letters start one after another, left to right, like a hand writing the line.
+          const t = clamp(trace * 1.7 - (i / Math.max(1, text.length - 1)) * 0.7);
+          if (t <= 0) continue;
+          const x = rect.left + lensCtx.measureText(text.slice(0, i + 1)).width - lensCtx.measureText(text[i]).width;
+          lensCtx.save();
+          lensCtx.translate(x, baseline);
+          lensCtx.scale(scale, -scale);
+          for (const contour of contours) {
+            lensCtx.lineWidth = 1.25 / scale;
+            lensCtx.strokeStyle = `rgba(233,236,242,${(alpha * 0.92).toFixed(3)})`;
+            lensCtx.setLineDash([contour.length * t, contour.length * 1.02]);
+            lensCtx.lineDashOffset = 0;
+            lensCtx.stroke(contour.path);
+            if (t < 1) {
+              // The pen: a short bright stretch at the head of the stroke.
+              const tip = Math.min(contour.length * t, contour.length * 0.06);
+              lensCtx.lineWidth = 2.4 / scale;
+              lensCtx.strokeStyle = `rgba(196,170,255,${alpha.toFixed(3)})`;
+              lensCtx.setLineDash([tip, contour.length * 2]);
+              lensCtx.lineDashOffset = -(contour.length * t - tip);
+              lensCtx.stroke(contour.path);
+            }
+          }
+          lensCtx.restore();
+        }
+        lensCtx.restore();
+      }
+    }
+  }
+
+  // ---- Settling. The page never forces a position while it is being scrolled. But if the hand stops inside a
+  // change (text half drawn, two acts dissolving), the page drifts on, slowly, to where that change is complete.
+  const rests = spans.slice(1).map((span, i) => {
+    const act = span.act !== spans[i].act;
+    return { at: span.start, before: act ? WIPE : EXIT + 0.02, after: act ? Math.max(WIPE, ENTER + 0.04) : ENTER + 0.04 };
+  });
+  let lastInput = 0;
+  let lastMove = 0;
+  let lastY = window.scrollY;
+  let glide: number | null = null;
+  let glideY = 0;
+  let held = false;
+  // `?still` keeps the page where it is put, for screenshots of intermediate states.
+  const noSettle = new URLSearchParams(location.search).has("still");
+  const touched = () => {
+    lastInput = performance.now();
+    glide = null;
+  };
+  for (const type of ["wheel", "touchstart", "touchmove", "keydown"] as const) window.addEventListener(type, touched, { passive: true });
+  window.addEventListener("pointerdown", () => { held = true; touched(); }, { passive: true });
+  window.addEventListener("pointerup", () => { held = false; touched(); }, { passive: true });
+  function settle(now: number, dt: number) {
+    const y = window.scrollY;
+    if (glide !== null) {
+      // Something else moved the page (a menu jump, a scrubber): give way at once.
+      if (Math.abs(y - glideY) > 3) {
+        glide = null;
+        lastMove = now;
+        lastY = y;
+        return;
+      }
+      const d = glide - glideY;
+      if (Math.abs(d) < 0.7) {
+        window.scrollTo({ top: glide, behavior: "instant" });
+        glide = null;
+      } else {
+        glideY += d * (1 - Math.exp(-2.6 * dt));
+        window.scrollTo({ top: glideY, behavior: "instant" });
+      }
+      lastY = window.scrollY;
+      return;
+    }
+    if (Math.abs(y - lastY) > 0.5) lastMove = now;
+    lastY = y;
+    if (noSettle || stage.reduced || held || timelineDragging || root.classList.contains("is-menu") || document.querySelector(".muscle-orbit[open]")) return;
+    if (now - lastInput < 320 || now - lastMove < 180) return;
+    const at = y / vh;
+    for (const r of rests) {
+      if (at <= r.at - r.before + 0.01 || at >= r.at + r.after - 0.01) continue;
+      // Mostly onward; back only when the change has barely begun.
+      glide = (at < r.at - r.before * 0.55 ? r.at - r.before : r.at + r.after) * vh;
+      glideY = y;
+      break;
+    }
+  }
+
   // ---- Loop.
   let u = window.scrollY / vh;
   let prev = performance.now();
@@ -669,7 +788,8 @@ export function mountExperience(root: HTMLElement) {
     const dt = Math.max(0.001, Math.min(0.05, (now - prev) / 1000)) || 0.016;
     prev = now;
     const target = Math.min(TOTAL - 0.001, Math.max(0, window.scrollY / vh));
-    u = stage.reduced || timelineDragging ? target : damp(u, target, 7, dt);
+    if (started) settle(now, dt);
+    u = stage.reduced || timelineDragging ? target : damp(u, target, 8, dt);
     if (Math.abs(u - target) < 0.0005) u = target;
     const velocity = (u - lastU) / dt;
     lastU = u;
@@ -687,13 +807,30 @@ export function mountExperience(root: HTMLElement) {
     }
     subchapterButtons.forEach(el=>el.setAttribute("aria-current",String(el.dataset.subchapter===activeChapter?.id)));
 
-    for (const { el, span } of chEls) {
-      const on = u >= span.start && (u < span.end || span.end >= TOTAL);
+    if (heroLiveAt === null && root.classList.contains("is-live")) heroLiveAt = now;
+    for (const c of copy) {
+      const { el, span } = c;
+      const last = span.end >= TOTAL;
+      const on = u >= span.start && (u < span.end || last);
+      c.on = on;
       if (on !== el.classList.contains("is-on")) {
         el.classList.toggle("is-on", on);
         el.toggleAttribute("inert", !on);
       }
-      if (on) el.style.setProperty("--c", ((u - span.start) / (span.end - span.start)).toFixed(3));
+      if (!on) continue;
+      const e = stage.reduced ? 1 : span.start === 0 ? (heroLiveAt === null ? 0 : clamp((now - heroLiveAt) / 1500)) : clamp((u - span.start) / ENTER);
+      const x = last || stage.reduced ? 0 : clamp((u - (span.end - EXIT)) / EXIT);
+      c.e = e;
+      c.x = x;
+      el.style.setProperty("--c", ((u - span.start) / (span.end - span.start)).toFixed(3));
+      el.style.setProperty("--e", e.toFixed(3));
+      el.style.setProperty("--x", x.toFixed(3));
+      const stagger = Math.min(0.08, 0.2 / Math.max(1, c.lines.length));
+      c.lines.forEach((l, i) => {
+        l.trace = clamp((e - i * stagger) / 0.5);
+        l.fill = clamp((e - 0.4 - i * stagger) / 0.4);
+        l.line.style.setProperty("--f", l.fill.toFixed(3));
+      });
     }
     for (const r of railEls) {
       const on = u >= r.start && u < r.end;
@@ -710,7 +847,10 @@ export function mountExperience(root: HTMLElement) {
       if (!scrubbing) scrub = null;
     }
     updateLensHit();
-    if (!stage.reduced) drawLens(now / 1000, dt);
+    if (!stage.reduced) {
+      drawLens(now / 1000, dt);
+      traceHeadlines();
+    }
     for (const el of headSpans) {
       if (!el.hasAttribute("data-lens")) continue;
       const strength = damp(Number(el.dataset.lensAlpha || 0), Number(el.dataset.lensTarget || 0), 4, dt);

@@ -552,3 +552,21 @@
 }
 
 .xp.is-menu .xp-top__links { display: none; }
+
+/* ---- Copy belongs to the scroll (see index.ts). --e is a chapter's entry (0..1 over the first part of its
+   span), --x its exit, --f a headline line's fill. Nothing here runs on a timer, so text can never lag the
+   hand or play out after it has stopped; scrolling back undoes it. */
+.ch, .ch.is-on { transition: none; }
+.ch.is-on { opacity: calc(1 - var(--x, 0)); translate: 0 calc(var(--x, 0) * -14px); }
+.ch > * { transition: none; }
+.ch.is-on > * {
+  --in: clamp(0, calc((var(--e, 1) - 0.45 - var(--n, 0) * 0.05) * 4), 1);
+  opacity: var(--in);
+  transform: translateY(calc((1 - var(--in)) * 16px));
+  transition: none;
+}
+.ch.is-on > h1:has(.ln), .ch.is-on > h2:has(.ln) { opacity: 1; transform: none; }
+/* Headline: the outline is traced on the canvas above; the fill rises inside it from the baseline. */
+.ln > span, .ch.is-on .ln > span, .ch:not(.is-on) .ln > span { transform: none; transition: none; }
+.ln > span::before { clip-path: inset(calc((1 - var(--f, 1)) * 100%) -0.2em -0.2em -0.2em); }
+.xp.is-live .ch.is-on .ln > span::before, .xp.is-live .ch.is-on .ln > span::after { animation: none; }

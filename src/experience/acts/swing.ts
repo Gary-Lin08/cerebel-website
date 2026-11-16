@@ -439,12 +439,12 @@ export function createSwing(
         radius = lerp(radius, wide ? f.dist : f.dist * 1.5, zoom);
         lift = lerp(lift, f.lift, zoom);
       }
-      yaw = damp(yaw, wanted, 3, ctx.dt);
-      camTarget.x = damp(camTarget.x, wantTarget.x, 3.4, ctx.dt);
-      camTarget.y = damp(camTarget.y, wantTarget.y, 3.4, ctx.dt);
-      camTarget.z = damp(camTarget.z, wantTarget.z, 3.4, ctx.dt);
-      camRadius = damp(camRadius, radius, 3.4, ctx.dt);
-      camLift = damp(camLift, lift, 3, ctx.dt);
+      yaw = damp(yaw, wanted, 4.6, ctx.dt);
+      camTarget.x = damp(camTarget.x, wantTarget.x, 4.8, ctx.dt);
+      camTarget.y = damp(camTarget.y, wantTarget.y, 4.8, ctx.dt);
+      camTarget.z = damp(camTarget.z, wantTarget.z, 4.8, ctx.dt);
+      camRadius = damp(camRadius, radius, 4.8, ctx.dt);
+      camLift = damp(camLift, lift, 4.6, ctx.dt);
       const angle = faceAngle + yaw + ctx.pointer.x * 0.08 + (ctx.reduced ? 0 : Math.sin(ctx.time * 0.25) * 0.02);
       camera.position.set(camTarget.x + Math.sin(angle) * camRadius, camTarget.y + camLift + ctx.pointer.y * 0.15, camTarget.z + Math.cos(angle) * camRadius);
       camera.lookAt(camTarget);

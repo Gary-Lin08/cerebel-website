@@ -255,3 +255,16 @@ The single even orbit was rejected as flat. `SHOTS` now has seven set-ups with l
 
 ### Strand rungs (user: the helix was only two rails; add the bars, in the same fibres, as in Corn)
 `acts/origin.ts` now draws nine rungs between the rails. Each is a bundle of 11 fibres (`rung()` GLSL): it runs along one rail, gathers, crosses the axis and fans out along the other, coloured violet → green across, with beads, the same pointer light and the same draw-in as the rails (rungs arrive after the rails). Keep rungs made of fibres; no solid bars.
+
+## November 16: scroll feel (user: scrolling was not smooth or intuitive)
+
+Diagnosis: the 3D followed the scroll but the copy ran on timers (class toggle, 0.22 s out, 0.24 s wait, staggered in), there was nowhere to come to rest, scroll-driven values were eased twice, chapter lengths were uneven, and two acts render at full cost during a change.
+
+- **Copy is a function of scroll position** (`index.ts`, block above the loop; CSS at the end of `experience.css`). Per chapter `--e` runs 0→1 over the first `ENTER` (0.34 vh) of its span and `--x` over the last `EXIT` (0.16 vh). Body copy fades and rises from `--e`; nothing uses a timer, and scrolling back undoes it. Only the opening headline is time-driven (1.5 s after `is-live`).
+- **Headline entrance, as the user specified: outline traced first, then filled inside that outline.** `traceHeadlines()` strokes each glyph's contours from `heading-outlines.json` on the lens canvas with a growing dash, letters starting left to right, a short violet pen tip at the head; then the solid text (`::before`) is revealed bottom-up by `clip-path` from `--f` while the stroke fades. The old slide-up of lines and the `xp-type-fill` / `xp-type-outline` keyframes are switched off. Headings without `.ln` lines just fade with the body copy.
+- **Settling** (`settle()` in `index.ts`): never during scrolling. If input has stopped for about 0.3 s inside a change (text mid-entry, or within `WIPE` of an act boundary), the page drifts slowly to where that change is complete, mostly onward, back only if it had barely begun. Any wheel, touch, key or pointer press cancels it, and it gives way to menu jumps and scrubbers. `?still` in the URL disables it (use it for screenshots of intermediate states: `experience.html?still`).
+- **One easing only**: scroll position is smoothed once (`damp(u, target, 8)`). Snow lean and camera no longer ease in time. Golf camera moves between findings keep a time ease (their targets are discrete) but faster (about 4.7).
+- **Chapter lengths** evened out in `data.ts` (legible 2.1, benchmark 1.9, glasses and data-loop steps 1.1, intros 1.2). Total is now 31.5 vh; absolute scroll positions in old notes and the default stops in `scripts/experience-shots.mjs` have shifted. The shot script now names files with two decimals.
+- **Act change cost**: `WIPE` is 0.6 (was 0.85) and, while two acts are drawn, both go to 2-sample targets instead of 4. Resolution is unchanged because point sizes are in target pixels and would visibly pop.
+
+Checked as stills in headless Chrome plus a scripted test of settling. Not checked: how any of this feels in real time, trackpad versus wheel, and whether the act-change cost is actually what dropped frames on the user's Mac (never profiled there).

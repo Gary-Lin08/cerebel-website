@@ -53,7 +53,7 @@ export const actSpans = ACTS.map((_, i) => {
   const mine = spans.filter((s) => s.act === i);
   return { start: mine[0].start, end: mine[mine.length - 1].end };
 });
-const WIPE = 0.85; // half-width of a scene wipe, in viewport heights
+export const WIPE = 0.6; // half-width of a scene wipe, in viewport heights
 
 const NOISE = /* glsl */ `
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -106,6 +106,9 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
 
   const rtA = new THREE.WebGLRenderTarget(2, 2, { samples: 4 });
   const rtB = new THREE.WebGLRenderTarget(2, 2, { samples: 4 });
+  // While two acts are on screen both are drawn every frame; they go to lighter targets (2 samples) for that stretch.
+  const rtA2 = new THREE.WebGLRenderTarget(2, 2, { samples: 2 });
+  const rtB2 = new THREE.WebGLRenderTarget(2, 2, { samples: 2 });
   const quadScene = new THREE.Scene();
   const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const composite = new THREE.ShaderMaterial({
@@ -219,6 +222,8 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
     renderer.setSize(width, height, false);
     rtA.setSize(width * dpr, height * dpr);
     rtB.setSize(width * dpr, height * dpr);
+    rtA2.setSize(width * dpr, height * dpr);
+    rtB2.setSize(width * dpr, height * dpr);
     composite.uniforms.uAspect.value = width / height;
   }
   resize();
@@ -339,8 +344,11 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
         wipe = smooth(0, 1, (u - edge + WIPE) / (2 * WIPE));
       }
     }
-    renderAct(a, u, time, dt, velocity, rtA);
-    if (b >= 0) renderAct(b, u, time, dt, velocity, rtB);
+    const targetA = b >= 0 ? rtA2 : rtA;
+    renderAct(a, u, time, dt, velocity, targetA);
+    if (b >= 0) renderAct(b, u, time, dt, velocity, rtB2);
+    composite.uniforms.tA.value = targetA.texture;
+    composite.uniforms.tB.value = rtB2.texture;
     composite.uniforms.uWipe.value = b >= 0 ? wipe : 0;
     composite.uniforms.uTime.value = time;
     composite.uniforms.uVel.value = damp(composite.uniforms.uVel.value, velocity, 6, dt);

@@ -20,7 +20,7 @@ const list = stops.length ? stops.map(Number) : [0, 0.8, 1.6, 2.4, 2.8, 3.4, 4.6
 for (const u of list) {
   await page.evaluate((v) => window.scrollTo(0, v * window.innerHeight), u);
   await page.waitForTimeout(2600);
-  await page.screenshot({ path: `${out}/u${String(u.toFixed(1)).padStart(4, "0")}.jpg`, quality: 72, type: "jpeg" });
+  await page.screenshot({ path: `${out}/u${String(u.toFixed(2)).padStart(5, "0")}.jpg`, quality: 72, type: "jpeg" });
 }
 console.log(errors.length ? `errors:\n${errors.slice(0, 12).join("\n")}` : "no console errors");
 await browser.close();

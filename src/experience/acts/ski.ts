@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { type Act, type Ctx, clamp01, damp, lerp, smooth } from "../stage";
+import { type Act, type Ctx, clamp01, lerp, smooth } from "../stage";
 import { asset, loadBinary } from "../paths";
 
 // Act 2 — a modelled snowboard carve. There is no snow capture in the repo yet, so nothing here is a
@@ -377,7 +377,7 @@ export function createSki(onValues: (v: SkiValues) => void): Act {
   const lookLocal = new THREE.Vector3();
   const look = new THREE.Vector3();
   const lookWant = new THREE.Vector3();
-  let camReady = false;
+
   const f = new THREE.Vector3();
   const r = new THREE.Vector3();
   const up = new THREE.Vector3();
@@ -426,7 +426,7 @@ export function createSki(onValues: (v: SkiValues) => void): Act {
       const lateral = SKI.speed * SKI.speed * curvature;
       // The body commits a little before the line bends: lean is read a metre and a half ahead.
       const ahead = SKI.speed * SKI.speed * SKI.amplitude * K * K * Math.sin(K * (s + 1.5));
-      leanNow = damp(leanNow, Math.atan((lateral * 0.5 + ahead * 0.5) / SKI.g), 7, ctx.dt);
+      leanNow = Math.atan((lateral * 0.5 + ahead * 0.5) / SKI.g); // no easing in time: the page scroll is already eased once
       const load = Math.hypot(SKI.g, lateral) / SKI.g;
       const inside = Math.sign(leanNow) || 1;
       up.copy(Y).applyAxisAngle(f, -leanNow); // tilt toward the inside of the turn
@@ -613,13 +613,10 @@ export function createSki(onValues: (v: SkiValues) => void): Act {
       const cx = base.x * 0.62;
       want.set(Math.sin(az) * Math.cos(el) * dist, Math.sin(el) * dist, -Math.cos(az) * Math.cos(el) * dist);
       lookWant.set(lerp(cx, pelvis.x, 0.8) - cx, lerp(0.8, pelvis.y, 0.8) - 0.84, lerp(-s, pelvis.z, 0.8) + s).addScaledVector(f, at(3) * 0.35);
-      if (!camReady) {
-        camPos.copy(want);
-        look.copy(lookWant);
-        camReady = true;
-      }
-      camPos.lerp(want, 1 - Math.exp(-3.2 * ctx.dt));
-      look.lerp(lookWant, 1 - Math.exp(-4.4 * ctx.dt));
+      // No second easing in time here. The scroll position is smoothed once in index.ts and the keys are a
+      // smooth curve, so the camera stops when the hand stops.
+      camPos.copy(want);
+      look.copy(lookWant);
       camLocal.set(cx, 0.8, -s).add(camPos).applyMatrix4(slope.matrixWorld);
       lookLocal.set(cx, 0.8, -s).add(look).applyMatrix4(slope.matrixWorld);
       camera.position.copy(camLocal);
