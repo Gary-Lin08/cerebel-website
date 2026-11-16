@@ -252,3 +252,6 @@ Checked in headless Chrome at 1440×900 as stills only. Not checked: real-time f
 
 ### Snow camera: contrasting set-ups (user: one angle read as flat)
 The single even orbit was rejected as flat. `SHOTS` now has seven set-ups with large swings in distance and lens (wide establishing → low and close beside the board on a 47° lens → medium for the force triangle → overhead → close chase → far side for the lean → long pull-out), still one continuous Catmull-Rom move riding the fall line. Key 5th value is the lens angle. The user wants angle changes and zooms here; do not flatten it again. Headline entrance animation is being reworked by GPT, not here.
+
+### Strand rungs (user: the helix was only two rails; add the bars, in the same fibres, as in Corn)
+`acts/origin.ts` now draws nine rungs between the rails. Each is a bundle of 11 fibres (`rung()` GLSL): it runs along one rail, gathers, crosses the axis and fans out along the other, coloured violet → green across, with beads, the same pointer light and the same draw-in as the rails (rungs arrive after the rails). Keep rungs made of fibres; no solid bars.

@@ -218,6 +218,132 @@ export function createOrigin(getEntrance: () => number = () => 1): Act {
     group.add(beads);
   }
 
+  // ---- Rungs: the bars between the two rails, made of the same fibres. Each rung is a small bundle that
+  // leaves one rail along its length, gathers, crosses the axis and fans back out along the other rail.
+  {
+    const RUNGS = 9;
+    const PER_RUNG = 11;
+    const RSEG = 72;
+    const RUNG = /* glsl */ `
+      vec3 rung(float t, float k, float s){
+        float yk = (k - ${((RUNGS - 1) / 2).toFixed(1)}) * 1.12 + 0.22 * sin(k * 2.4);
+        float u = 2.0 * t - 1.0;
+        float y = yk + (fract(s * 7.3) - 0.5) * 1.7 * pow(abs(u), 1.6) + 0.1 * (fract(s * 3.1) - 0.5);
+        float e = smoothstep(0.2, 0.8, t);
+        float ph = y * 0.62 + uTime * 0.22;
+        float R = 1.2 + 0.32 * sin(y * 0.45 + 1.0);
+        float c = cos(3.14159 * e);
+        vec3 p = vec3(cos(ph) * R * c, y, sin(ph) * R * c);
+        float a = s * 50.0 + t * (4.0 + fract(s * 9.1) * 6.0) + uTime * (0.12 + fract(s * 5.1) * 0.2);
+        float rb = (0.03 + 0.13 * fract(s * 13.3)) * (0.45 + 0.55 * sin(3.14159 * t));
+        return p + vec3(-sin(ph) * cos(a), 0.8 * sin(a * 1.3), cos(ph) * cos(a)) * rb;
+      }`;
+    const t: number[] = [];
+    const k: number[] = [];
+    const seed: number[] = [];
+    for (let r = 0; r < RUNGS; r += 1) {
+      for (let i = 0; i < PER_RUNG; i += 1) {
+        const sd = Math.abs((Math.sin((r * PER_RUNG + i + 1) * 12.9898) * 43758.5453) % 1);
+        for (let j = 0; j < RSEG; j += 1) {
+          t.push(j / RSEG, (j + 1) / RSEG);
+          k.push(r, r);
+          seed.push(sd, sd);
+        }
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(t.length * 3), 3));
+    geo.setAttribute("aT", new THREE.BufferAttribute(new Float32Array(t), 1));
+    geo.setAttribute("aRung", new THREE.BufferAttribute(new Float32Array(k), 1));
+    geo.setAttribute("aSeed", new THREE.BufferAttribute(new Float32Array(seed), 1));
+    const rungs = new THREE.LineSegments(geo, new THREE.ShaderMaterial({
+      uniforms,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      vertexShader: /* glsl */ `
+        uniform float uTime, uShow, uLift, uAspect; uniform vec2 uGlow;
+        attribute float aT; attribute float aRung; attribute float aSeed;
+        varying float vNear; varying float vAcross; varying float vFade; varying float vPulse;
+        ${RUNG}
+        void main(){
+          vec3 p = rung(aT, aRung, aSeed);
+          p.y += uLift * 1.5;
+          vec4 clip = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+          vec2 d = clip.xy / clip.w - uGlow; d.x *= uAspect;
+          vNear = exp(-d.y * d.y * 12.0 - d.x * d.x * 0.55);
+          vAcross = smoothstep(0.2, 0.8, aT);
+          // Rungs arrive after the rails, each from its own side, one after another up the strand.
+          float reach = clamp(uShow * 2.2 - 0.7 - aRung * 0.05 - fract(aSeed * 9.7) * 0.25, 0.0, 1.0);
+          float from = fract(aSeed * 3.7) < 0.5 ? aT : 1.0 - aT;
+          vFade = smoothstep(0.0, 0.1, aT) * smoothstep(1.0, 0.9, aT) * step(from, reach) * uShow;
+          vPulse = pow(0.5 + 0.5 * sin(aT * 9.0 - uTime * (0.9 + fract(aSeed * 4.3)) + aSeed * 60.0), 6.0);
+          gl_Position = clip;
+        }`,
+      fragmentShader: /* glsl */ `
+        precision highp float;
+        varying float vNear; varying float vAcross; varying float vFade; varying float vPulse;
+        void main(){
+          vec3 rail = mix(vec3(0.62, 0.42, 1.0), vec3(0.2, 0.9, 0.58), vAcross);
+          vec3 col = mix(rail, vec3(1.0, 0.96, 0.86), clamp(vNear * 0.95 + vPulse * 0.12, 0.0, 1.0));
+          gl_FragColor = vec4(col, vFade * (0.10 + 0.08 * vPulse + 1.55 * vNear));
+        }`,
+    }));
+    rungs.frustumCulled = false;
+    group.add(rungs);
+
+    // Beads on the rungs, as on the rails.
+    const BEADS = RUNGS * PER_RUNG * 14;
+    const bt = new Float32Array(BEADS);
+    const bk = new Float32Array(BEADS);
+    const bs = new Float32Array(BEADS);
+    for (let i = 0; i < BEADS; i += 1) {
+      const fibre = Math.floor(Math.random() * RUNGS * PER_RUNG);
+      bt[i] = Math.random();
+      bk[i] = Math.floor(fibre / PER_RUNG);
+      bs[i] = Math.abs((Math.sin((fibre + 1) * 12.9898) * 43758.5453) % 1);
+    }
+    const beadGeo = new THREE.BufferGeometry();
+    beadGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(BEADS * 3), 3));
+    beadGeo.setAttribute("aT", new THREE.BufferAttribute(bt, 1));
+    beadGeo.setAttribute("aRung", new THREE.BufferAttribute(bk, 1));
+    beadGeo.setAttribute("aSeed", new THREE.BufferAttribute(bs, 1));
+    const beads = new THREE.Points(beadGeo, new THREE.ShaderMaterial({
+      uniforms,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      vertexShader: /* glsl */ `
+        uniform float uTime, uShow, uLift, uAspect, uSize; uniform vec2 uGlow;
+        attribute float aT; attribute float aRung; attribute float aSeed;
+        varying float vNear; varying float vAcross; varying float vA;
+        ${RUNG}
+        void main(){
+          float t = fract(aT + uTime * 0.02 * (0.5 + fract(aT * 31.0)));
+          vec3 p = rung(t, aRung, aSeed);
+          p.y += uLift * 1.5;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          vec4 clip = projectionMatrix * mv;
+          vec2 d = clip.xy / clip.w - uGlow; d.x *= uAspect;
+          vNear = exp(-d.y * d.y * 12.0 - d.x * d.x * 0.55);
+          vAcross = smoothstep(0.2, 0.8, t);
+          vA = smoothstep(0.0, 0.1, t) * smoothstep(1.0, 0.9, t) * smoothstep(0.55, 0.9, uShow) * (0.4 + 0.6 * fract(aT * 91.0));
+          gl_Position = clip;
+          gl_PointSize = uSize * (5.0 + 16.0 * vNear + 5.0 * fract(aT * 53.0)) / -mv.z * 2.0;
+        }`,
+      fragmentShader: /* glsl */ `
+        precision highp float;
+        varying float vNear; varying float vAcross; varying float vA;
+        void main(){
+          float a = smoothstep(0.5, 0.0, length(gl_PointCoord - 0.5));
+          vec3 rail = mix(vec3(0.7, 0.52, 1.0), vec3(0.3, 0.95, 0.65), vAcross);
+          gl_FragColor = vec4(mix(rail, vec3(1.0, 0.97, 0.9), vNear), a * vA * (0.35 + vNear));
+        }`,
+    }));
+    beads.frustumCulled = false;
+    group.add(beads);
+  }
+
   // Rotation carries weight: a spring with some mass, so the scene follows the pointer late and settles.
   const spin = { y: -0.5, x: -0.08, vy: 0, vx: 0 };
   const glow = { x: 0, y: 0, vx: 0, vy: 0 };
