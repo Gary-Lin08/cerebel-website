@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { createSurfaceSampler } from "../../viewer/particle-surface";
+import { createMuscleVolume } from "../../viewer/muscle-volumes";
 import { type Act, type Ctx, clamp01, damp, lerp, smooth } from "../stage";
 
 export type SwingData = {
@@ -16,7 +17,7 @@ export type SwingData = {
     metric: { value: string; caption: string };
     goal?: { value: number; label: string };
   }[];
-  muscleGroups: { id: string; label: string; muscles: string[] }[];
+  muscleGroups: { id: string; label: string; color: string; muscles: string[] }[];
   skeleton: {
     boneModelUrl: string; toSurfaceAxes: number[][]; scaleToSurface: number; ground: number;
     bodyNames: string[]; frames: number[][]; muscleNames: string[]; muscles: number[][][][]; club: number[][];
@@ -91,6 +92,8 @@ export function createSwing(
   let boneMaterials: THREE.MeshStandardMaterial[] = [];
   let muscleLines: THREE.LineSegments;
   let muscleGroupOf: (string | null)[] = [];
+  // The muscle groups behind the findings are drawn as volumes; every other muscle path is a fine line.
+  let volumes: { id: string; members: number[]; paths: Float32Array[]; volume: ReturnType<typeof createMuscleVolume> }[] = [];
   let skeletonClub: THREE.Line;
   const side = new THREE.Vector3();
   const figures = { "fig-surface": new THREE.Vector3(), "fig-skeleton": new THREE.Vector3(), joint: new THREE.Vector3() };
@@ -110,7 +113,7 @@ export function createSwing(
   const qb = new THREE.Quaternion();
   const BONE = new THREE.Color(0xd4d8e6);
   const BONE_LIT = new THREE.Color(0xa77bff);
-  const MUSCLE = new THREE.Color(0x5a5078);
+  const MUSCLE = new THREE.Color(0x8f84c0);
   const MUSCLE_LIT = new THREE.Color(0xb48cff);
 
   const makeMaterial = (color: number, opacity: number, size: number, additive = true) =>
@@ -260,6 +263,13 @@ export function createSwing(
       muscleLines = new THREE.LineSegments(muscleGeometry, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95 }));
       muscleLines.frustumCulled = false;
       opensim.add(muscleLines);
+      volumes = json.muscleGroups.map((g) => {
+        const members = muscleGroupOf.flatMap((owner, m) => (owner === g.id ? [m] : []));
+        const counts = members.map((m) => sk.muscles[0][m].length);
+        const volume = createMuscleVolume(g.color, counts);
+        opensim.add(volume.group);
+        return { id: g.id, members, paths: counts.map((n) => new Float32Array(n * 3)), volume };
+      });
       skeletonClub = new THREE.Line(
         new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3)),
         new THREE.LineBasicMaterial({ color: 0x9b6cff, transparent: true, opacity: 0.95 }),
@@ -383,6 +393,18 @@ export function createSwing(
             w += 3;
           }
         }
+      }
+      const pulse = ctx.reduced ? 0 : 0.5 + 0.5 * Math.sin(ctx.time * 2.2);
+      for (const v of volumes) {
+        v.members.forEach((m, slot) => {
+          const out = v.paths[slot];
+          for (let i = 0; i < ma[m].length; i += 1) {
+            out[i * 3] = lerp(ma[m][i][0], mb[m][i][0], k);
+            out[i * 3 + 1] = lerp(ma[m][i][1], mb[m][i][1], k);
+            out[i * 3 + 2] = lerp(ma[m][i][2], mb[m][i][2], k);
+          }
+        });
+        v.volume.update(v.paths, note?.group === v.id ? 1 : 0, ease, pulse);
       }
       muscleLines.geometry.attributes.position.needsUpdate = true;
       muscleLines.geometry.attributes.color.needsUpdate = true;

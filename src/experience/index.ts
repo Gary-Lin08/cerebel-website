@@ -88,14 +88,14 @@ function markup() {
     <section class="ch ch--ski" data-ch="ski-intro">
       <p class="badge badge--teal">Illustrative model · not a capture</p>
       <h2>${lines("Next: the load", "a turn puts", "on a skeleton.")}</h2>
-      <p>We have not published a ski capture yet. This is a carving turn modelled from two inputs, ${peak.kmh.toFixed(0)} km/h and an ${peak.radius.toFixed(0)} m arc, to show what the analysis reads on snow.</p>
+      <p>We have not published a snowboard capture yet. This is a carved turn modelled from two inputs, ${peak.kmh.toFixed(0)} km/h and an ${peak.radius.toFixed(0)} m arc, to show what the analysis reads on snow.</p>
     </section>
 
     <section class="ch ch--ski" data-ch="ski-load">
       <p class="metric num"><span data-ski="load">1.0</span><small>× body weight</small></p>
       <p class="metric-cap">Carried through the legs, right now</p>
       <h2 class="h-sm">${lines("Load follows the turn.")}</h2>
-      <p>Gravity is constant; the turn is not. At the apex of this arc the two add up to ${peak.load.toFixed(1)} times body weight, and most of it goes through the outside leg.</p>
+      <p>Gravity is constant; the turn is not. At the apex of this arc the two add up to ${peak.load.toFixed(1)} times body weight, and all of it reaches the snow through two legs and one edge.</p>
       <p class="fine">Computed from the modelled speed and arc. Not measured.</p>
     </section>
 
@@ -103,7 +103,7 @@ function markup() {
       <p class="metric num"><span data-ski="lean">0</span><small>° lean</small></p>
       <p class="metric-cap">The angle that balances the load</p>
       <h2 class="h-sm">${lines("Lean is the answer", "to the force.")}</h2>
-      <p>The body tilts until gravity and the turn line up through the ski. The model computes that angle, up to ${peak.lean.toFixed(0)}° here. A capture will measure it, joint by joint.</p>
+      <p>The body tilts until gravity and the turn line up through the edge of the board. The model computes that angle, up to ${peak.lean.toFixed(0)}° here. A capture will measure it, joint by joint.</p>
       <p class="fine">Computed from the modelled speed and arc. Not measured.</p>
     </section>
 
@@ -412,7 +412,7 @@ export function mountExperience(root: HTMLElement) {
   window.addEventListener("keydown", (e) => e.key === "Escape" && setMenu(false));
 
   const cursor = $(".xp-cursor");
-  const cur = { x: -100, y: -100, tx: -100, ty: -100 };
+  const cur = { x: -100, y: -100, tx: -100, ty: -100, vx: 0, vy: 0 };
   window.addEventListener("pointermove", (e) => {
     cur.tx = e.clientX;
     cur.ty = e.clientY;
@@ -450,7 +450,7 @@ export function mountExperience(root: HTMLElement) {
     const a = i * 2.399963;
     const y = 1 - (2 * (i + 0.5)) / LN;
     const rad = Math.sqrt(1 - y * y) * (0.55 + 0.45 * ((i * 0.618) % 1));
-    return { x: Math.cos(a) * rad, y: y * (0.55 + 0.45 * ((i * 0.382) % 1)), z: Math.sin(a) * rad, cx: -999, cy: -999, lag: 5 + (i % 7) * 2.2, size: 1.2 + ((i * 0.37) % 1) * 2.4, sx: 0, sy: 0, d: 0 };
+    return { x: Math.cos(a) * rad, y: y * (0.55 + 0.45 * ((i * 0.382) % 1)), z: Math.sin(a) * rad, cx: -999, cy: -999, vx: 0, vy: 0, lag: 26 + (i % 7) * 16, size: 1.2 + ((i * 0.37) % 1) * 2.4, sx: 0, sy: 0, d: 0 };
   });
   let lensAlpha = 0;
   // Pointer speed shapes the cloud: it stretches along the motion, thins across it and spins faster.
@@ -470,7 +470,10 @@ export function mountExperience(root: HTMLElement) {
       if (lens.dataset.clear !== "1") {
         lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
         lens.dataset.clear = "1";
-        for (const n of nodes) n.cx = n.cy = -999;
+        for (const n of nodes) {
+          n.cx = n.cy = -999;
+          n.vx = n.vy = 0;
+        }
       }
       return;
     }
@@ -494,8 +497,13 @@ export function mountExperience(root: HTMLElement) {
         n.cx = cur.tx;
         n.cy = cur.ty;
       }
-      n.cx = damp(n.cx, cur.tx, n.lag, dt);
-      n.cy = damp(n.cy, cur.ty, n.lag, dt);
+      // Each node hangs off the pointer on its own spring: heavy, late, with a small overshoot when it stops.
+      const c = 0.9 * Math.sqrt(n.lag);
+      const h = Math.min(dt, 0.033);
+      n.vx += ((cur.tx - n.cx) * n.lag - n.vx * c) * h;
+      n.vy += ((cur.ty - n.cy) * n.lag - n.vy * c) * h;
+      n.cx += n.vx * h;
+      n.cy += n.vy * h;
       // Rotate about y, then x; project with a little perspective.
       const x1 = n.x * Math.cos(ry) + n.z * Math.sin(ry);
       const z1 = -n.x * Math.sin(ry) + n.z * Math.cos(ry);
@@ -593,8 +601,12 @@ export function mountExperience(root: HTMLElement) {
     }
     if (!stage.reduced) drawLens(now / 1000, dt);
 
-    cur.x = damp(cur.x, cur.tx, 18, dt);
-    cur.y = damp(cur.y, cur.ty, 18, dt);
+    // The cursor ring is on a spring too, so it trails and settles with a small rebound.
+    const ch = Math.min(dt, 0.033);
+    cur.vx += ((cur.tx - cur.x) * 120 - cur.vx * 13) * ch;
+    cur.vy += ((cur.ty - cur.y) * 120 - cur.vy * 13) * ch;
+    cur.x += cur.vx * ch;
+    cur.y += cur.vy * ch;
     cursor.style.transform = `translate3d(${cur.x}px, ${cur.y}px, 0)`;
 
     if (!started) {

@@ -63,7 +63,7 @@ Keep this straight; the user cares and so does `AGENTS.md`.
 | Golf surface, skeleton, muscle paths, the four findings, traces | `public/viewer-data/golf-1872/swing-analysis.json` (+ mesh, bone GLB). Team's own 60 fps capture, athlete consent confirmed | "Preview measurement · 60 fps" plus both disclosures from the JSON |
 | Golf club | estimated from hand pose, not tracked | club disclosure from the JSON |
 | Benchmark numbers | published AMASS table already on the site | reported values and their difference only; no ratios |
-| Ski act | **no capture exists.** The bone model is real, its pose and motion are built in code; numbers come from two stated inputs (15 m/s, 2.25 m × 40 m sine line) by turn mechanics: lateral acceleration v²κ, lean atan(a/g), load √(g²+a²)/g | "Illustrative model · not a capture", "Computed… Not measured." The inside/outside split is drawn (arrow lengths) but never stated as a number |
+| Snow act (snowboard) | **no capture exists.** The bone model is real, its pose and motion are built in code; numbers come from two stated inputs (15 m/s, 2.25 m × 40 m sine line) by turn mechanics: lateral acceleration v²κ, lean atan(a/g), load √(g²+a²)/g | "Illustrative model · not a capture", "Computed… Not measured." The inside/outside split is drawn (arrow lengths) but never stated as a number |
 | Glasses | geometry modelled in code; the glasses do not work yet | "Development concept", "Schematic of the development configuration" |
 
 Hard rule from `AGENTS.md`: do not fuse the golf surface and skeleton into one body. They are separate
@@ -98,12 +98,12 @@ reconstructions (hands differ by up to 0.68 m). They stand side by side.
 
 Ordered by what the user asked for most.
 
-1. **The ski act still needs art direction.** The skeleton is now the real bone model
-   (`rajagopal-bones.glb`), carried from the golf capture's first frame into a ski pose by
-   `carry()` / `setGroup()` in `acts/ski.ts` (rigid groups rotated by a two-vector frame match; knees
-   and elbows solved with `bend()`). The user rejected the earlier code-built skeleton outright. Still
-   to do: a richer snow environment, muscle paths or load rings on the knee and hip, better cameras,
-   a pose that changes through the turn (extension between turns, more counter-rotation).
+1. **The snow act (snowboarding, file still `acts/ski.ts`) can go further.** The skeleton is the real
+   bone model (`rajagopal-bones.glb`), carried from the golf capture's first frame into a riding pose by
+   `carry()` / `setGroup()` (rigid groups rotated by a two-vector frame match; knees and elbows solved
+   with `bend()`), and it moves through the turn. Obstacles: gates with flags, hoops of points, trees of
+   points. Ideas the user would like: jumps or rails, a tail of exposures behind the rider, muscle
+   paths on the legs, more camera moves. No muscle data exists for this pose; do not fake numbers.
    Check with `node scripts/experience-shots.mjs http://localhost:5173/experience.html /tmp/shots 1440 900`
    (needs Chrome at `/usr/bin/google-chrome` or `CHROME_PATH`).
 2. More 3D assets made in code or Blender: a real ski environment (terrain, gates, trees as point
@@ -112,8 +112,8 @@ Ordered by what the user asked for most.
 3. Corn's sub-experience: a circular button that flies the camera into an orbit system (centre
    object, ring of clickable nodes, close button), without leaving the page. Good candidates: the
    muscle groups in Motion, the benchmark's other metrics.
-4. The golf muscle groups as volumes instead of lines (`src/viewer/muscle-volumes.ts` already builds
-   tubes around the muscle paths for the original site; reuse it).
+4. (Done) The golf muscle groups are volumes via `src/viewer/muscle-volumes.ts`. Next level of detail
+   would be all 80 muscles as thin volumes, or tendon-like tapered ends.
 5. Real glasses CAD (GLB) in place of the code-built schematic, when the team supplies it.
 6. Port from the original site: demo form and backer sheet (the experience links to mail and to
    `/#wearable` for now), the Evidence video, baseball / boxing / jogging sessions.

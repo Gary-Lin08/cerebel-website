@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { type Act, type Ctx, clamp01, damp, lerp, smooth } from "../stage";
 
-// Act 2 — a modelled carving turn. There is no ski capture in the repo yet, so nothing here is a
+// Act 2 — a modelled snowboard carve. There is no snow capture in the repo yet, so nothing here is a
 // measurement: the capture's bone model is posed by code and every figure follows from the two stated inputs
 // (speed and arc), by ordinary turn mechanics. Replace with a reconstructed capture when one exists.
 export const SKI = { speed: 15, wavelength: 40, amplitude: 2.25, g: 9.81 };
@@ -61,16 +61,75 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
   track.position.y = 0.02;
   track.frustumCulled = false;
   slope.add(track);
+  // Things to ride through: a gate at every apex, hoops of light over the line, and trees built from points.
   for (let n = 0; n < 6; n += 1) {
     const s = (n + 0.5) * (SKI.wavelength / 2);
-    const sideOf = n % 2 === 0 ? 1 : -1;
-    const gate = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.03, 0.03, 1.5, 8),
-      new THREE.MeshBasicMaterial({ color: sideOf > 0 ? 0x9b6cff : 0x39e6b0 }),
-    );
-    gate.position.set(sideOf * (SKI.amplitude + 0.9), 0.75, -s);
-    slope.add(gate);
+    const sideOf = Math.sin(K * s) > 0 ? 1 : -1;
+    for (const [off, tall] of [[-0.75, 1.5], [-3.4, 1.5]] as const) {
+      const colour = n % 2 === 0 ? 0x9b6cff : 0x39e6b0;
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, tall, 8), new THREE.MeshBasicMaterial({ color: colour }));
+      post.position.set(sideOf * (SKI.amplitude + off), tall / 2, -s);
+      slope.add(post);
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.34), new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+      flag.position.set(sideOf * (SKI.amplitude + off) - sideOf * 0.27, tall - 0.2, -s);
+      slope.add(flag);
+    }
   }
+  {
+    const ring: number[] = [];
+    const tint: number[] = [];
+    for (let n = 1; n <= 11; n += 1) {
+      const s = n * 9;
+      const centre = path(s);
+      const dir = new THREE.Vector3(SKI.amplitude * K * Math.cos(K * s), 0, -1).normalize();
+      const side = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+      for (let layer = 0; layer < 3; layer += 1) {
+        const radius = 1.55 + layer * 0.22;
+        const count = 90 + layer * 30;
+        for (let i = 0; i < count; i += 1) {
+          const ang = (i / count) * Math.PI * 2;
+          const p = centre.clone().addScaledVector(side, Math.cos(ang) * radius).add(new THREE.Vector3(0, 1.15 + Math.sin(ang) * radius, 0)).addScaledVector(dir, layer * 0.25);
+          if (p.y < 0) continue;
+          ring.push(p.x, p.y, p.z);
+          tint.push(n % 2);
+        }
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(ring), 3));
+    geo.setAttribute("aTint", new THREE.BufferAttribute(new Float32Array(tint), 1));
+    const hoops = new THREE.Points(geo, new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      vertexShader: `attribute float aTint; varying float vT; void main(){ vT = aTint; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = 26.0 / -mv.z; }`,
+      fragmentShader: `precision highp float; varying float vT; void main(){ float a = smoothstep(0.5, 0.0, length(gl_PointCoord - 0.5)); gl_FragColor = vec4(mix(vec3(0.66, 0.48, 1.0), vec3(0.25, 0.95, 0.68), vT), a * 0.8); }`,
+    }));
+    hoops.frustumCulled = false;
+    slope.add(hoops);
+
+    let seed = 5;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const trees: number[] = [];
+    for (let t = 0; t < 90; t += 1) {
+      const z = -rnd() * 115;
+      const x = (rnd() < 0.5 ? -1 : 1) * (5.5 + rnd() * 16);
+      const h = 2.6 + rnd() * 3.2;
+      for (let i = 0; i < 150; i += 1) {
+        const u = Math.pow(rnd(), 0.7);
+        const ang = rnd() * 6.283;
+        const rad = (1 - u) * h * 0.26 * (0.5 + 0.5 * rnd());
+        trees.push(x + Math.cos(ang) * rad, 0.3 + u * h, z + Math.sin(ang) * rad);
+      }
+    }
+    const forest = new THREE.Points(
+      new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(trees), 3)),
+      new THREE.PointsMaterial({ color: 0x4fd6b4, size: 0.05, transparent: true, opacity: 0.5, depthWrite: false }),
+    );
+    forest.frustumCulled = false;
+    slope.add(forest);
+  }
+
 
   // ---- Skeleton: the same bone model the golf capture uses, posed here by code.
   // Each rigid group is carried from its pose in the capture's first frame to the ski pose by the
@@ -150,22 +209,17 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
   const carried = (p0: THREE.Vector3, anchor0: THREE.Vector3, anchor1: THREE.Vector3, q: THREE.Quaternion, out: THREE.Vector3) =>
     out.copy(p0).sub(anchor0).applyQuaternion(q).add(anchor1);
 
-  const skiMaterial = new THREE.MeshStandardMaterial({ color: 0x1b2230, roughness: 0.4, emissive: 0x0c2a30 });
-  const skis = [-1, 1].map(() => {
-    const ski = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.012, 1.7), skiMaterial);
-    skier.add(ski);
-    return ski;
-  });
-  const poles = [-1, 1].map(() => {
-    const line = new THREE.Line(
-      new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3)),
-      new THREE.LineBasicMaterial({ color: 0x9aa4b8 }),
-    );
-    line.frustumCulled = false;
-    skier.add(line);
-    return line;
-  });
-  // Ground reaction, drawn from each ski along the line the load travels.
+  // One board: a rounded deck, tilted onto its edge by the turn.
+  const deck = new THREE.Shape();
+  deck.absarc(0, 0.62, 0.135, 0, Math.PI, false);
+  deck.absarc(0, -0.62, 0.135, Math.PI, Math.PI * 2, false);
+  deck.closePath();
+  const boardGeo = new THREE.ExtrudeGeometry(deck, { depth: 0.016, bevelEnabled: false, curveSegments: 14 }).translate(0, 0, -0.008).rotateX(-Math.PI / 2);
+  const board = new THREE.Mesh(boardGeo, new THREE.MeshStandardMaterial({ color: 0x151b28, roughness: 0.35, emissive: 0x0c2a30 }));
+  board.add(new THREE.LineSegments(new THREE.EdgesGeometry(boardGeo, 30), new THREE.LineBasicMaterial({ color: 0x39e6b0 })));
+  skier.add(board);
+
+  // Ground reaction under each foot, along the line the load travels.
   const arrows = [-1, 1].map(() => {
     const arrow = new THREE.ArrowHelper(Y, new THREE.Vector3(), 1, 0x39e6b0, 0.16, 0.09);
     skier.add(arrow);
@@ -224,6 +278,9 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
   const elbow = new THREE.Vector3();
   const pole = new THREE.Vector3();
   const edge = new THREE.Vector3();
+  const hipDir = new THREE.Vector3();
+  const shoulderDir = new THREE.Vector3();
+  const footDir = new THREE.Vector3();
   const basis = new THREE.Matrix4();
   const camAt = new THREE.Vector3();
   const camPos = new THREE.Vector3(3, 3, 8);
@@ -258,60 +315,67 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
       if (up.dot(r) * inside < 0) up.copy(Y).applyAxisAngle(f, leanNow);
       trunk.copy(Y).lerp(up, 0.55).normalize().addScaledVector(f, 0.42).normalize(); // angulated, tipped forward
 
-      // Pelvis and trunk.
-      const crouch = 0.8 - 0.1 * Math.abs(Math.sin(leanNow));
-      pelvis.copy(base).addScaledVector(up, crouch).addScaledVector(f, -0.08);
-      const qPelvis = carry(rest.hipLine, rest.trunk, r, tmp.copy(up).addScaledVector(f, 0.2), new THREE.Quaternion());
+      // The rider stands across the board, toes toward +r, left foot leading. The pose moves through
+      // the turn: low and folded at the apex, tall at the change of edge, shoulders opening into the arc.
+      const apex = Math.abs(Math.sin(K * s));
+      const swing = Math.sin(K * s);
+      const idle = ctx.reduced ? 0 : Math.sin(ctx.time * 1.7);
+      const toes = up.dot(r) > 0 ? 1 : 0; // on the toe edge the body folds forward, on the heel edge it sits
+      const crouch = lerp(0.9, 0.68, apex) + idle * 0.012;
+      pelvis.copy(base).addScaledVector(up, crouch).addScaledVector(r, lerp(-0.1, 0.04, toes) * apex);
+      hipDir.copy(f).negate().applyAxisAngle(Y, swing * 0.18);
+      shoulderDir.copy(f).negate().applyAxisAngle(Y, 0.35 + swing * 0.45);
+      trunk.copy(Y).lerp(up, 0.6).addScaledVector(r, lerp(-0.05, 0.3, toes) * (0.4 + 0.6 * apex)).normalize();
+      const qPelvis = carry(rest.hipLine, rest.trunk, hipDir, tmp.copy(up).addScaledVector(r, 0.12), new THREE.Quaternion());
       setGroup(["pelvis"], body.pelvis.p0, pelvis, qPelvis);
       carried(body.torso.p0, body.pelvis.p0, pelvis, qPelvis, chest); // the lumbar joint
-      const qTorso = carry(rest.trunk, rest.shoulderLine, trunk, r, new THREE.Quaternion());
+      const qTorso = carry(rest.trunk, rest.shoulderLine, trunk, shoulderDir, new THREE.Quaternion());
       setGroup(["torso"], body.torso.p0, chest, qTorso);
+
+      edge.crossVectors(up, f).normalize();
+      basis.makeBasis(edge, up, f);
+      board.position.copy(base).addScaledVector(up, 0.012);
+      board.quaternion.setFromRotationMatrix(basis);
 
       [-1, 1].forEach((sd, i) => {
         const tag = sd > 0 ? "r" : "l";
-        const outside = sd !== inside;
-        // Legs: the hip comes from the pelvis, the ankle from the ski; the knee is solved between them.
+        const along = sd > 0 ? -0.27 : 0.27; // right foot toward the tail
+        // Legs: hip from the pelvis, foot strapped to the board, knee solved between and pushed outward.
         carried(body[`femur_${tag}`].p0, body.pelvis.p0, pelvis, qPelvis, hip);
-        ankle.copy(base).addScaledVector(r, sd * 0.19).addScaledVector(f, outside ? -0.12 : 0.2).addScaledVector(up, 0.11);
-        bend(hip, ankle, rest.thigh, rest.shin, f, knee);
-        setGroup([`femur_${tag}`], body[`femur_${tag}`].p0, hip, carry(tmp.subVectors(body[`tibia_${tag}`].p0, body[`femur_${tag}`].p0), rest.hipLine, edge.subVectors(knee, hip), r, turn));
-        setGroup([`tibia_${tag}`, `patella_${tag}`], body[`tibia_${tag}`].p0, knee, carry(tmp.subVectors(body[`talus_${tag}`].p0, body[`tibia_${tag}`].p0), rest.hipLine, edge.subVectors(ankle, knee), r, turn));
-        setGroup([`talus_${tag}`, `calcn_${tag}`, `toes_${tag}`], body[`talus_${tag}`].p0, ankle, carry(rest.foot[tag as "r" | "l"], rest.hipLine, f, r, turn));
-        loadedMaterials[i].emissive.setRGB(0.04, 0.5, 0.38).multiplyScalar(clamp01((load - 1) / 0.62) * (outside ? 0.9 : 0.3));
+        ankle.copy(base).addScaledVector(f, along).addScaledVector(up, 0.12);
+        pole.copy(r).addScaledVector(f, along * 2.2);
+        bend(hip, ankle, rest.thigh, rest.shin, pole, knee);
+        setGroup([`femur_${tag}`], body[`femur_${tag}`].p0, hip, carry(tmp.subVectors(body[`tibia_${tag}`].p0, body[`femur_${tag}`].p0), rest.hipLine, edge.subVectors(knee, hip), hipDir, turn));
+        setGroup([`tibia_${tag}`, `patella_${tag}`], body[`tibia_${tag}`].p0, knee, carry(tmp.subVectors(body[`talus_${tag}`].p0, body[`tibia_${tag}`].p0), rest.hipLine, edge.subVectors(ankle, knee), hipDir, turn));
+        footDir.copy(r).addScaledVector(f, along * 1.1).addScaledVector(up, -up.dot(r)).normalize();
+        setGroup([`talus_${tag}`, `calcn_${tag}`, `toes_${tag}`], body[`talus_${tag}`].p0, ankle, carry(rest.foot[tag as "r" | "l"], rest.hipLine, footDir, hipDir, turn));
+        loadedMaterials[i].emissive.setRGB(0.04, 0.5, 0.38).multiplyScalar(clamp01((load - 1) / 0.62) * 0.8);
 
-        const ski = skis[i];
-        ski.position.copy(ankle).addScaledVector(up, -0.12).addScaledVector(f, 0.14);
-        edge.crossVectors(up, f).normalize();
-        basis.makeBasis(edge, up, f);
-        ski.quaternion.setFromRotationMatrix(basis);
-        // Drawn share only: the page states the total, never a split.
-        const length = Math.max(0.2, load * (outside ? 0.7 : 0.3) * 0.95);
-        arrows[i].position.copy(ski.position);
+        // Ground reaction under each foot. Both are drawn alike: the page states the total, never a split.
+        const length = Math.max(0.2, load * 0.5 * 0.95);
+        tmp.copy(base).addScaledVector(f, along).addScaledVector(up, 0.03);
+        arrows[i].position.copy(tmp);
         arrows[i].setDirection(up);
         arrows[i].setLength(length, 0.16, 0.09);
-        if (outside) anchors["ski-force"].copy(ski.position).addScaledVector(up, length);
+        if (sd < 0) anchors["ski-force"].copy(tmp).addScaledVector(up, length);
 
-        // Arms: shoulder from the trunk, hands held forward and wide, elbow solved.
+        // Arms ride out along the board for balance and swing with the turn.
         carried(body[`humerus_${tag}`].p0, body.torso.p0, chest, qTorso, shoulder);
-        hand.copy(shoulder).addScaledVector(f, 0.34).addScaledVector(Y, -0.26).addScaledVector(r, sd * 0.2);
-        pole.copy(r).multiplyScalar(sd).addScaledVector(f, -0.7).addScaledVector(Y, -0.3);
+        hand.copy(shoulder).addScaledVector(shoulderDir, sd * 0.4).addScaledVector(Y, -0.22 + sd * swing * 0.14 + idle * 0.01).addScaledVector(r, 0.16);
+        pole.copy(Y).negate().addScaledVector(shoulderDir, sd * 0.3);
         bend(shoulder, hand, rest.upper, rest.fore, pole, elbow);
-        setGroup([`humerus_${tag}`], body[`humerus_${tag}`].p0, shoulder, carry(tmp.subVectors(body[`ulna_${tag}`].p0, body[`humerus_${tag}`].p0), rest.shoulderLine, edge.subVectors(elbow, shoulder), r, turn));
-        setGroup([`ulna_${tag}`, `radius_${tag}`, `hand_${tag}`], body[`ulna_${tag}`].p0, elbow, carry(tmp.subVectors(body[`hand_${tag}`].p0, body[`ulna_${tag}`].p0), rest.shoulderLine, edge.subVectors(hand, elbow), r, turn));
-        const pp = poles[i].geometry.attributes.position.array as Float32Array;
-        hand.toArray(pp, 0);
-        tmp.copy(hand).addScaledVector(f, -0.8).addScaledVector(Y, -0.5).addScaledVector(r, sd * 0.1).toArray(pp, 3);
-        poles[i].geometry.attributes.position.needsUpdate = true;
+        setGroup([`humerus_${tag}`], body[`humerus_${tag}`].p0, shoulder, carry(tmp.subVectors(body[`ulna_${tag}`].p0, body[`humerus_${tag}`].p0), rest.shoulderLine, edge.subVectors(elbow, shoulder), shoulderDir, turn));
+        setGroup([`ulna_${tag}`, `radius_${tag}`, `hand_${tag}`], body[`ulna_${tag}`].p0, elbow, carry(tmp.subVectors(body[`hand_${tag}`].p0, body[`ulna_${tag}`].p0), rest.shoulderLine, edge.subVectors(hand, elbow), shoulderDir, turn));
       });
 
-      // Spray from the outside edge, more of it the harder the turn.
+      // Spray off the working edge, more of it the harder the turn.
       const moved = Math.abs(s - lastS);
       lastS = s;
       const emit = ctx.reduced ? 0 : Math.min(14, Math.round(moved * 16 * Math.abs(Math.sin(leanNow))));
       for (let n = 0; n < emit; n += 1) {
         const i = sprayNext;
         sprayNext = (sprayNext + 1) % SPRAY;
-        tmp.copy(base).addScaledVector(r, -inside * 0.24).addScaledVector(f, (Math.random() - 0.7) * 0.9).toArray(sprayPos, i * 3);
+        tmp.copy(base).addScaledVector(r, inside * 0.12).addScaledVector(f, (Math.random() - 0.5) * 1.3).toArray(sprayPos, i * 3);
         sprayVel[i * 3] = -inside * r.x * (1.2 + Math.random() * 2) + (Math.random() - 0.5) * 0.6;
         sprayVel[i * 3 + 1] = 0.8 + Math.random() * 1.6;
         sprayVel[i * 3 + 2] = -inside * r.z * (1.2 + Math.random() * 2) + 1.5;
@@ -338,7 +402,7 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
       const b = smooth(0.0, 0.6, ctx.local("ski-edge"));
       slope.updateMatrixWorld(true);
       world.copy(pelvis).applyMatrix4(slope.matrixWorld);
-      want.set(lerp(lerp(1.9, 2.8, a), -0.7, b), lerp(lerp(0.7, 0.5, a), 2.2, b), lerp(lerp(-3.4, -4.2, a), 3.7, b));
+      want.set(lerp(lerp(2.0, 3.3, a), -0.7, b), lerp(lerp(0.8, 0.7, a), 2.2, b), lerp(lerp(-3.6, -5.0, a), 3.7, b));
       if (!wide) want.multiplyScalar(1.5);
       want.add(world);
       camPos.x = damp(camPos.x, want.x, 4, ctx.dt);

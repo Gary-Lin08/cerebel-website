@@ -332,8 +332,8 @@ export function createOrigin(): Act {
       const py = ctx.pointer.y - act.offset!.y * 2;
       uniforms.uPointer.value.set(px, py);
       // The light trails the pointer on its own spring.
-      glow.vx += ((px - glow.x) * 70 - glow.vx * 11) * dt;
-      glow.vy += ((py - glow.y) * 70 - glow.vy * 11) * dt;
+      glow.vx += ((px - glow.x) * 26 - glow.vx * 4.6) * dt;
+      glow.vy += ((py - glow.y) * 26 - glow.vy * 4.6) * dt;
       glow.x += glow.vx * dt;
       glow.y += glow.vy * dt;
       uniforms.uGlow.value.set(glow.x, glow.y);
@@ -352,8 +352,9 @@ export function createOrigin(): Act {
 
       const wantY = -0.5 + clamp01(hero) * 0.5 + morph * 1.1 + ctx.pointer.x * 0.55 + (ctx.reduced ? 0 : Math.sin(ctx.time * 0.2) * 0.06);
       const wantX = -0.08 - ctx.pointer.y * 0.3;
-      spin.vy += ((wantY - spin.y) * 22 - spin.vy * 6.5) * dt;
-      spin.vx += ((wantX - spin.x) * 22 - spin.vx * 6.5) * dt;
+      // Low stiffness and light damping: it starts late, overshoots a little and settles back.
+      spin.vy += ((wantY - spin.y) * 8 - spin.vy * 2.5) * dt;
+      spin.vx += ((wantX - spin.x) * 8 - spin.vx * 2.5) * dt;
       spin.y += spin.vy * dt;
       spin.x += spin.vx * dt;
       world.rotation.set(spin.x, spin.y, 0);
