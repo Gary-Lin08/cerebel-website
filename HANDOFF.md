@@ -63,7 +63,7 @@ Keep this straight; the user cares and so does `AGENTS.md`.
 | Golf surface, skeleton, muscle paths, the four findings, traces | `public/viewer-data/golf-1872/swing-analysis.json` (+ mesh, bone GLB). Team's own 60 fps capture, athlete consent confirmed | "Preview measurement · 60 fps" plus both disclosures from the JSON |
 | Golf club | estimated from hand pose, not tracked | club disclosure from the JSON |
 | Benchmark numbers | published AMASS table already on the site | reported values and their difference only; no ratios |
-| Ski act | **no capture exists.** Skeleton and motion are built in code; numbers come from two stated inputs (15 m/s, 2.25 m × 40 m sine line) by turn mechanics: lateral acceleration v²κ, lean atan(a/g), load √(g²+a²)/g | "Illustrative model · not a capture", "Computed… Not measured." The inside/outside split is drawn (arrow lengths) but never stated as a number |
+| Ski act | **no capture exists.** The bone model is real, its pose and motion are built in code; numbers come from two stated inputs (15 m/s, 2.25 m × 40 m sine line) by turn mechanics: lateral acceleration v²κ, lean atan(a/g), load √(g²+a²)/g | "Illustrative model · not a capture", "Computed… Not measured." The inside/outside split is drawn (arrow lengths) but never stated as a number |
 | Glasses | geometry modelled in code; the glasses do not work yet | "Development concept", "Schematic of the development configuration" |
 
 Hard rule from `AGENTS.md`: do not fuse the golf surface and skeleton into one body. They are separate
@@ -84,7 +84,7 @@ reconstructions (hands differ by up to 0.68 m). They stand side by side.
 ## Done in this round
 
 - Intro order: subject alone for a beat, then top bar, rail and headline (`is-ready` → `is-live`).
-- Headline lens: under the pointer, letters fall back to outlines and a small constellation follows.
+- Headline lens: under the pointer, letters fall back to outlines and a live 3D node cloud (2D canvas, `drawLens` in `index.ts`) trails it. The masks apply only while `data-lens` is set; an earlier version left the headline invisible once the pointer moved away.
 - Per-act backdrops (`bg` on each act, drawn in `stage.ts`).
 - Origin: strand morph (violet rail, green rail, white rungs) and bokeh lights.
 - Motion: skeleton + muscles beside the surface; camera pushes in on pelvis / right knee / left elbow
@@ -98,12 +98,12 @@ reconstructions (hands differ by up to 0.68 m). They stand side by side.
 
 Ordered by what the user asked for most.
 
-1. **The ski act is a first pass.** It runs and the numbers are right, but the code-built skeleton is
-   crude (torus ribs, lathe bones, legs that read as a triangle in the close-up) and the three camera
-   positions need art direction. The user wants this act to look as considered as the golf one.
-   Options: pose the real bone model (`public/viewer-data/golf-1872/opensim/rajagopal-bones.glb`,
-   22 bodies; each needs a world position + quaternion per frame, see how `swing.ts` applies
-   `skeleton.frames`) with a baked ski animation, or model a better skeleton in Blender and export GLB.
+1. **The ski act still needs art direction.** The skeleton is now the real bone model
+   (`rajagopal-bones.glb`), carried from the golf capture's first frame into a ski pose by
+   `carry()` / `setGroup()` in `acts/ski.ts` (rigid groups rotated by a two-vector frame match; knees
+   and elbows solved with `bend()`). The user rejected the earlier code-built skeleton outright. Still
+   to do: a richer snow environment, muscle paths or load rings on the knee and hip, better cameras,
+   a pose that changes through the turn (extension between turns, more counter-rotation).
    Check with `node scripts/experience-shots.mjs http://localhost:5173/experience.html /tmp/shots 1440 900`
    (needs Chrome at `/usr/bin/google-chrome` or `CHROME_PATH`).
 2. More 3D assets made in code or Blender: a real ski environment (terrain, gates, trees as point

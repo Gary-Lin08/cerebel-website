@@ -222,14 +222,12 @@
 /* Headline lens */
 .ln > span { position: relative; color: transparent; }
 .ln > span::before, .ln > span::after { content: attr(data-t); position: absolute; left: 0; top: 0; white-space: nowrap; }
-.ln > span::before { color: var(--ink); -webkit-mask-image: radial-gradient(circle var(--lr, 0px) at var(--mx, -999px) var(--my, -999px), transparent 0 97%, #000 100%); mask-image: radial-gradient(circle var(--lr, 0px) at var(--mx, -999px) var(--my, -999px), transparent 0 97%, #000 100%); }
-.ln > span::after { -webkit-text-stroke: 1px rgba(233, 236, 242, 0.85); -webkit-mask-image: radial-gradient(circle var(--lr, 0px) at var(--mx, -999px) var(--my, -999px), #000 0 97%, transparent 100%); mask-image: radial-gradient(circle var(--lr, 0px) at var(--mx, -999px) var(--my, -999px), #000 0 97%, transparent 100%); }
-.xp-lens { position: absolute; z-index: 45; left: -90px; top: -90px; width: 180px; height: 180px; pointer-events: none; opacity: 0; transition: opacity 0.35s; overflow: visible; }
-.xp-lens.is-on { opacity: 1; }
-.xp-lens line { stroke: rgba(233, 236, 242, 0.6); stroke-width: 0.8; }
-.xp-lens circle { fill: #fff; animation: xp-pulse 2.6s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
-.xp-lens circle:nth-child(odd) { animation-delay: -1.3s; }
-@keyframes xp-pulse { to { transform: scale(0.45); opacity: 0.55; } }
+.ln > span::before { color: var(--ink); }
+.ln > span::after { -webkit-text-stroke: 1px rgba(233, 236, 242, 0.85); opacity: 0; }
+/* The masks exist only while the pointer is on the line, so the text can never be left hidden. */
+.ln > span[data-lens]::before { -webkit-mask-image: radial-gradient(circle at var(--mx) var(--my), transparent 76px, #000 78px); mask-image: radial-gradient(circle at var(--mx) var(--my), transparent 76px, #000 78px); }
+.ln > span[data-lens]::after { opacity: 1; -webkit-mask-image: radial-gradient(circle at var(--mx) var(--my), #000 76px, transparent 78px); mask-image: radial-gradient(circle at var(--mx) var(--my), #000 76px, transparent 78px); }
+.xp-lens { position: absolute; inset: 0; z-index: 45; width: 100%; height: 100%; pointer-events: none; }
 
 /* Measured value riding on a joint */
 .joint { width: 0; height: 0; opacity: 0; transition: opacity 0.5s; }

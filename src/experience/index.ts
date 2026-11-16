@@ -205,7 +205,7 @@ function markup() {
   </div>
 
   <div class="xp-loader" role="status"><img src="/assets/cerebel-wordmark.png" alt="Cerebel" width="595" height="194"><b class="num">0%</b><span>Loading the experience.</span></div>
-  <svg class="xp-lens" viewBox="-90 -90 180 180" aria-hidden="true"></svg>
+  <canvas class="xp-lens" aria-hidden="true"></canvas>
   <div class="xp-cursor" aria-hidden="true"></div>`;
 }
 
@@ -442,43 +442,99 @@ export function mountExperience(root: HTMLElement) {
   });
 
   // ---- Headline lens: under the pointer the letters fall back to outlines and a small constellation shows.
-  const lens = root.querySelector<SVGElement>(".xp-lens")!;
-  {
-    let seed = 11;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const pts = Array.from({ length: 18 }, () => {
-      const a = rnd() * 6.283;
-      const r = 14 + rnd() * 66;
-      return [Math.cos(a) * r, Math.sin(a) * r, 1.2 + rnd() * 2.2];
-    });
-    let html = "";
-    pts.forEach((p, i) => {
-      const near = pts.map((q, j) => [Math.hypot(q[0] - p[0], q[1] - p[1]), j]).filter(([d, j]) => j > i && d < 46).slice(0, 2);
-      for (const [, j] of near) html += `<line x1="${p[0].toFixed(1)}" y1="${p[1].toFixed(1)}" x2="${pts[j][0].toFixed(1)}" y2="${pts[j][1].toFixed(1)}"/>`;
-    });
-    html += pts.map((p) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${p[2].toFixed(1)}"/>`).join("");
-    lens.innerHTML = html;
+  // The constellation is a small 3D cloud drawn live: it turns, breathes, and each node trails the pointer at its own pace.
+  const lens = root.querySelector<HTMLCanvasElement>(".xp-lens")!;
+  const lensCtx = lens.getContext("2d")!;
+  const LN = 26;
+  const nodes = Array.from({ length: LN }, (_, i) => {
+    const a = i * 2.399963;
+    const y = 1 - (2 * (i + 0.5)) / LN;
+    const rad = Math.sqrt(1 - y * y) * (0.55 + 0.45 * ((i * 0.618) % 1));
+    return { x: Math.cos(a) * rad, y: y * (0.55 + 0.45 * ((i * 0.382) % 1)), z: Math.sin(a) * rad, cx: -999, cy: -999, lag: 5 + (i % 7) * 2.2, size: 1.2 + ((i * 0.37) % 1) * 2.4, sx: 0, sy: 0, d: 0 };
+  });
+  let lensAlpha = 0;
+  let lensOn = false;
+  function sizeLens() {
+    const k = Math.min(window.devicePixelRatio || 1, 2);
+    lens.width = Math.round(window.innerWidth * k);
+    lens.height = Math.round(window.innerHeight * k);
+    lensCtx.setTransform(k, 0, 0, k, 0, 0);
+  }
+  sizeLens();
+  window.addEventListener("resize", sizeLens);
+  function drawLens(time: number, dt: number) {
+    lensAlpha = damp(lensAlpha, lensOn ? 1 : 0, 7, dt);
+    if (lensAlpha < 0.01) {
+      if (lens.dataset.clear !== "1") {
+        lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        lens.dataset.clear = "1";
+        for (const n of nodes) n.cx = n.cy = -999;
+      }
+      return;
+    }
+    lens.dataset.clear = "0";
+    lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    const ry = time * 0.7;
+    const rx = time * 0.43;
+    const R = 78 * (1 + 0.06 * Math.sin(time * 1.7));
+    for (const n of nodes) {
+      if (n.cx < -900) {
+        n.cx = cur.tx;
+        n.cy = cur.ty;
+      }
+      n.cx = damp(n.cx, cur.tx, n.lag, dt);
+      n.cy = damp(n.cy, cur.ty, n.lag, dt);
+      // Rotate about y, then x; project with a little perspective.
+      const x1 = n.x * Math.cos(ry) + n.z * Math.sin(ry);
+      const z1 = -n.x * Math.sin(ry) + n.z * Math.cos(ry);
+      const y1 = n.y * Math.cos(rx) - z1 * Math.sin(rx);
+      const z2 = n.y * Math.sin(rx) + z1 * Math.cos(rx);
+      const persp = 2.6 / (2.6 - z2);
+      n.sx = n.cx + x1 * R * persp;
+      n.sy = n.cy + y1 * R * persp;
+      n.d = persp;
+    }
+    lensCtx.lineWidth = 0.8;
+    for (let i = 0; i < LN; i += 1) {
+      for (let j = i + 1; j < LN; j += 1) {
+        const a = nodes[i];
+        const b = nodes[j];
+        const d3 = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+        if (d3 > 0.62) continue;
+        lensCtx.strokeStyle = `rgba(233,236,242,${(lensAlpha * 0.55 * (1 - d3 / 0.62) * Math.min(a.d, b.d)).toFixed(3)})`;
+        lensCtx.beginPath();
+        lensCtx.moveTo(a.sx, a.sy);
+        lensCtx.lineTo(b.sx, b.sy);
+        lensCtx.stroke();
+      }
+    }
+    for (const n of nodes) {
+      lensCtx.fillStyle = `rgba(255,255,255,${(lensAlpha * Math.min(1, 0.35 + (n.d - 0.7) * 1.1)).toFixed(3)})`;
+      lensCtx.beginPath();
+      lensCtx.arc(n.sx, n.sy, n.size * n.d, 0, 6.283);
+      lensCtx.fill();
+    }
   }
   const headSpans = $$<HTMLElement>(".ln > span");
-  let lensOn = false;
   window.addEventListener("pointermove", (e) => {
     if (e.pointerType === "touch") return;
     let hit = false;
     for (const el of headSpans) {
-      if (!el.closest(".ch")!.classList.contains("is-on")) continue;
-      const r = el.getBoundingClientRect();
-      const inside = e.clientX > r.left - 70 && e.clientX < r.right + 70 && e.clientY > r.top - 50 && e.clientY < r.bottom + 50;
-      el.style.setProperty("--lr", inside ? "78px" : "0px");
-      if (inside) {
+      const on = el.closest(".ch")!.classList.contains("is-on");
+      const r = on ? el.getBoundingClientRect() : null;
+      const inside = !!r && e.clientX > r.left - 80 && e.clientX < r.right + 80 && e.clientY > r.top - 80 && e.clientY < r.bottom + 80;
+      if (inside && r) {
         el.style.setProperty("--mx", `${e.clientX - r.left}px`);
         el.style.setProperty("--my", `${e.clientY - r.top}px`);
+        el.setAttribute("data-lens", "");
         hit = hit || (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom);
-      }
+      } else if (el.hasAttribute("data-lens")) el.removeAttribute("data-lens");
     }
-    if (hit !== lensOn) {
-      lensOn = hit;
-      lens.classList.toggle("is-on", hit);
-    }
+    lensOn = hit;
+  });
+  document.documentElement.addEventListener("pointerleave", () => {
+    lensOn = false;
+    for (const el of headSpans) el.removeAttribute("data-lens");
   });
 
   // ---- Loop.
@@ -519,7 +575,7 @@ export function mountExperience(root: HTMLElement) {
       hudBar.tabIndex = scrubbing ? 0 : -1;
       if (!scrubbing) scrub = null;
     }
-    lens.style.transform = `translate3d(${cur.tx}px, ${cur.ty}px, 0)`;
+    if (!stage.reduced) drawLens(now / 1000, dt);
 
     cur.x = damp(cur.x, cur.tx, 18, dt);
     cur.y = damp(cur.y, cur.ty, 18, dt);

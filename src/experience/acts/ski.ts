@@ -1,8 +1,9 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { type Act, type Ctx, clamp01, damp, lerp, smooth } from "../stage";
 
 // Act 2 — a modelled carving turn. There is no ski capture in the repo yet, so nothing here is a
-// measurement: the skeleton is built in code and every figure follows from the two stated inputs
+// measurement: the capture's bone model is posed by code and every figure follows from the two stated inputs
 // (speed and arc), by ordinary turn mechanics. Replace with a reconstructed capture when one exists.
 export const SKI = { speed: 15, wavelength: 40, amplitude: 2.25, g: 9.81 };
 const K = (2 * Math.PI) / SKI.wavelength;
@@ -19,18 +20,6 @@ export function skiPeak() {
 }
 
 const BONE = 0xd4d8e6;
-const Z = new THREE.Vector3(0, 0, 1);
-
-function boneGeometry() {
-  // A long bone: a shaft that swells into a head at each end.
-  const pts: THREE.Vector2[] = [];
-  for (let i = 0; i <= 14; i += 1) {
-    const t = i / 14;
-    const e = Math.abs(t - 0.5) * 2;
-    pts.push(new THREE.Vector2(0.36 + 0.64 * Math.pow(e, 3.2) * (1 - 0.55 * Math.pow(e, 14)), t));
-  }
-  return new THREE.LatheGeometry(pts, 10);
-}
 
 export function createSki(onValues: (v: { kmh: number; radius: number; lean: number; load: number }) => void): Act {
   const scene = new THREE.Scene();
@@ -83,48 +72,84 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
     slope.add(gate);
   }
 
-  // ---- Skeleton, modelled in code.
-  const material = new THREE.MeshStandardMaterial({ color: BONE, roughness: 0.6, metalness: 0.05 });
-  const loaded = new THREE.MeshStandardMaterial({ color: BONE, roughness: 0.6, emissive: 0x000000 });
-  const long = boneGeometry();
-  const ball = new THREE.SphereGeometry(1, 14, 10);
+  // ---- Skeleton: the same bone model the golf capture uses, posed here by code.
+  // Each rigid group is carried from its pose in the capture's first frame to the ski pose by the
+  // rotation that maps one pair of directions onto another, so proportions and bone shapes are real.
+  const material = new THREE.MeshStandardMaterial({ color: BONE, roughness: 0.58, metalness: 0.05 });
+  const loadedMaterials = [-1, 1].map(() => new THREE.MeshStandardMaterial({ color: BONE, roughness: 0.58, emissive: 0x000000 }));
   const skier = new THREE.Group();
   slope.add(skier);
   const Y = new THREE.Vector3(0, 1, 0);
   const tmp = new THREE.Vector3();
-  type Seg = { mesh: THREE.Mesh; a: THREE.Vector3; b: THREE.Vector3; r: number };
-  const seg = (r: number, mat = material) => {
-    const s: Seg = { mesh: new THREE.Mesh(long, mat), a: new THREE.Vector3(), b: new THREE.Vector3(), r };
-    skier.add(s.mesh);
-    return s;
+  type Body = { node: THREE.Object3D | null; p0: THREE.Vector3; q0: THREE.Quaternion };
+  const body: Record<string, Body> = {};
+  const rest = {
+    hipLine: new THREE.Vector3(), shoulderLine: new THREE.Vector3(), trunk: new THREE.Vector3(), shoulderMid: new THREE.Vector3(),
+    foot: { r: new THREE.Vector3(), l: new THREE.Vector3() }, thigh: 0.41, shin: 0.43, upper: 0.29, fore: 0.26,
   };
-  const place = (s: Seg) => {
-    const len = tmp.subVectors(s.b, s.a).length();
-    s.mesh.position.copy(s.a);
-    s.mesh.quaternion.setFromUnitVectors(Y, tmp.normalize());
-    s.mesh.scale.set(s.r, len, s.r);
+  let rigged = false;
+  const ready = Promise.all([
+    fetch("/viewer-data/golf-1872/swing-analysis.json").then((res) => res.json()),
+    new GLTFLoader().loadAsync("/viewer-data/golf-1872/opensim/rajagopal-bones.glb"),
+  ]).then(([json, gltf]) => {
+    const names: string[] = json.skeleton.bodyNames;
+    const frame: number[] = json.skeleton.frames[0];
+    names.forEach((name, i) => {
+      const node = gltf.scene.getObjectByName(name) ?? null;
+      const leg = /_(r|l)$/.test(name) && /femur|tibia|patella/.test(name);
+      node?.traverse((child) => {
+        if (child instanceof THREE.Mesh) child.material = leg ? loadedMaterials[name.endsWith("_r") ? 1 : 0] : material;
+      });
+      body[name] = {
+        node,
+        p0: new THREE.Vector3(frame[i * 7], frame[i * 7 + 1], frame[i * 7 + 2]),
+        q0: new THREE.Quaternion(frame[i * 7 + 3], frame[i * 7 + 4], frame[i * 7 + 5], frame[i * 7 + 6]),
+      };
+    });
+    skier.add(gltf.scene);
+    rest.hipLine.subVectors(body.femur_r.p0, body.femur_l.p0);
+    rest.shoulderLine.subVectors(body.humerus_r.p0, body.humerus_l.p0);
+    rest.shoulderMid.addVectors(body.humerus_r.p0, body.humerus_l.p0).multiplyScalar(0.5);
+    rest.trunk.subVectors(rest.shoulderMid, body.torso.p0);
+    rest.foot.r.subVectors(body.toes_r.p0, body.calcn_r.p0);
+    rest.foot.l.subVectors(body.toes_l.p0, body.calcn_l.p0);
+    rest.thigh = body.tibia_r.p0.distanceTo(body.femur_r.p0);
+    rest.shin = body.talus_r.p0.distanceTo(body.tibia_r.p0);
+    rest.upper = body.ulna_r.p0.distanceTo(body.humerus_r.p0);
+    rest.fore = body.hand_r.p0.distanceTo(body.ulna_r.p0);
+    rigged = true;
+  });
+
+  // Rotation taking the frame spanned by (a0, b0) onto the frame spanned by (a1, b1).
+  const m0 = new THREE.Matrix4();
+  const m1 = new THREE.Matrix4();
+  const ex = new THREE.Vector3();
+  const ey = new THREE.Vector3();
+  const ez = new THREE.Vector3();
+  const frameOf = (a: THREE.Vector3, b: THREE.Vector3, out: THREE.Matrix4) => {
+    ex.copy(a).normalize();
+    ez.crossVectors(ex, b).normalize();
+    ey.crossVectors(ez, ex);
+    return out.makeBasis(ex, ey, ez);
   };
-  const legs = [-1, 1].map(() => ({ thigh: seg(0.045, loaded), shin: seg(0.038, loaded), foot: seg(0.03) }));
-  const arms = [-1, 1].map(() => ({ upper: seg(0.03), fore: seg(0.026) }));
-  const spine = seg(0.04);
-  const neck = seg(0.03);
-  const clavicle = seg(0.022);
-  const hipBar = seg(0.05);
-  const skull = new THREE.Mesh(ball, material);
-  skier.add(skull);
-  const ribs = Array.from({ length: 6 }, (_, i) => {
-    const rib = new THREE.Mesh(new THREE.TorusGeometry(1, 0.07, 6, 22), material);
-    rib.userData.t = i / 5;
-    skier.add(rib);
-    return rib;
-  });
-  const pelvisRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.2, 8, 20), material);
-  skier.add(pelvisRing);
-  const joints = Array.from({ length: 4 }, () => {
-    const j = new THREE.Mesh(ball, loaded);
-    skier.add(j);
-    return j;
-  });
+  const turn = new THREE.Quaternion();
+  const carry = (a0: THREE.Vector3, b0: THREE.Vector3, a1: THREE.Vector3, b1: THREE.Vector3, out: THREE.Quaternion) => {
+    frameOf(a0, b0, m0);
+    frameOf(a1, b1, m1);
+    return out.setFromRotationMatrix(m1.multiply(m0.transpose()));
+  };
+  /** Move a rigid group: every listed body keeps its place relative to `anchor`, turned by `q`. */
+  const setGroup = (names: string[], anchor0: THREE.Vector3, anchor1: THREE.Vector3, q: THREE.Quaternion) => {
+    for (const name of names) {
+      const b = body[name];
+      if (!b?.node) continue;
+      b.node.position.copy(b.p0).sub(anchor0).applyQuaternion(q).add(anchor1);
+      b.node.quaternion.copy(q).multiply(b.q0);
+    }
+  };
+  const carried = (p0: THREE.Vector3, anchor0: THREE.Vector3, anchor1: THREE.Vector3, q: THREE.Quaternion, out: THREE.Vector3) =>
+    out.copy(p0).sub(anchor0).applyQuaternion(q).add(anchor1);
+
   const skiMaterial = new THREE.MeshStandardMaterial({ color: 0x1b2230, roughness: 0.4, emissive: 0x0c2a30 });
   const skis = [-1, 1].map(() => {
     const ski = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.012, 1.7), skiMaterial);
@@ -209,11 +234,12 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
   const act: Act = {
     scene,
     camera,
-    ready: Promise.resolve(),
+    ready,
     offset: { x: 0.17, y: 0 },
     bg: [0x0b2230, 0x04080c, 0x0f4a52],
     anchors: () => anchors,
     update(ctx: Ctx) {
+      if (!rigged) return;
       const wide = ctx.aspect > 1.05;
       act.offset!.x = wide ? 0.17 : 0;
       act.offset!.y = wide ? 0 : 0.16;
@@ -232,55 +258,29 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
       if (up.dot(r) * inside < 0) up.copy(Y).applyAxisAngle(f, leanNow);
       trunk.copy(Y).lerp(up, 0.55).normalize().addScaledVector(f, 0.42).normalize(); // angulated, tipped forward
 
-      const crouch = 0.74 - 0.1 * Math.abs(Math.sin(leanNow));
-      pelvis.copy(base).addScaledVector(up, crouch).addScaledVector(f, -0.06);
-      chest.copy(pelvis).addScaledVector(trunk, 0.5);
-      hipBar.a.copy(pelvis).addScaledVector(r, -0.13);
-      hipBar.b.copy(pelvis).addScaledVector(r, 0.13);
-      place(hipBar);
-      pelvisRing.position.copy(pelvis);
-      pelvisRing.quaternion.setFromUnitVectors(Z, up);
-      pelvisRing.scale.set(0.13, 0.09, 0.08);
-      spine.a.copy(pelvis);
-      spine.b.copy(chest);
-      place(spine);
-      for (const rib of ribs) {
-        rib.position.copy(pelvis).addScaledVector(trunk, 0.2 + rib.userData.t * 0.3);
-        rib.quaternion.setFromUnitVectors(Z, trunk);
-        const w = 0.13 + 0.04 * Math.sin(rib.userData.t * Math.PI);
-        rib.scale.set(w, w * 0.72, w);
-      }
-      neck.a.copy(chest);
-      neck.b.copy(chest).addScaledVector(trunk, 0.14);
-      place(neck);
-      skull.position.copy(neck.b).addScaledVector(trunk, 0.1);
-      skull.scale.set(0.1, 0.12, 0.11);
-      clavicle.a.copy(chest).addScaledVector(r, -0.19);
-      clavicle.b.copy(chest).addScaledVector(r, 0.19);
-      place(clavicle);
+      // Pelvis and trunk.
+      const crouch = 0.8 - 0.1 * Math.abs(Math.sin(leanNow));
+      pelvis.copy(base).addScaledVector(up, crouch).addScaledVector(f, -0.08);
+      const qPelvis = carry(rest.hipLine, rest.trunk, r, tmp.copy(up).addScaledVector(f, 0.2), new THREE.Quaternion());
+      setGroup(["pelvis"], body.pelvis.p0, pelvis, qPelvis);
+      carried(body.torso.p0, body.pelvis.p0, pelvis, qPelvis, chest); // the lumbar joint
+      const qTorso = carry(rest.trunk, rest.shoulderLine, trunk, r, new THREE.Quaternion());
+      setGroup(["torso"], body.torso.p0, chest, qTorso);
 
       [-1, 1].forEach((sd, i) => {
+        const tag = sd > 0 ? "r" : "l";
         const outside = sd !== inside;
-        // The inside ski rides further forward and its leg folds more.
-        ankle.copy(base).addScaledVector(r, sd * 0.2).addScaledVector(f, outside ? -0.1 : 0.16).addScaledVector(up, 0.1);
-        hip.copy(pelvis).addScaledVector(r, sd * 0.12);
-        bend(hip, ankle, 0.44, 0.44, f, knee);
-        const leg = legs[i];
-        leg.thigh.a.copy(hip);
-        leg.thigh.b.copy(knee);
-        place(leg.thigh);
-        leg.shin.a.copy(knee);
-        leg.shin.b.copy(ankle);
-        place(leg.shin);
-        leg.foot.a.copy(ankle);
-        leg.foot.b.copy(ankle).addScaledVector(f, 0.2).addScaledVector(up, -0.06);
-        place(leg.foot);
-        joints[i].position.copy(knee);
-        joints[i].scale.setScalar(0.05);
-        joints[i + 2].position.copy(hip);
-        joints[i + 2].scale.setScalar(0.055);
+        // Legs: the hip comes from the pelvis, the ankle from the ski; the knee is solved between them.
+        carried(body[`femur_${tag}`].p0, body.pelvis.p0, pelvis, qPelvis, hip);
+        ankle.copy(base).addScaledVector(r, sd * 0.19).addScaledVector(f, outside ? -0.12 : 0.2).addScaledVector(up, 0.11);
+        bend(hip, ankle, rest.thigh, rest.shin, f, knee);
+        setGroup([`femur_${tag}`], body[`femur_${tag}`].p0, hip, carry(tmp.subVectors(body[`tibia_${tag}`].p0, body[`femur_${tag}`].p0), rest.hipLine, edge.subVectors(knee, hip), r, turn));
+        setGroup([`tibia_${tag}`, `patella_${tag}`], body[`tibia_${tag}`].p0, knee, carry(tmp.subVectors(body[`talus_${tag}`].p0, body[`tibia_${tag}`].p0), rest.hipLine, edge.subVectors(ankle, knee), r, turn));
+        setGroup([`talus_${tag}`, `calcn_${tag}`, `toes_${tag}`], body[`talus_${tag}`].p0, ankle, carry(rest.foot[tag as "r" | "l"], rest.hipLine, f, r, turn));
+        loadedMaterials[i].emissive.setRGB(0.04, 0.5, 0.38).multiplyScalar(clamp01((load - 1) / 0.62) * (outside ? 0.9 : 0.3));
+
         const ski = skis[i];
-        ski.position.copy(ankle).addScaledVector(up, -0.1).addScaledVector(f, 0.12);
+        ski.position.copy(ankle).addScaledVector(up, -0.12).addScaledVector(f, 0.14);
         edge.crossVectors(up, f).normalize();
         basis.makeBasis(edge, up, f);
         ski.quaternion.setFromRotationMatrix(basis);
@@ -291,23 +291,18 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
         arrows[i].setLength(length, 0.16, 0.09);
         if (outside) anchors["ski-force"].copy(ski.position).addScaledVector(up, length);
 
-        shoulder.copy(chest).addScaledVector(r, sd * 0.2);
-        hand.copy(shoulder).addScaledVector(f, 0.36).addScaledVector(trunk, -0.3).addScaledVector(r, sd * 0.2);
-        pole.copy(r).multiplyScalar(sd).addScaledVector(f, -0.6);
-        bend(shoulder, hand, 0.29, 0.27, pole, elbow);
-        arms[i].upper.a.copy(shoulder);
-        arms[i].upper.b.copy(elbow);
-        place(arms[i].upper);
-        arms[i].fore.a.copy(elbow);
-        arms[i].fore.b.copy(hand);
-        place(arms[i].fore);
+        // Arms: shoulder from the trunk, hands held forward and wide, elbow solved.
+        carried(body[`humerus_${tag}`].p0, body.torso.p0, chest, qTorso, shoulder);
+        hand.copy(shoulder).addScaledVector(f, 0.34).addScaledVector(Y, -0.26).addScaledVector(r, sd * 0.2);
+        pole.copy(r).multiplyScalar(sd).addScaledVector(f, -0.7).addScaledVector(Y, -0.3);
+        bend(shoulder, hand, rest.upper, rest.fore, pole, elbow);
+        setGroup([`humerus_${tag}`], body[`humerus_${tag}`].p0, shoulder, carry(tmp.subVectors(body[`ulna_${tag}`].p0, body[`humerus_${tag}`].p0), rest.shoulderLine, edge.subVectors(elbow, shoulder), r, turn));
+        setGroup([`ulna_${tag}`, `radius_${tag}`, `hand_${tag}`], body[`ulna_${tag}`].p0, elbow, carry(tmp.subVectors(body[`hand_${tag}`].p0, body[`ulna_${tag}`].p0), rest.shoulderLine, edge.subVectors(hand, elbow), r, turn));
         const pp = poles[i].geometry.attributes.position.array as Float32Array;
         hand.toArray(pp, 0);
-        tmp.copy(hand).addScaledVector(f, -0.75).addScaledVector(Y, -0.42).addScaledVector(r, sd * 0.12).toArray(pp, 3);
+        tmp.copy(hand).addScaledVector(f, -0.8).addScaledVector(Y, -0.5).addScaledVector(r, sd * 0.1).toArray(pp, 3);
         poles[i].geometry.attributes.position.needsUpdate = true;
       });
-      // The loaded bones warm with the load.
-      loaded.emissive.setRGB(0.05, 0.42, 0.34).multiplyScalar(clamp01((load - 1) / 0.62) * 0.85);
 
       // Spray from the outside edge, more of it the harder the turn.
       const moved = Math.abs(s - lastS);
@@ -343,7 +338,7 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
       const b = smooth(0.0, 0.6, ctx.local("ski-edge"));
       slope.updateMatrixWorld(true);
       world.copy(pelvis).applyMatrix4(slope.matrixWorld);
-      want.set(lerp(lerp(2.4, 3.0, a), -0.9, b), lerp(lerp(0.8, 0.5, a), 2.8, b), lerp(lerp(-4.2, -4.6, a), 4.8, b));
+      want.set(lerp(lerp(1.9, 2.8, a), -0.7, b), lerp(lerp(0.7, 0.5, a), 2.2, b), lerp(lerp(-3.4, -4.2, a), 3.7, b));
       if (!wide) want.multiplyScalar(1.5);
       want.add(world);
       camPos.x = damp(camPos.x, want.x, 4, ctx.dt);
