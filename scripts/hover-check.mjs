@@ -1,0 +1,13 @@
+import {chromium} from '@playwright/test';
+const browser=await chromium.launch({executablePath:process.env.CHROME_PATH || '/usr/bin/google-chrome',args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+const page=await browser.newPage({viewport:{width:1280,height:720}});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.goto(process.argv[2] || 'http://localhost:5177/experience.html');
+await page.waitForSelector('.xp.is-interactive',{timeout:60000});
+await page.mouse.move(600,280);await page.waitForTimeout(3500);
+await page.screenshot({path:'/tmp/cerebel-hover-crisp.png'});
+await page.mouse.move(1100,620);await page.waitForTimeout(3500);
+await page.waitForFunction(()=>document.querySelectorAll('.ln > span[data-lens]').length===0,{},{timeout:30000});
+const lingering=await page.locator('.ln > span[data-lens]').count();
+if(errors.length)throw Error(errors.join('\n'));
+console.log({errors,lingering});await browser.close();

@@ -430,6 +430,7 @@ export function mountExperience(root: HTMLElement) {
   const cursor = $(".xp-cursor");
   const cur = { x: -100, y: -100, tx: -100, ty: -100, vx: 0, vy: 0 };
   window.addEventListener("pointermove", (e) => {
+    if (cur.tx === -100) {cur.x=e.clientX;cur.y=e.clientY;}
     cur.tx = e.clientX;
     cur.ty = e.clientY;
     cursor.classList.toggle("is-hover", !!(e.target as Element).closest?.("a, button, [data-cursor]"));
@@ -464,7 +465,7 @@ export function mountExperience(root: HTMLElement) {
   // Fixed seeded field: moving the pointer reveals nearby structure; it does not carry a cloud.
   const nodes = Array.from({length: 1100}, (_,i) => ({
     x: ((Math.sin(i * 127.1 + 3.7) * 43758.5453) % 1 + 1) % 1, y: ((Math.sin(i * 311.7 + 9.1) * 19341.337) % 1 + 1) % 1,
-    z: Math.sin(i * 19.17) * 32, angle: 0, alpha: 0, sx: 0, sy: 0,
+    z: Math.sin(i * 19.17) * 32, angle: 0, alpha: 0, sx: 0, sy: 0, ox: 0, oy: 0,
     size: .8 + (i * .37 % 1) * 1.6,
   }));
   let lensOn = false;
@@ -476,19 +477,27 @@ export function mountExperience(root: HTMLElement) {
   }
   sizeLens();
   window.addEventListener("resize", sizeLens);
-  function drawLens(_time: number, dt: number) {
+  function drawLens(time: number, dt: number) {
     lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     const visible: typeof nodes = [];
     for(const n of nodes) {
       const bx=n.x*innerWidth, by=n.y*innerHeight;
       const dx=cur.x-bx, dy=cur.y-by;
       const distance=Math.hypot(dx,dy);
-      const influence=Math.max(0,1-distance/145);
-      n.alpha=damp(n.alpha,lensOn && root.classList.contains("is-interactive")?influence*influence:0,7,dt);
-      // A patch pivots in depth as the pointer passes across it, then settles back in place.
-      n.angle=damp(n.angle,lensOn && distance<180 ? dx/145*Math.PI*.85 : 0,4,dt);
-      n.sx=bx+Math.sin(n.angle)*n.z;
-      n.sy=by+Math.sin(n.angle*.6)*n.z*.45;
+      const active = lensOn && root.classList.contains("is-interactive");
+      const influence = active ? Math.max(0, 1-distance/250) : 0;
+      const theta = Math.atan2(-dy,-dx);
+      n.angle=damp(n.angle,influence * dx/180,3,dt);
+      // Each particle owns a permanent rest position. The pointer attracts it toward a loose
+      // spherical shell; removing that attraction returns it to exactly that rest position.
+      const radius = 68 + n.size * 19;
+      const tx = cur.x + Math.cos(theta+n.angle*.22)*radius;
+      const ty = cur.y + Math.sin(theta+n.angle*.22)*radius*.85 + Math.sin(n.angle)*n.z;
+      n.ox=damp(n.ox,(tx-bx)*influence,3.2,dt);
+      n.oy=damp(n.oy,(ty-by)*influence,3.2,dt);
+      n.sx=bx+n.ox; n.sy=by+n.oy;
+      const returning = Math.min(.22,Math.hypot(n.ox,n.oy)/100);
+      n.alpha=damp(n.alpha,Math.max(influence,returning),4,dt);
       if(n.alpha>.015)visible.push(n);
     }
     lensCtx.lineWidth=.65;
@@ -503,6 +512,25 @@ export function mountExperience(root: HTMLElement) {
       }
       lensCtx.fillStyle=`rgba(245,250,255,${Math.min(1,a.alpha*1.7)})`;
       lensCtx.beginPath();lensCtx.arc(a.sx,a.sy,a.size*(1+Math.sin(a.angle)*.15),0,Math.PI*2);lensCtx.fill();
+    }
+    // Moving bright segments run along the letter contours inside a crisp circular aperture.
+    for(const el of headSpans) {
+      if(!el.hasAttribute("data-lens") || !el.closest(".ch")?.classList.contains("is-on"))continue;
+      const strength=Number(el.dataset.lensAlpha || 0);
+      if(strength<.01)continue;
+      const rect=el.getBoundingClientRect();
+      const style=getComputedStyle(el);
+      lensCtx.save();
+      lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,96,0,Math.PI*2);lensCtx.clip();
+      lensCtx.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      lensCtx.letterSpacing=style.letterSpacing;
+      lensCtx.textBaseline="middle";
+      lensCtx.strokeStyle=`rgba(245,248,255,${strength*.9})`;
+      lensCtx.lineWidth=1.05;
+      lensCtx.setLineDash([36,72,12,52]);lensCtx.lineDashOffset=-time*22;
+      const text=el.dataset.t || el.textContent || "";
+      lensCtx.strokeText(style.textTransform === "uppercase" ? text.toUpperCase() : text,rect.left,rect.top+rect.height/2);
+      lensCtx.restore();
     }
   }
   const headSpans = $$<HTMLElement>(".ln > span");

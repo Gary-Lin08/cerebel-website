@@ -162,3 +162,6 @@ Latest feedback supersedes earlier “arms always move” instruction: when scro
 - Text hover now reveals a seeded irregular field at fixed page locations; nearby nodes pivot in depth and fade, instead of a ball of nodes chasing the cursor. Solid/outline mask strength eases in and out.
 - The opening stays noninteractive until 1.5 seconds after the text/interface appears, then pointer influence ramps up. A lower posterior area of the existing unsegmented brain mesh is highlighted green as a visual cue; it is not a labelled anatomical segmentation.
 - Benchmark typography is constrained below the fixed header. Guarded animation time deltas against negative values after page/background timing changes.
+
+### Follow-up: hard lens and reversible particle attraction
+User clarified Corn hover: no feather on the circular text aperture. Use a hard 96 px radius, subdued underlying outline and moving bright contour segments. The seeded particles retain rest positions, are attracted toward a loose shell around the pointer, and return to their original positions after it leaves. Whole-effect entrance/exit can ease; the spatial edge must stay crisp.
