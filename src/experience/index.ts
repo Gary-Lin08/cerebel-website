@@ -4,7 +4,7 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "./experience.css";
 import { benchmark, chapters, glassesParts } from "./data";
 import { type Act, TOTAL, createStage, damp, spans } from "./stage";
-import { createOrigin } from "./acts/origin";
+import { createOrigin, originIntro } from "./acts/origin";
 import { type SwingData, createSwing } from "./acts/swing";
 import { createBenchmark } from "./acts/benchmark";
 import { createSki, skiPeak } from "./acts/ski";
@@ -622,7 +622,11 @@ export function mountExperience(root: HTMLElement) {
         root.classList.add("is-ready");
         setTimeout(() => loader.remove(), 1200);
         // The subject holds the screen alone for a beat before any interface arrives.
-        setTimeout(() => root.classList.add("is-live"), stage.reduced ? 0 : 1900);
+        // The opening plays first (goggles, push into the camera unit, burst), unless the visitor scrolls.
+        originIntro.start = stage.reduced || u > 0.2 ? -99 : now / 1000 + 0.5;
+        const goLive = () => root.classList.add("is-live");
+        setTimeout(goLive, stage.reduced || u > 0.2 ? 0 : (originIntro.length + 0.5) * 1000 - 300);
+        window.addEventListener("scroll", goLive, { once: true });
       }
     }
     requestAnimationFrame(tick);
