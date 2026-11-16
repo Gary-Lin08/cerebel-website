@@ -207,3 +207,6 @@ Header demo CTA uses a violet base under a translating off-white panel. On hover
 
 ### Single heartbeat for circular controls
 Orb CTAs, muscle-entry, modal close, and section-rail circles pulse once on hover/focus/selection: 1 → 1.14 → 1.045 → 1.065 over 520ms. Engagement holds at 1.065 and departure returns to 1 over 380ms. Individual scale preserves existing ring rotations. No looping pulse; reduced-motion disables animation.
+
+### Secondary control interaction pass
+Menu trigger gains opposing line shifts and a quiet sliding backing; top/footer text links get directional underlines. Menu items expose a leading stroke; menu side links reveal a violet panel. Benchmark sequence buttons share one sliding selected plate, with separate hover/press feedback. Flywheel steps draw a mint top rule and lift 4px; partner links reveal a restrained background. Muscle selection chips and the scrub handle now respond to hover/press. Keyboard focus mirrors hover and reduced-motion keeps state changes instant.

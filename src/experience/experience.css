@@ -420,3 +420,51 @@
 @media(prefers-reduced-motion:reduce){
   .xp .orb,.xp .muscle-entry,.orbit-close,.xp-rail button svg {animation:none!important;transition:none!important}
 }
+
+/* Secondary controls share the primary action's staged, directional feedback. */
+.xp-burger {position:relative;isolation:isolate}
+.xp-burger::before {content:"";position:absolute;inset:0;background:#b8a1ff18;transform:scaleX(0);transform-origin:left;transition:transform .5s cubic-bezier(.75,0,.25,1);z-index:-1}
+.xp-burger:is(:hover,:focus-visible)::before {transform:scaleX(1)}
+.xp-burger i {transition:transform .5s var(--ease),background .35s}
+.xp:not(.is-menu) .xp-burger:is(:hover,:focus-visible) i:first-child {transform:translateX(4px)}
+.xp:not(.is-menu) .xp-burger:is(:hover,:focus-visible) i:last-child {transform:translateX(-4px)}
+.xp-burger:is(:hover,:focus-visible) i {background:#cdb9ff}
+.xp-top__links>a:not(.xp-pill),.xp-foot a {position:relative;display:inline-block;transition:color .3s,translate .45s var(--ease)}
+.xp-top__links>a:not(.xp-pill)::after,.xp-foot a::after {content:"";position:absolute;left:0;right:0;bottom:-5px;height:1px;background:#b8a1ff;transform:scaleX(0);transform-origin:right;transition:transform .45s cubic-bezier(.75,0,.25,1)}
+.xp-top__links>a:not(.xp-pill):is(:hover,:focus-visible),.xp-foot a:is(:hover,:focus-visible) {color:#d9caff;translate:0 -2px}
+.xp-top__links>a:not(.xp-pill):is(:hover,:focus-visible)::after,.xp-foot a:is(:hover,:focus-visible)::after {transform:scaleX(1);transform-origin:left}
+.xp .xp-menu ol button {position:relative;transition:transform .5s cubic-bezier(.75,0,.25,1),color .35s}
+.xp-menu ol button::before {content:"";position:absolute;left:0;bottom:.35em;width:24px;height:2px;background:#b8a1ff;transform:translateX(-38px) scaleX(0);transform-origin:left;transition:transform .45s cubic-bezier(.75,0,.25,1)}
+.xp .xp-menu ol button:is(:hover,:focus-visible) {transform:translateX(32px);color:#d9caff}
+.xp-menu ol button:is(:hover,:focus-visible)::before {transform:translateX(-32px) scaleX(1)}
+.xp-menu ol button em {transition:color .35s,translate .5s}
+.xp-menu ol button:is(:hover,:focus-visible) em {color:#b8a1ff;translate:3px 0}
+.xp .xp-menu__side a {position:relative;isolation:isolate;overflow:hidden;transition:color .3s .1s,border-color .4s}
+.xp-menu__side a::before {content:"";position:absolute;inset:0;z-index:-1;background:#b8a1ff;transform:translateX(-101%);transition:transform .65s cubic-bezier(.75,0,.25,1)}
+.xp .xp-menu__side a:is(:hover,:focus-visible) {background:transparent;color:#11151b;border-color:#b8a1ff}
+.xp-menu__side a:is(:hover,:focus-visible)::before {transform:translateX(0);transition-duration:.45s}
+/* One sliding selection plate instead of two independently flashing pills. */
+.xp .seg {position:relative;isolation:isolate;display:inline-grid;grid-template-columns:1fr 1fr}
+.seg::before {content:"";position:absolute;z-index:-1;left:4px;top:4px;bottom:4px;width:calc((100% - 8px)/2);border-radius:999px;background:#e9ecf2;transition:transform .5s cubic-bezier(.75,0,.25,1)}
+.seg:has(button:nth-child(2).is-on)::before {transform:translateX(100%)}
+.xp .seg button {position:relative;transition:color .3s,background .3s,scale .18s}
+.xp .seg .is-on {background:transparent;color:#11151b}
+.xp .seg button:not(.is-on):is(:hover,:focus-visible) {background:#b8a1ff22;color:#dacbff}
+.xp .seg button:active {scale:.95}
+.xp .loop-nav button {position:relative;transition:color .35s,border-color .35s,translate .4s var(--ease)}
+.loop-nav button::before {content:"";position:absolute;top:-1px;left:0;right:0;height:2px;background:#c5eea7;transform:scaleX(0);transform-origin:left;transition:transform .5s cubic-bezier(.75,0,.25,1)}
+.xp .loop-nav button:is(:hover,:focus-visible,[aria-current="true"])::before {transform:scaleX(1)}
+.xp .loop-nav button:is(:hover,:focus-visible) {translate:0 -4px;color:#d9f3c6}
+.loop-nav button:is(:hover,:focus-visible) i {transform:translate(4px,-4px)}
+.loop-nav button span {transition:color .3s}
+.loop-nav button:is(:hover,:focus-visible,[aria-current="true"]) span {color:#c5eea7}
+.partners a {position:relative;isolation:isolate}
+.partners a::before {content:"";position:absolute;inset:0;z-index:-1;background:#b8a1ff0d;transform:scaleX(0);transform-origin:left;transition:transform .55s cubic-bezier(.75,0,.25,1)}
+.partners a:is(:hover,:focus-visible)::before {transform:scaleX(1)}
+.partners a:focus-visible {padding-left:14px}
+.muscle-orbit nav button {position:relative;isolation:isolate;overflow:hidden;transition:color .3s,background .4s,transform .4s,border-color .3s}
+.muscle-orbit nav button:not([aria-pressed="true"]):is(:hover,:focus-visible) {background:#b8a1ff24;border-color:#cdb9ff;transform:translateX(-6px);color:#fff}
+.muscle-orbit nav button:active {scale:.98}
+.xp.is-scrub .xp-swinghud__bar:is(:hover,:focus-within) u {transform:scale(1.25);background:#cdb9ff}
+.xp.is-scrub .xp-swinghud__bar:active u {transform:scale(1.1)}
+@media(prefers-reduced-motion:reduce){.muscle-orbit nav button {transition:none!important}}
