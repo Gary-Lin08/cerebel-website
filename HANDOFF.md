@@ -216,3 +216,6 @@ The benchmark data table must remain visible whenever its chapter is active, inc
 
 ### Faster landing readiness
 Landing now waits only for Origin assets; later scene readiness no longer gates the loader. Removed artificial percentage catch-up and the 1900ms brain-only hold. Ready and live activate together, loader exits in 300ms, and hover unlocks after the existing headline entrance (1300ms). Later scenes continue loading concurrently.
+
+### Menu viewport fit
+Menu type now depends on viewport height as well as width, with fixed header clearance, compact chapter spacing and safe internal overflow. Narrow/tall layouts place the three secondary links in a compact bottom row. Seven chapter items must fit without overlapping the logo.
