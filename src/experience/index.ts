@@ -38,10 +38,7 @@ function markup() {
   <header class="xp-top">
     <button class="xp-burger" type="button" aria-label="Open menu" aria-expanded="false" data-cursor><i></i><i></i></button>
     <a class="xp-mark" href="#hero" data-jump="0" aria-label="Cerebel AI"><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"></a>
-    <nav class="xp-top__links" aria-label="Shortcuts">
-      <a href="${page("/")}" data-cursor>Previous site ↗</a>
-      <a class="xp-pill" href="mailto:hello@cerebel.tech?subject=Demo%20request" data-cursor><span class="xp-pill__line" aria-hidden="true"></span><span class="xp-pill__label">Request a demo</span></a>
-    </nav>
+
   </header>
 
   <nav class="xp-rail" aria-label="Chapters">

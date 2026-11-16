@@ -227,3 +227,6 @@ User wants the loading interface visible again, with a brief designed rhythm. Mi
 Removed every Playground link and the swing-app promotional CTA from the experience; Previous site remains. Menu chapter rows now show small clickable subchapters on the right. Golf and Snow get thin native-range chapter scrubbers with named clickable stops; dragging updates scroll and scene directly, keyboard arrows/Home/End work natively. Existing golf frame scrub remains separate above the chapter navigator. Readouts raised to clear the new control. Opening hover unlock moved from 1750ms to 1050ms after reveal begins.
 
 Removed the decorative DATA FLYWHEEL numbered pill from all four flywheel sections at user request.
+
+### Inline menu subchapters
+Subchapter links now follow each chapter title with a fixed small gap instead of a shared second column. Removed the top-header demo/previous-site shortcuts; menu-bottom entry points remain.

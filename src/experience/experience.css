@@ -518,3 +518,12 @@
  .xp .xp-menu ol .menu-chapter {font-size:clamp(21px,4vw,36px)}
  .scene-timeline {right:var(--pad)}
 }
+
+/* Subchapters follow the width of their own title, never a shared column. */
+.xp-menu ol li {display:flex;align-items:flex-end;gap:26px}
+.xp-menu ol .menu-chapter {flex:0 0 auto}
+.menu-subchapters {flex:0 1 auto;padding-bottom:4px;min-width:0}
+.xp .xp-menu ol .menu-chapter:is(:hover,:focus-visible) {transform:translateX(8px)}
+@media(max-width:860px),(max-aspect-ratio:21/20){
+ .xp-menu ol li {display:flex;gap:18px}
+}
