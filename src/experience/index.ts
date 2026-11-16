@@ -202,7 +202,7 @@ function markup() {
     <div><span>Load</span><b class="num" data-ski="load3">1.0</b><em>× BW</em></div>
   </div>
 
-  ${[1,2].map(act=>{ const sections=spans.filter(s=>s.act===act); return `<nav class="scene-timeline" data-timeline="${act}" aria-label="${act===1?"Golf":"Snow"} chapter navigation"><div class="scene-timeline__top"><span>${act===1?"Golf swing":"Snowboard"}</span><span data-timeline-label></span></div><input type="range" min="${sections[0].start+.02}" max="${sections[sections.length-1].end-.08}" step="0.005" value="${sections[0].start+.02}" aria-label="${act===1?"Golf":"Snow"} chapter progress"><div class="scene-timeline__stops">${sections.map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</div></nav>`; }).join("")}
+  ${[2].map(act=>{ const sections=spans.filter(s=>s.act===act); return `<nav class="scene-timeline" data-timeline="${act}" aria-label="Snow chapter navigation"><div class="scene-timeline__top"><span>Snowboard</span><span data-timeline-label></span></div><input type="range" min="${sections[0].start+.02}" max="${sections[sections.length-1].end-.08}" step="0.005" value="${sections[0].start+.02}" aria-label="Snow chapter progress"><div class="scene-timeline__stops">${sections.map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</div></nav>`; }).join("")}
   <div class="xp-hint" aria-hidden="true"><span>Scroll to discover</span><i></i></div>
 
   <div class="xp-menu" aria-hidden="true">

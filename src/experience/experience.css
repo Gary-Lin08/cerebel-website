@@ -67,8 +67,7 @@
 .ch:not(.is-on) .ln > span { transition-duration: 0s; transition-delay: 0.22s; }
 .ch p { max-width: 46ch; color: rgba(233, 236, 242, 0.82); font-size: 1.0625rem; }
 .ch .fine, .xp .fine { font-size: 0.8125rem; color: var(--muted); max-width: 58ch; line-height: 1.45; }
-.ch .badge { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border: 1px solid rgba(155, 108, 255, 0.55); border-radius: 999px; color: #d9caff; font-size: 0.8125rem; }
-.ch .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--violet); }
+.ch .badge { color: var(--muted); font-size: 0.8125rem; }
 .ch .meta { font-size: 0.8125rem; color: var(--muted); } .ch .meta .num { color: var(--ink); font-size: 1rem; margin-right: 8px; }
 .ch .row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
 .ch .plain { list-style: none; padding: 0; display: grid; gap: 10px; max-width: 46ch; }
@@ -283,7 +282,6 @@
 .tag--ski { opacity: 0; translate: 16px -50%; display: grid; gap: 2px; color: #b9f5e4; }
 .xp[data-act="2"] .tag--ski { opacity: 1; }
 .tag--ski b { font-size: 1.4rem; font-weight: 500; } .tag--ski span { color: var(--muted); }
-.ch .badge--teal { border-color: rgba(57, 230, 176, 0.55); color: #b9f5e4; } .ch .badge--teal::before { background: #39e6b0; }
 .ch--ski .metric-cap { color: #39e6b0 !important; }
 .xp-skidata { position: absolute; z-index: 12; right: calc(var(--pad) + 60px); bottom: 30px; display: flex; gap: clamp(14px, 2.4vw, 40px); opacity: 0; transform: translateY(10px); transition: 0.6s var(--ease); pointer-events: none; }
 .xp[data-act="2"] .xp-skidata { opacity: 1; transform: none; }
@@ -300,8 +298,33 @@
 .muscle-orbit{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;color:#f5f3ff;background:radial-gradient(ellipse at 60% 40%,#192d2c,#100e20 55%,#06070c);overflow:hidden}
 .muscle-orbit::backdrop{background:#06070c}
 .muscle-orbit canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
-.orbit-close{position:absolute;right:4vw;top:32px;width:54px;height:54px;border:1px solid #aaa2c2;border-radius:50%;background:transparent;color:white;font-size:32px;cursor:pointer;transition:transform .4s,background .3s}
-.orbit-close:hover{transform:rotate(90deg);background:#5a2fb0}
+.orbit-close {
+  position: absolute;
+  right: 4vw;
+  top: 32px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid #ffffff40;
+  border-radius: 50%;
+  background: #10101a;
+  color: #fff;
+  cursor: pointer;
+  transition: background .2s, border-color .2s;
+}
+.orbit-close:hover { background: #242431; border-color: #ffffff80; }
+.muscle-orbit .orbit-close:focus-visible { outline: 2px solid #fff; outline-offset: -2px; border-radius: 50%; }
+.orbit-close::before, .orbit-close::after {
+  content: "";
+  grid-area: 1 / 1;
+  width: 15px;
+  height: 2px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+.orbit-close::after { transform: rotate(-45deg); }
 .orbit-copy{position:absolute;left:5vw;top:16%;width:min(27vw,370px);pointer-events:none}
 .orbit-copy>p:first-child{color:#b6a9cd;font-size:14px}
 .orbit-copy h2{font-size:clamp(28px,3vw,48px);line-height:1.08;font-weight:500}
@@ -404,10 +427,9 @@
 }
 
 /* One heartbeat on circular-control engagement, then a slightly larger rest. */
-.xp .orb,.xp .muscle-entry,.orbit-close,.xp-rail button svg { scale:1; transition:scale .38s cubic-bezier(.22,.7,.2,1); transform-origin:center; }
+.xp .orb,.xp .muscle-entry,.xp-rail button svg { scale:1; transition:scale .38s cubic-bezier(.22,.7,.2,1); transform-origin:center; }
 .xp .orb:is(:hover,:focus-visible,[aria-current="true"],[aria-pressed="true"]),
 .xp .muscle-entry:not(:disabled):is(:hover,:focus-visible,[aria-expanded="true"]),
-.orbit-close:is(:hover,:focus-visible),
 .xp-rail button:is(:hover,:focus-visible,.is-on) svg {
   scale:1.065; animation:xp-control-pulse .52s ease-out;
 }
@@ -418,7 +440,7 @@
   100% { scale:1.065; }
 }
 @media(prefers-reduced-motion:reduce){
-  .xp .orb,.xp .muscle-entry,.orbit-close,.xp-rail button svg {animation:none!important;transition:none!important}
+  .xp .orb,.xp .muscle-entry,.xp-rail button svg {animation:none!important;transition:none!important}
 }
 
 /* Secondary controls share the primary action's staged, directional feedback. */
@@ -498,7 +520,7 @@
 .xp-menu__side a {height:40px;padding:0 24px;font-size:11px}
 /* Thin chapter scrubber: native range supports dragging, arrows, Home and End. */
 .scene-timeline {position:absolute;left:var(--pad);right:calc(var(--pad) + 60px);bottom:17px;z-index:22;visibility:hidden;opacity:0;pointer-events:none;transition:opacity .25s;color:#aaa7ba}
-.xp[data-act="1"] [data-timeline="1"],.xp[data-act="2"] [data-timeline="2"] {visibility:visible;opacity:1;pointer-events:auto}
+.xp[data-act="2"] [data-timeline="2"] {visibility:visible;opacity:1;pointer-events:auto}
 .xp.is-menu .scene-timeline {visibility:hidden;opacity:0;pointer-events:none}
 .scene-timeline__top {display:flex;justify-content:space-between;font-size:10px;letter-spacing:.04em;margin-bottom:2px}
 .scene-timeline input {appearance:none;-webkit-appearance:none;display:block;width:100%;height:18px;margin:0;cursor:ew-resize;background:transparent;--progress:0%}
@@ -511,7 +533,7 @@
 .scene-timeline__stops {display:flex;justify-content:space-between;gap:8px}
 .xp .scene-timeline__stops button {font-size:10px;line-height:1.3;color:#928eaa;transition:color .2s;text-align:left}
 .xp .scene-timeline__stops button:is(:hover,:focus-visible,[aria-current="true"]) {color:#e1d5ff}
-.xp-swinghud {bottom:90px}.xp-skidata {bottom:90px}
+.xp-skidata {bottom:90px}
 @media(max-width:860px),(max-aspect-ratio:21/20){
  .xp-menu ol li {grid-template-columns:30% 1fr;gap:18px}
  .menu-subchapters {gap:3px 12px}.xp .xp-menu ol .menu-subchapters button {font-size:11px}
