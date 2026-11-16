@@ -326,12 +326,19 @@
 
 /* Corn's local outline lens: the surrounding headline stays solid. */
 /* Rectangular primary actions: a leading strip sweeps underneath the label. */
-.xp .xp-pill{position:relative;isolation:isolate;overflow:hidden;border-radius:0;background:#f4f5f2;color:#11151b;height:54px;min-width:210px;padding:0 28px 0 34px;letter-spacing:.14em;text-transform:uppercase;font-size:12px;gap:24px;justify-content:space-between;box-shadow:none}
-.xp .xp-pill::before{content:"";position:absolute;z-index:-1;left:0;top:0;bottom:0;width:7px;background:#b8a1ff;transition:width .55s cubic-bezier(.2,.8,.2,1)}
-.xp .xp-pill::after{content:"↗";font-size:19px;transition:transform .45s}
-.xp .xp-pill:hover,.xp .xp-pill:focus-visible{transform:none;box-shadow:none}
-.xp .xp-pill:hover::before,.xp .xp-pill:focus-visible::before{width:100%}
-.xp .xp-pill:hover::after{transform:translate(3px,-3px)}
+.xp .xp-pill{position:relative;isolation:isolate;overflow:hidden;border-radius:0;background:#b8a1ff;color:#11151b;height:54px;width:276px;min-width:276px;padding:0 30px;letter-spacing:.14em;text-transform:uppercase;font-size:12px;justify-content:flex-start;gap:0;box-shadow:none;transition:none}
+.xp .xp-pill::before{content:"";position:absolute;z-index:-1;inset:0;background:#f4f5f2;transform:translateX(7px);transition:transform .8s cubic-bezier(.75,0,.25,1) .1s}
+.xp .xp-pill::after{content:"";position:absolute;inset:0;pointer-events:none;border:1px solid #b8a1ff00;transition:border-color .5s}
+.xp-pill__label{display:block;position:relative;white-space:nowrap;transform:translateX(0);transition:transform .5s cubic-bezier(.75,0,.25,1) .1s}
+.xp-pill__line{position:absolute;left:30px;top:calc(50% - .5px);width:26px;height:1px;background:currentColor;transform:translateX(-13px) scaleX(.001);transform-origin:left;transition:transform .5s cubic-bezier(.75,0,.25,1)}
+.xp .xp-pill:hover,.xp .xp-pill:focus-visible{transform:none;box-shadow:none;background:#b8a1ff}
+.xp .xp-pill:is(:hover,:focus-visible)::before{transform:translateX(100%);transition-duration:.5s}
+.xp .xp-pill:is(:hover,:focus-visible) .xp-pill__label{transform:translateX(40px);transition-delay:0s}
+.xp .xp-pill:is(:hover,:focus-visible) .xp-pill__line{transform:translateX(0) scaleX(1);transition-delay:.05s}
+.xp .xp-pill:focus-visible{outline:2px solid white;outline-offset:5px}
+.xp .xp-pill:active::after{border-color:#17181a66}
+@media(prefers-reduced-motion:reduce){.xp .xp-pill::before,.xp-pill__label,.xp-pill__line{transition:none}}
+
 .orb:hover::before{inset:17px;background:rgba(233,236,242,.08);border-color:#fff}
 .orb:hover svg{animation-duration:5s}.orb:hover .orb__arc{stroke-dasharray:180 185}
 .xp .muscle-entry{width:130px;height:130px;border:1px solid #b4adbf66;border-radius:50%;font-size:10px;letter-spacing:.1em;line-height:1.4;text-transform:uppercase;padding:30px;right:8vw;bottom:175px;text-align:center;justify-content:center}
@@ -394,4 +401,22 @@
 @media (prefers-reduced-motion: reduce) {
   .xp.is-live .ch.is-on .ln > span::before,
   .xp.is-live .ch.is-on .ln > span::after { animation: none; }
+}
+
+/* One heartbeat on circular-control engagement, then a slightly larger rest. */
+.xp .orb,.xp .muscle-entry,.orbit-close,.xp-rail button svg { scale:1; transition:scale .38s cubic-bezier(.22,.7,.2,1); transform-origin:center; }
+.xp .orb:is(:hover,:focus-visible,[aria-current="true"],[aria-pressed="true"]),
+.xp .muscle-entry:not(:disabled):is(:hover,:focus-visible,[aria-expanded="true"]),
+.orbit-close:is(:hover,:focus-visible),
+.xp-rail button:is(:hover,:focus-visible,.is-on) svg {
+  scale:1.065; animation:xp-control-pulse .52s ease-out;
+}
+@keyframes xp-control-pulse {
+  0% { scale:1; }
+  38% { scale:1.14; }
+  72% { scale:1.045; }
+  100% { scale:1.065; }
+}
+@media(prefers-reduced-motion:reduce){
+  .xp .orb,.xp .muscle-entry,.orbit-close,.xp-rail button svg {animation:none!important;transition:none!important}
 }

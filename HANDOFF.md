@@ -201,3 +201,9 @@ Replace binary raw-pointer text hit testing with continuous aperture-to-text pro
 
 ### Outline-first headline entrance
 Active headlines now briefly reveal their existing outline layer, followed by a bottom-up white fill in 620ms (90ms line stagger). Entrance is gated on is-live so loading cannot consume it. The outline animation releases its opacity back to the existing hover rules; fill uses clip-path independently of the pointer mask. Reduced motion skips the new effect.
+
+### Orano-inspired primary button trial
+Header demo CTA uses a violet base under a translating off-white panel. On hover/focus the panel exits right (500ms, 100ms delay), label moves 40px right, and a 26px horizontal stroke extends with 50ms delay. Exit returns the panel over 800ms and the label over 500ms with 100ms delay. Fixed geometry, no lift/glow; keyboard focus and reduced-motion supported. Existing circular actions unchanged.
+
+### Single heartbeat for circular controls
+Orb CTAs, muscle-entry, modal close, and section-rail circles pulse once on hover/focus/selection: 1 → 1.14 → 1.045 → 1.065 over 520ms. Engagement holds at 1.065 and departure returns to 1 over 380ms. Individual scale preserves existing ring rotations. No looping pulse; reduced-motion disables animation.
