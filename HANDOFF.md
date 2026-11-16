@@ -174,3 +174,6 @@ Lens radius is now 72 px. Bright strokes use paths extracted from the installed 
 
 ### Hover radius adjustment
 Text aperture radius reduced another 30%, from 72 px to 50.4 px (both CSS and contour canvas). Brain pointer deformation/highlight radius reduced 40%: Gaussian coefficient 9 → 25, since radius scales inversely with its square root. Particle field and strand lighting are unchanged.
+
+### November 16: bounded pointer particle circle
+After reverting the background experiments, change only the white headline-hover overlay. Its points and sparse links are clipped to a hard 120px radius; attraction is limited to rest positions within 150px. Per-point alpha fades over time rather than falling off with cursor distance; returning points cannot trail beyond the circle. The 50.4px text aperture, brain radius and restored background remain unchanged.

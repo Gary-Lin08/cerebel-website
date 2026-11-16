@@ -494,7 +494,8 @@ export function mountExperience(root: HTMLElement) {
       const dx=cur.x-bx, dy=cur.y-by;
       const distance=Math.hypot(dx,dy);
       const active = lensOn && root.classList.contains("is-interactive");
-      const influence = active ? Math.max(0, 1-distance/250) : 0;
+      // A bounded local field, not a 250px radial opacity gradient.
+      const influence = active && distance < 150 ? .72 : 0;
       const theta = Math.atan2(-dy,-dx);
       n.angle=damp(n.angle,influence * dx/180,3,dt);
       // Each particle owns a permanent rest position. The pointer attracts it toward a loose
@@ -505,10 +506,13 @@ export function mountExperience(root: HTMLElement) {
       n.ox=damp(n.ox,(tx-bx)*influence,3.2,dt);
       n.oy=damp(n.oy,(ty-by)*influence,3.2,dt);
       n.sx=bx+n.ox; n.sy=by+n.oy;
-      const returning = Math.min(.22,Math.hypot(n.ox,n.oy)/100);
-      n.alpha=damp(n.alpha,Math.max(influence,returning),4,dt);
+      // Fade in time only; particles do not get fainter with cursor distance.
+      n.alpha=damp(n.alpha,influence > 0 ? .55 + n.size * .12 : 0,4,dt);
       if(n.alpha>.015)visible.push(n);
     }
+    // Hard circular boundary also clips links and returning particles.
+    lensCtx.save();
+    lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,120,0,Math.PI*2);lensCtx.clip();
     lensCtx.lineWidth=.65;
     const degrees=new Map<typeof nodes[number],number>();
     for(let i=0;i<visible.length;i++) {
@@ -526,6 +530,7 @@ export function mountExperience(root: HTMLElement) {
       lensCtx.fillStyle=`rgba(245,250,255,${Math.min(1,a.alpha*1.7)})`;
       lensCtx.beginPath();lensCtx.arc(a.sx,a.sy,a.size*(1+Math.sin(a.angle)*.15),0,Math.PI*2);lensCtx.fill();
     }
+    lensCtx.restore();
     // Moving bright segments run along the letter contours inside a crisp circular aperture.
     for(const el of headSpans) {
       if(!el.hasAttribute("data-lens") || !el.closest(".ch")?.classList.contains("is-on"))continue;
