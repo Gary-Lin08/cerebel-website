@@ -37,6 +37,8 @@ export function createGlasses(): Act {
   const steps=["g-optical","g-clock","g-prep","g-modular"];
   const act:Act={scene,camera,ready,offset:{x:.19,y:0},bg:[0x0e1521,0x05070c,0x192537],tint:[0x8fa5ca,0x9b6cff],anchors:()=>anchors,
     update(ctx){
+      // Phones: the glasses sit centred in the upper half, above the copy.
+      act.offset!.x=ctx.aspect>1.05?.19:0;act.offset!.y=ctx.aspect>1.05?0:.2;
       let active="";
       for(const step of steps)if(ctx.local(step)>0)active=step;
       const intro=ctx.local("glasses-intro");

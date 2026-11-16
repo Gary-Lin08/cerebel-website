@@ -8,18 +8,21 @@
 // Browsers only allow audio after a press or a key, so nothing plays until the visitor's first one. The top-bar
 // toggle turns it off and the choice is remembered in this browser.
 
-// One chord per act (Hz), all close to each other so the glide between them stays smooth.
-// One chord per act (Hz), all close to each other so the glide between them stays smooth. Kept above 100 Hz:
-// laptop speakers do not reproduce the octave below, which made the first version silent on a MacBook.
+// Everything is in one key, D major, so the pad, the chapter notes and the pointer ticks can never clash.
+// Each act takes a different chord from that key (open voicings, no thirds stacked low), and every short note is
+// taken from the D major pentatonic, which sits over all of them.
+const N = (semitonesFromA4: number) => 440 * Math.pow(2, semitonesFromA4 / 12);
 const CHORDS: number[][] = [
-  [110.0, 164.81, 220.0, 329.63], // Origin: A, open fifth
-  [123.47, 185.0, 246.94, 369.99], // Motion: B
-  [130.81, 196.0, 261.63, 392.0], // Snow: C, brighter
-  [110.0, 164.81, 261.63, 329.63], // Benchmark: A with a sixth
-  [98.0, 146.83, 196.0, 293.66], // Glasses: G, lower
-  [116.54, 174.61, 233.08, 349.23], // Data loop: B flat
-  [110.0, 164.81, 220.0, 277.18], // Field: A major
+  [N(-19), N(-12), N(-5), N(2)], // Origin: D3 A3 E4 B4, Dadd9 open
+  [N(-14), N(-7), N(-2), N(5)], // Motion: G3 D4 G4 D5
+  [N(-12), N(-5), N(2), N(7)], // Snow: A3 E4 B4 E5, brighter
+  [N(-22), N(-15), N(-10), N(-3)], // Benchmark: B2 F#3 B3 F#4
+  [N(-14), N(-7), N(-3), N(2)], // Glasses: G3 D4 F#4 B4
+  [N(-19), N(-12), N(-7), N(-3)], // Data loop: D3 A3 D4 F#4
+  [N(-19), N(-12), N(-5), N(-3)], // Field: D3 A3 E4 F#4
 ];
+// D major pentatonic, two octaves from D5, for chapter notes and ticks.
+const BELLS = [5, 7, 9, 12, 14, 17, 19, 21, 24, 26].map(N);
 // New key: an earlier build could store "off" by mistake (see the click handler), so start everyone fresh.
 const KEY = "cerebel-xp-sound-v2";
 
@@ -87,32 +90,32 @@ export function createSound(button: HTMLButtonElement) {
     }
     reverb.buffer = ir;
     const wet = ctx.createGain();
-    wet.gain.value = 0.55;
+    wet.gain.value = 0.7;
     reverb.connect(wet).connect(master);
 
     // Pad: four detuned triangles through a slowly breathing low-pass.
     padFilter = ctx.createBiquadFilter();
     padFilter.type = "lowpass";
-    padFilter.frequency.value = 1100;
+    padFilter.frequency.value = 900;
     padFilter.Q.value = 0.6;
     padBus = ctx.createGain();
-    padBus.gain.value = 0.16;
+    padBus.gain.value = 0.045;
     padFilter.connect(padBus);
     padBus.connect(master);
     padBus.connect(reverb);
     const lfo = ctx.createOscillator();
     lfo.frequency.value = 0.05;
     const lfoAmt = ctx.createGain();
-    lfoAmt.gain.value = 350;
+    lfoAmt.gain.value = 220;
     lfo.connect(lfoAmt).connect(padFilter.frequency);
     lfo.start();
     for (let i = 0; i < 4; i += 1) {
       const o = ctx.createOscillator();
-      o.type = i === 0 ? "sine" : "triangle";
+      o.type = "sine";
       o.frequency.value = CHORDS[0][i];
-      o.detune.value = (i - 1.5) * 4;
+      o.detune.value = (i - 1.5) * 2.5;
       const g = ctx.createGain();
-      g.gain.value = [0.9, 0.5, 0.32, 0.18][i];
+      g.gain.value = [0.8, 0.55, 0.32, 0.16][i];
       o.connect(g).connect(padFilter);
       o.start();
       voices.push(o);
@@ -149,7 +152,7 @@ export function createSound(button: HTMLButtonElement) {
     if (!ctx) build();
     if (!ctx) return;
     void ctx.resume().then(() => {
-      master.gain.setTargetAtTime(0.9, ctx!.currentTime, 0.8);
+      master.gain.setTargetAtTime(0.8, ctx!.currentTime, 0.8);
       reflect();
     });
   }
@@ -225,15 +228,15 @@ export function createSound(button: HTMLButtonElement) {
     const now = performance.now();
     if (now - lastTick < 70) return;
     lastTick = now;
-    note(2200 + Math.random() * 200, 0.035, 0.002, 0.07);
+    note(BELLS[6 + Math.floor(Math.random() * 4)], 0.014, 0.003, 0.12);
   });
   document.addEventListener("pointerout", (e) => {
     if (hovered && !hovered.contains(e.relatedTarget as Node)) hovered = null;
   });
   document.addEventListener("click", (e) => {
     if (!(e.target as Element).closest?.("a, button, [data-cursor]")) return;
-    note(220, 0.12, 0.004, 0.25, "triangle");
-    note(1320, 0.04, 0.003, 0.4);
+    note(N(-7), 0.06, 0.006, 0.3);
+    note(N(9), 0.022, 0.004, 0.6);
   });
 
   return {
@@ -244,21 +247,22 @@ export function createSound(button: HTMLButtonElement) {
       if (nextAct !== act && nextAct >= 0) {
         act = nextAct;
         const chord = CHORDS[act % CHORDS.length];
-        voices.forEach((o, i) => o.frequency.setTargetAtTime(chord[i], t, 1.4));
-        padFilter.frequency.setTargetAtTime(act === 2 ? 1600 : 1100, t, 2);
+        voices.forEach((o, i) => o.frequency.setTargetAtTime(chord[i], t, 2.2));
+        padFilter.frequency.setTargetAtTime(act === 2 ? 1200 : 900, t, 2);
       }
       if (nextChapter && nextChapter !== chapter) {
         const first = chapter === "";
         chapter = nextChapter;
         if (!first) {
-          const chord = CHORDS[Math.max(0, act) % CHORDS.length];
-          note(chord[3] * 2, 0.07, 0.01, 1.8);
-          note(chord[2] * 4, 0.035, 0.03, 2.4);
+          // Two bell notes from the pentatonic, a fifth or a fourth apart, quiet and long.
+          const k = Math.floor(Math.random() * 6);
+          note(BELLS[k], 0.04, 0.012, 2.2);
+          note(BELLS[k + 3], 0.018, 0.06, 2.8);
         }
       }
       // Air follows scroll speed, never fully silent so it does not click in and out.
       level += (Math.min(1, Math.abs(speed) / 2.2) - level) * 0.08;
-      airGain.gain.setTargetAtTime(0.012 + level * (act === 2 ? 0.22 : 0.13), t, 0.12);
+      airGain.gain.setTargetAtTime(0.004 + level * (act === 2 ? 0.14 : 0.08), t, 0.12);
       airFilter.frequency.setTargetAtTime(600 + level * (act === 2 ? 3000 : 1800), t, 0.15);
     },
   };

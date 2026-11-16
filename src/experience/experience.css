@@ -615,3 +615,56 @@
 .xp-sound.is-waiting { color: #d9caff; }
 .xp-sound.is-waiting i { animation: xp-eq 2.4s ease-in-out infinite; opacity: 0.55; }
 .xp-sound.is-waiting i:nth-child(2) { animation-delay: -0.7s; } .xp-sound.is-waiting i:nth-child(3) { animation-delay: -1.3s; } .xp-sound.is-waiting i:nth-child(4) { animation-delay: -0.4s; }
+
+/* ---- Phone layout pass. The subject owns the upper half, the copy the lower half on a scrim, and the fixed
+   controls (readouts, timelines, step buttons) get their own strip at the bottom that the copy stays above. */
+@media (max-width: 860px), (max-aspect-ratio: 21/20) {
+  .xp-top { padding: 14px 16px; gap: 10px; }
+  .xp-top__links { gap: 10px; }
+  .xp-top__links > a:not(.xp-pill) { display: none; }
+  .xp .xp-pill { height: 36px; padding: 0 12px; font-size: 0.6875rem; letter-spacing: 0.06em; }
+  .xp-mark img { height: 22px; width: auto; }
+  .xp-sound { padding: 6px; }
+
+  /* Headlines must fit the width: one size per line length, never wrapping inside a line. */
+  .ln > span { white-space: nowrap; }
+  .ch h1, .ch h2 { font-size: clamp(1.9rem, 8.6vw, 2.6rem); max-width: 100%; }
+  .ch .h-sm { font-size: clamp(1.25rem, 5.6vw, 1.6rem); white-space: normal; overflow-wrap: anywhere; }
+  .ch--hero h1 { font-size: clamp(2.1rem, 10.2vw, 3.4rem); }
+  .ch--hero { bottom: 120px; }
+  .ch p { font-size: 0.875rem; line-height: 1.45; }
+  .ch .fine { font-size: 0.75rem; }
+  .ch .metric { font-size: clamp(2.6rem, 14vw, 3.8rem); }
+
+  /* Motion: copy clears the readout strip and the timeline; the muscle entry moves to the top right. */
+  .xp[data-act="1"] .ch { bottom: 112px; }
+  .xp .muscle-entry { width: 84px; height: 84px; padding: 16px; font-size: 8px; right: 14px; top: 76px; bottom: auto; }
+  .ch--finding .fix { font-size: 0.8125rem; }
+  .ch--finding .trace { display: none; }
+
+  /* Snow: copy clears the readouts; the per-force labels are dropped, the leg load label stays. */
+  .xp[data-act="2"] .ch { bottom: 128px; }
+  .ch--ski .fine { font-size: 0.6875rem; } /* required disclosure: keep it visible */
+  .ch--ski h2 + p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .tag--skiforce { display: none; }
+  .xp-skidata { bottom: 62px; }
+
+  /* Benchmark: number and headline at the top, tapes in the middle, switch and table at the bottom. */
+  .ch--bench { top: 74px; bottom: 26px; width: auto; max-height: none; align-content: start; grid-template-rows: auto auto auto 1fr auto auto; gap: 8px; }
+  .ch--bench > p:not(.metric):not(.metric-cap) { display: none; }
+  .ch--bench .metric { font-size: clamp(2.6rem, 13vw, 3.4rem); }
+  .ch--bench .metric-cap { font-size: 0.6875rem; }
+  .ch--bench h2 { font-size: clamp(1.25rem, 5.6vw, 1.6rem); }
+  .ch--bench .seg { grid-row: 5; } .ch--bench .mini { grid-row: 6; font-size: 0.75rem; }
+  .xp[data-act="3"] .xp-chapters::after { display: none; }
+
+  /* Glasses: long single-line headings may wrap. */
+  .ch--glass h2, .ch[data-ch^="g-"] h2 { white-space: normal; }
+
+  /* Data loop: copy above the step buttons, step buttons fit the width. */
+  .ch--flywheel { bottom: 104px; max-width: none; right: var(--pad); }
+  .ch--flywheel .h-sm { max-width: none; font-size: clamp(1.25rem, 5.6vw, 1.6rem); }
+  .ch--flywheel .loop-total strong { font-size: 2rem; }
+  .loop-nav { left: var(--pad); right: var(--pad); bottom: 22px; gap: 10px; justify-content: space-between; }
+  .xp .loop-nav button { min-width: 0; flex: 1; font-size: 0.75rem; padding: 10px 0; }
+}

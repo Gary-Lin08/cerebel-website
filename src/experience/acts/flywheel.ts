@@ -33,8 +33,12 @@ export function createFlywheel(onStep: (step: number) => void): Act {
   geometry.setAttribute("color",new THREE.BufferAttribute(color,3));
   rig.add(new THREE.Points(geometry,new THREE.PointsMaterial({size:.028,vertexColors:true,transparent:true,opacity:.85,depthWrite:false,blending:THREE.AdditiveBlending})));
   let previous=-1, rotation=0;
-  return {scene,camera,ready:Promise.resolve(),offset:{x:.21,y:.03},bg:[0x071b1c,0x060812,0x142a30],tint:[0xaad995,0x9b6cff],
+  const offset={x:.21,y:.03};
+  return {scene,camera,ready:Promise.resolve(),offset,bg:[0x071b1c,0x060812,0x142a30],tint:[0xaad995,0x9b6cff],
     update(ctx){
+      // Phones: the loop sits in the upper half, above the copy.
+      offset.x=ctx.aspect>1.05?.21:0;offset.y=ctx.aspect>1.05?.03:.17;
+      rig.scale.setScalar(ctx.aspect>1.05?1:.56);
       const step=Math.min(3,Math.max(0,Math.floor(ctx.t*4)));
       if(step!==previous){previous=step;onStep(step);}
       rotation=damp(rotation,-step*Math.PI/2,ctx.reduced?1000:3,ctx.dt);
