@@ -210,3 +210,6 @@ Orb CTAs, muscle-entry, modal close, and section-rail circles pulse once on hove
 
 ### Secondary control interaction pass
 Menu trigger gains opposing line shifts and a quiet sliding backing; top/footer text links get directional underlines. Menu items expose a leading stroke; menu side links reveal a violet panel. Benchmark sequence buttons share one sliding selected plate, with separate hover/press feedback. Flywheel steps draw a mint top rule and lift 4px; partner links reveal a restrained background. Muscle selection chips and the scrub handle now respond to hover/press. Keyboard focus mirrors hover and reduced-motion keeps state changes instant.
+
+### Benchmark table visibility fix
+The benchmark data table must remain visible whenever its chapter is active, including immediately after a SEQ switch. Removed its opacity dependency on the later scroll-driven gap annotation and removed the narrow-window display:none rule. Table values still come from the selected benchmark dataset.

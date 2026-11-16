@@ -98,7 +98,7 @@
 .seg { display: inline-flex; padding: 4px; border-radius: 999px; background: rgba(233, 236, 242, 0.08); border: 1px solid var(--line); }
 .seg button { height: 34px; padding: 0 16px; border-radius: 999px; font-size: 0.8125rem; font-family: "IBM Plex Mono", monospace; transition: background 0.35s var(--ease), color 0.3s; }
 .seg .is-on { background: var(--ink); color: #050507; }
-.mini { border-collapse: collapse; font-size: 0.8125rem; width: min(100%, 400px); opacity: calc(var(--gap, 0)) !important; }
+.mini { border-collapse: collapse; font-size: 0.8125rem; width: min(100%, 400px); }
 .mini th, .mini td { text-align: left; padding: 7px 14px 7px 0; border-bottom: 1px solid var(--line); font-weight: 400; color: var(--muted); }
 .mini td { font-family: "IBM Plex Mono", monospace; color: rgba(233, 236, 242, 0.8); }
 .mini thead th { font-size: 0.8125rem; } .mini .is-lead th, .mini .is-lead td { color: #cdb9ff; }
@@ -219,7 +219,7 @@
   .ch--hero { top: auto; bottom: 110px; transform: none; justify-items: start; text-align: left; } .ch--hero h1 { font-size: clamp(2.8rem, 14vw, 5rem); mix-blend-mode: normal; }
   .ch .metric { font-size: clamp(3rem, 17vw, 4.6rem); }
   .ch--finding .fix { padding: 10px 12px; font-size: 0.875rem; } .trace svg { height: 46px; }
-  .mini { display: none; }
+  .ch--bench .mini { display: table; }
   .ch--field, .partners { width: auto; } .partners b { font-size: 1.2rem; } .partners a { padding: 12px 0; } .partners span { font-size: 0.875rem; }
   .slant { position: relative; right: auto; top: auto; width: 100%; transform: none !important; order: -1; aspect-ratio: 16 / 9; }
   .ch--contact { padding: 80px var(--pad) 190px; } .xp-foot__marks { gap: 16px; flex-wrap: wrap; justify-content: center; } .xp-foot .wm { height: 28px; } .xp-foot .nv { height: 30px; }
