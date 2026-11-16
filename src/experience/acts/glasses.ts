@@ -129,6 +129,7 @@ export function createGlasses(): Act {
     ready: Promise.resolve(),
     offset: { x: 0.17, y: 0 },
     bg: [0x0e1118, 0x07080c, 0x1c2232],
+    tint: [0x8a93b0, 0x5f7bd8],
     anchors: () => anchors,
     update(ctx: Ctx) {
       const wide = ctx.aspect > 1.05;

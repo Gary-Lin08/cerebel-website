@@ -73,6 +73,7 @@ export function createField(): Act {
     ready: Promise.resolve(),
     offset: { x: 0, y: 0 },
     bg: [0x16071f, 0x050507, 0x3b1260],
+    tint: [0xd060ff, 0x7a5cff],
     update(ctx: Ctx) {
       time.value = ctx.reduced ? 0 : ctx.time;
       const y = 2 - smooth(-0.1, 1.05, ctx.t) * 27;

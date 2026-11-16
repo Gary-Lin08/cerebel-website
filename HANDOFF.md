@@ -39,6 +39,8 @@ scripts/experience-shots.mjs    walks the page in headless Chrome and saves scre
 
 ## How it works
 
+- `cloud.ts` is the shared cloud of lights. `stage.ts` draws backdrop → cloud → act scene into each target, and `palette()` blends backdrop and cloud colours across act boundaries so nothing jumps. Each act sets `bg` and `tint`.
+
 - Native scroll. A spacer div gives the page its height; `u = scrollY / innerHeight` (smoothed) is the
   position in viewport heights. `spans` in `stage.ts` turns `chapters` into start/end positions.
 - Each act implements `Act` (`stage.ts`): `scene`, `camera`, `ready`, `update(ctx)`, optional `bg`

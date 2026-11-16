@@ -323,6 +323,7 @@ export function createSwing(
     ready,
     offset: { x: 0.17, y: 0 },
     bg: [0x061320, 0x04060a, 0x0a3550],
+    tint: [0x4f8cff, 0x35d6c8],
     anchors: () => figures,
     update(ctx: Ctx) {
       if (!data) return;

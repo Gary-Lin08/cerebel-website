@@ -21,6 +21,18 @@ export function skiPeak() {
 
 const BONE = 0xd4d8e6;
 
+// Camera set-ups, as offsets from the rider: three-quarter front, low beside the board, low and close in
+// front, high overhead, the far side, a chase from behind, and a wide pull-out.
+const SHOTS: [number, number, number][] = [
+  [2.2, 0.9, -3.8],
+  [3.6, 0.35, -0.6],
+  [1.6, 0.3, -3.2],
+  [0.4, 5.6, 2.2],
+  [-2.8, 0.7, -2.6],
+  [-0.6, 1.5, 4.2],
+  [-3.4, 2.6, -5.6],
+];
+
 export function createSki(onValues: (v: { kmh: number; radius: number; lean: number; load: number }) => void): Act {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
@@ -281,6 +293,9 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
   const hipDir = new THREE.Vector3();
   const shoulderDir = new THREE.Vector3();
   const footDir = new THREE.Vector3();
+  const toeDir = new THREE.Vector3();
+  const facing = new THREE.Vector3();
+  const view = new THREE.Vector3();
   const basis = new THREE.Matrix4();
   const camAt = new THREE.Vector3();
   const camPos = new THREE.Vector3(3, 3, 8);
@@ -294,6 +309,7 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
     ready,
     offset: { x: 0.17, y: 0 },
     bg: [0x0b2230, 0x04080c, 0x0f4a52],
+    tint: [0x8fe9ff, 0x39e6b0],
     anchors: () => anchors,
     update(ctx: Ctx) {
       if (!rigged) return;
@@ -315,18 +331,24 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
       if (up.dot(r) * inside < 0) up.copy(Y).applyAxisAngle(f, leanNow);
       trunk.copy(Y).lerp(up, 0.55).normalize().addScaledVector(f, 0.42).normalize(); // angulated, tipped forward
 
-      // The rider stands across the board, toes toward +r, left foot leading. The pose moves through
-      // the turn: low and folded at the apex, tall at the change of edge, shoulders opening into the arc.
+      // Riding posture, after how carving is coached: knees tracked over the toes, hips and shoulders
+      // in line with the board and a little open to the nose, hands low and in front. On the toe edge
+      // the hips press forward over the edge with the chest tall; on the heel edge the rider sits as if
+      // into a low chair and the chest comes forward to balance. Low at the apex, taller at the change of edge.
       const apex = Math.abs(Math.sin(K * s));
       const swing = Math.sin(K * s);
       const idle = ctx.reduced ? 0 : Math.sin(ctx.time * 1.7);
-      const toes = up.dot(r) > 0 ? 1 : 0; // on the toe edge the body folds forward, on the heel edge it sits
-      const crouch = lerp(0.9, 0.68, apex) + idle * 0.012;
-      pelvis.copy(base).addScaledVector(up, crouch).addScaledVector(r, lerp(-0.1, 0.04, toes) * apex);
-      hipDir.copy(f).negate().applyAxisAngle(Y, swing * 0.18);
-      shoulderDir.copy(f).negate().applyAxisAngle(Y, 0.35 + swing * 0.45);
-      trunk.copy(Y).lerp(up, 0.6).addScaledVector(r, lerp(-0.05, 0.3, toes) * (0.4 + 0.6 * apex)).normalize();
-      const qPelvis = carry(rest.hipLine, rest.trunk, hipDir, tmp.copy(up).addScaledVector(r, 0.12), new THREE.Quaternion());
+      toeDir.crossVectors(f, up).normalize(); // across the tilted board, toward the toes
+      const toe = smooth(-0.25, 0.25, up.dot(r)); // 1 on the toe edge, 0 on the heel edge
+      const height = lerp(lerp(0.56, 0.62, toe), 0.8, 1 - apex) + idle * 0.01;
+      pelvis.copy(base).addScaledVector(up, height).addScaledVector(toeDir, lerp(-0.17, 0.1, toe) * (0.35 + 0.65 * apex));
+      const open = 0.25 + swing * 0.08;
+      hipDir.copy(f).multiplyScalar(-Math.cos(open)).addScaledVector(r, Math.sin(open));
+      shoulderDir.copy(f).multiplyScalar(-Math.cos(open + 0.14)).addScaledVector(r, Math.sin(open + 0.14));
+      facing.crossVectors(Y, shoulderDir).normalize();
+      // Angulation: the trunk stays nearer to upright than the legs, shoulders close to level with the slope.
+      trunk.copy(up).lerp(Y, 0.5).normalize().addScaledVector(toeDir, lerp(0.5, 0.1, toe) * (0.4 + 0.6 * apex)).normalize();
+      const qPelvis = carry(rest.hipLine, rest.trunk, hipDir, tmp.copy(up).lerp(trunk, 0.5), new THREE.Quaternion());
       setGroup(["pelvis"], body.pelvis.p0, pelvis, qPelvis);
       carried(body.torso.p0, body.pelvis.p0, pelvis, qPelvis, chest); // the lumbar joint
       const qTorso = carry(rest.trunk, rest.shoulderLine, trunk, shoulderDir, new THREE.Quaternion());
@@ -339,15 +361,15 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
 
       [-1, 1].forEach((sd, i) => {
         const tag = sd > 0 ? "r" : "l";
-        const along = sd > 0 ? -0.27 : 0.27; // right foot toward the tail
-        // Legs: hip from the pelvis, foot strapped to the board, knee solved between and pushed outward.
+        const along = sd > 0 ? -0.26 : 0.26; // right foot toward the tail
+        // Legs: hip from the pelvis, foot strapped to the board; the knee always folds toward the toes.
         carried(body[`femur_${tag}`].p0, body.pelvis.p0, pelvis, qPelvis, hip);
         ankle.copy(base).addScaledVector(f, along).addScaledVector(up, 0.12);
-        pole.copy(r).addScaledVector(f, along * 2.2);
+        pole.copy(toeDir).addScaledVector(f, along * 0.6).addScaledVector(up, 0.3);
         bend(hip, ankle, rest.thigh, rest.shin, pole, knee);
         setGroup([`femur_${tag}`], body[`femur_${tag}`].p0, hip, carry(tmp.subVectors(body[`tibia_${tag}`].p0, body[`femur_${tag}`].p0), rest.hipLine, edge.subVectors(knee, hip), hipDir, turn));
         setGroup([`tibia_${tag}`, `patella_${tag}`], body[`tibia_${tag}`].p0, knee, carry(tmp.subVectors(body[`talus_${tag}`].p0, body[`tibia_${tag}`].p0), rest.hipLine, edge.subVectors(ankle, knee), hipDir, turn));
-        footDir.copy(r).addScaledVector(f, along * 1.1).addScaledVector(up, -up.dot(r)).normalize();
+        footDir.copy(toeDir).addScaledVector(f, along * 0.9).normalize();
         setGroup([`talus_${tag}`, `calcn_${tag}`, `toes_${tag}`], body[`talus_${tag}`].p0, ankle, carry(rest.foot[tag as "r" | "l"], rest.hipLine, footDir, hipDir, turn));
         loadedMaterials[i].emissive.setRGB(0.04, 0.5, 0.38).multiplyScalar(clamp01((load - 1) / 0.62) * 0.8);
 
@@ -359,10 +381,10 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
         arrows[i].setLength(length, 0.16, 0.09);
         if (sd < 0) anchors["ski-force"].copy(tmp).addScaledVector(up, length);
 
-        // Arms ride out along the board for balance and swing with the turn.
+        // Arms relaxed, hands low and in front of the body; the leading hand reaches a little toward the nose.
         carried(body[`humerus_${tag}`].p0, body.torso.p0, chest, qTorso, shoulder);
-        hand.copy(shoulder).addScaledVector(shoulderDir, sd * 0.4).addScaledVector(Y, -0.22 + sd * swing * 0.14 + idle * 0.01).addScaledVector(r, 0.16);
-        pole.copy(Y).negate().addScaledVector(shoulderDir, sd * 0.3);
+        hand.copy(shoulder).addScaledVector(trunk, -0.36 + idle * 0.008).addScaledVector(facing, 0.24).addScaledVector(shoulderDir, sd * 0.1).addScaledVector(f, sd < 0 ? 0.12 : -0.04);
+        pole.copy(shoulderDir).multiplyScalar(sd).addScaledVector(facing, -0.6).addScaledVector(Y, -0.2);
         bend(shoulder, hand, rest.upper, rest.fore, pole, elbow);
         setGroup([`humerus_${tag}`], body[`humerus_${tag}`].p0, shoulder, carry(tmp.subVectors(body[`ulna_${tag}`].p0, body[`humerus_${tag}`].p0), rest.shoulderLine, edge.subVectors(elbow, shoulder), shoulderDir, turn));
         setGroup([`ulna_${tag}`, `radius_${tag}`, `hand_${tag}`], body[`ulna_${tag}`].p0, elbow, carry(tmp.subVectors(body[`hand_${tag}`].p0, body[`ulna_${tag}`].p0), rest.shoulderLine, edge.subVectors(hand, elbow), shoulderDir, turn));
@@ -397,19 +419,20 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
       const c = Math.abs(curvature);
       onValues({ kmh: SKI.speed * 3.6, radius: c > 0.004 ? 1 / c : Infinity, lean: (Math.abs(leanNow) * 180) / Math.PI, load });
 
-      // Camera: a wide three-quarter, then low beside the loaded leg, then high behind to read the line.
-      const a = smooth(0.1, 0.6, ctx.local("ski-load")) * (1 - smooth(0.0, 0.5, ctx.local("ski-edge")));
-      const b = smooth(0.0, 0.6, ctx.local("ski-edge"));
+      // Camera: one continuous move through seven set-ups across the act, relative to the rider.
+      const ft = clamp01(ctx.t) * (SHOTS.length - 1);
+      const i0 = Math.min(Math.floor(ft), SHOTS.length - 2);
+      const mixShot = smooth(0.12, 0.88, ft - i0);
+      want.fromArray(SHOTS[i0]).lerp(view.fromArray(SHOTS[i0 + 1]), mixShot);
       slope.updateMatrixWorld(true);
       world.copy(pelvis).applyMatrix4(slope.matrixWorld);
-      want.set(lerp(lerp(2.0, 3.3, a), -0.7, b), lerp(lerp(0.8, 0.7, a), 2.2, b), lerp(lerp(-3.6, -5.0, a), 3.7, b));
       if (!wide) want.multiplyScalar(1.5);
       want.add(world);
       camPos.x = damp(camPos.x, want.x, 4, ctx.dt);
       camPos.y = damp(camPos.y, want.y, 4, ctx.dt);
       camPos.z = damp(camPos.z, want.z, 4, ctx.dt);
       camAt.copy(world);
-      camAt.y -= lerp(0.05, 0.2, a);
+      camAt.y -= 0.1;
       camera.position.copy(camPos);
       camera.position.x += ctx.pointer.x * 0.3;
       camera.lookAt(camAt);

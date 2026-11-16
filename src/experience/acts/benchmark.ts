@@ -76,6 +76,7 @@ export function createBenchmark(getSeq: () => "32" | "128", onValues: (shown: nu
     ready: Promise.resolve(),
     offset: { x: 0, y: 0 },
     bg: [0x090b26, 0x050507, 0x14176a],
+    tint: [0x6a5cff, 0x9b6cff],
     anchors: () => anchors,
     update(ctx: Ctx) {
       const wide = ctx.aspect > 1.05;

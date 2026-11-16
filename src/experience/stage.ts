@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { ACTS, chapters } from "./data";
+import { createCloud } from "./cloud";
 
 THREE.ColorManagement.enabled = false;
 
@@ -22,6 +23,8 @@ export interface Act {
   ready: Promise<unknown>;
   /** Backdrop for this act: top, bottom and glow colours. Every act has its own. */
   bg?: [number, number, number];
+  /** The two colours the shared cloud of lights takes in this act. */
+  tint?: [number, number];
   /** Subject offset on screen as a fraction of the viewport (x right, y up). */
   offset?: { x: number; y: number };
   update(ctx: Ctx): void;
@@ -49,7 +52,7 @@ export const actSpans = ACTS.map((_, i) => {
   const mine = spans.filter((s) => s.act === i);
   return { start: mine[0].start, end: mine[mine.length - 1].end };
 });
-const WIPE = 0.34; // half-width of a scene wipe, in viewport heights
+const WIPE = 0.6; // half-width of a scene wipe, in viewport heights
 
 const compositeFrag = /* glsl */ `
 precision highp float;
@@ -71,10 +74,11 @@ void main(){
   // Each scene drifts a little against the edge so the cut reads as two planes.
   vec2 uvA = vUv + vec2(0.0, uWipe * 0.06);
   vec2 uvB = vUv - vec2(0.0, (1.0 - uWipe) * 0.06);
-  vec3 col = side > 0.0 ? sampleScene(tA, uvA, ca) : sampleScene(tB, uvB, ca);
+  // A soft, wide edge: the two scenes dissolve through each other rather than cut.
   float on = step(0.001, uWipe) * step(uWipe, 0.999);
-  float glow = exp(-abs(side) * 240.0) + 0.35 * exp(-abs(side) * 28.0) * step(side, 0.0);
-  col += on * glow * vec3(0.61, 0.42, 1.0) * 0.9;
+  float blend = smoothstep(-0.16, 0.16, side);
+  vec3 col = uWipe <= 0.001 ? sampleScene(tA, vUv, ca) : mix(sampleScene(tB, uvB, ca), sampleScene(tA, uvA, ca), blend);
+  col += on * exp(-abs(side) * 30.0) * vec3(0.61, 0.42, 1.0) * 0.1;
   vec2 q = vUv - 0.5; q.x *= uAspect;
   col *= 1.0 - 0.42 * smoothstep(0.35, 1.05, length(q));
   col += (hash(vUv * vec2(1920.0, 1080.0) + fract(uTime) * 61.0) - 0.5) * 0.045;
@@ -130,6 +134,55 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
   const bgScene = new THREE.Scene();
   bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMaterial));
 
+  // The shared cloud, drawn behind every act with its own camera.
+  const cloud = createCloud();
+  const cloudScene = new THREE.Scene();
+  const cloudRig = new THREE.Group();
+  cloudRig.add(cloud.points);
+  cloudScene.add(cloudRig);
+  const cloudCam = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+  cloudCam.position.set(0, 0, 11);
+  const cloudSpin = { x: 0, y: 0, vx: 0, vy: 0 };
+  const cloudGlow = { x: 0, y: 0, vx: 0, vy: 0 };
+  const pointerWas = { x: 0, y: 0 };
+  const pointerVel = { x: 0, y: 0 };
+
+  // Colours drift across act boundaries: within a screen and a half of a boundary, both acts are
+  // given the same mix of their two palettes, so the backdrop and the cloud never jump.
+  const DRIFT = 1.5;
+  const mixTop = new THREE.Color();
+  const mixBottom = new THREE.Color();
+  const mixGlow = new THREE.Color();
+  const mixA = new THREE.Color();
+  const mixB = new THREE.Color();
+  const other = new THREE.Color();
+  function palette(index: number, u: number) {
+    const span = actSpans[index];
+    const towardNext = u > (span.start + span.end) / 2;
+    const neighbour = towardNext ? index + 1 : index - 1;
+    const here = acts[index];
+    const bg = here.bg ?? [0x050507, 0x050507, 0x000000];
+    const tint = here.tint ?? [0x9b6cff, 0x39e6b0];
+    mixTop.setHex(bg[0]);
+    mixBottom.setHex(bg[1]);
+    mixGlow.setHex(bg[2]);
+    mixA.setHex(tint[0]);
+    mixB.setHex(tint[1]);
+    if (neighbour < 0 || neighbour >= acts.length) return;
+    const edge = towardNext ? span.end : span.start;
+    // 0 on this act's side, 1 on the neighbour's; exactly one half at the boundary for both acts.
+    const across = smooth(edge - DRIFT, edge + DRIFT, u);
+    const k = towardNext ? across : 1 - across;
+    const there = acts[neighbour];
+    const nbg = there.bg ?? [0x050507, 0x050507, 0x000000];
+    const ntint = there.tint ?? [0x9b6cff, 0x39e6b0];
+    mixTop.lerp(other.setHex(nbg[0]), k);
+    mixBottom.lerp(other.setHex(nbg[1]), k);
+    mixGlow.lerp(other.setHex(nbg[2]), k);
+    mixA.lerp(other.setHex(ntint[0]), k);
+    mixB.lerp(other.setHex(ntint[1]), k);
+  }
+
   let width = 1;
   let height = 1;
   let dpr = 1;
@@ -179,16 +232,21 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
     act.update(ctx);
     act.camera.updateMatrixWorld();
     renderer.setRenderTarget(target);
-    const bg = act.bg ?? [0x050507, 0x050507, 0x000000];
-    bgMaterial.uniforms.uTop.value.setHex(bg[0]);
-    bgMaterial.uniforms.uBottom.value.setHex(bg[1]);
-    bgMaterial.uniforms.uGlow.value.setHex(bg[2]);
+    palette(index, u);
+    bgMaterial.uniforms.uTop.value.copy(mixTop);
+    bgMaterial.uniforms.uBottom.value.copy(mixBottom);
+    bgMaterial.uniforms.uGlow.value.copy(mixGlow);
+    cloud.uniforms.uA.value.copy(mixA);
+    cloud.uniforms.uB.value.copy(mixB);
     bgMaterial.uniforms.uTime.value = reduced ? 0 : time;
     bgMaterial.uniforms.uAspect.value = aspect;
     bgMaterial.uniforms.uCentre.value.set(0.5 + off.x, 0.52 + off.y * 0.5);
     renderer.autoClear = true;
     renderer.render(bgScene, quadCam);
     renderer.autoClear = false;
+    cloudCam.aspect = aspect;
+    cloudCam.updateProjectionMatrix();
+    renderer.render(cloudScene, cloudCam);
     renderer.clearDepth();
     renderer.render(act.scene, act.camera);
     renderer.autoClear = true;
@@ -213,6 +271,26 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
   function frame(u: number, time: number, dt: number, velocity: number) {
     pointer.x = damp(pointer.x, pointer.tx, 5, dt);
     pointer.y = damp(pointer.y, pointer.ty, 5, dt);
+    // The cloud turns with the pointer on a heavy spring and rolls slowly as the page scrolls.
+    const h = Math.min(dt, 0.033);
+    cloudSpin.vy += ((pointer.x * 0.5 + u * 0.14 - cloudSpin.y) * 8 - cloudSpin.vy * 2.5) * h;
+    cloudSpin.vx += ((-pointer.y * 0.28 - cloudSpin.x) * 8 - cloudSpin.vx * 2.5) * h;
+    cloudSpin.y += cloudSpin.vy * h;
+    cloudSpin.x += cloudSpin.vx * h;
+    cloudRig.rotation.set(cloudSpin.x, cloudSpin.y, 0);
+    cloudGlow.vx += ((pointer.x - cloudGlow.x) * 26 - cloudGlow.vx * 4.6) * h;
+    cloudGlow.vy += ((pointer.y - cloudGlow.y) * 26 - cloudGlow.vy * 4.6) * h;
+    cloudGlow.x += cloudGlow.vx * h;
+    cloudGlow.y += cloudGlow.vy * h;
+    pointerVel.x = damp(pointerVel.x, (pointer.x - pointerWas.x) / h, 6, h);
+    pointerVel.y = damp(pointerVel.y, (pointer.y - pointerWas.y) / h, 6, h);
+    pointerWas.x = pointer.x;
+    pointerWas.y = pointer.y;
+    cloud.uniforms.uGlow.value.set(cloudGlow.x, cloudGlow.y);
+    cloud.uniforms.uVel.value.set(THREE.MathUtils.clamp(pointerVel.x, -2, 2) * 0.3, THREE.MathUtils.clamp(pointerVel.y, -2, 2) * 0.3);
+    cloud.uniforms.uTime.value = reduced ? 0 : time;
+    cloud.uniforms.uAspect.value = width / height;
+    cloud.uniforms.uSize.value = (width > height ? 1.5 : 1.15) * dpr;
     let a = actSpans.findIndex((s) => u < s.end);
     if (a < 0) a = acts.length - 1;
     let b = -1;
