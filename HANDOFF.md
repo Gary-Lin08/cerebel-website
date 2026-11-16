@@ -165,3 +165,6 @@ Latest feedback supersedes earlier “arms always move” instruction: when scro
 
 ### Follow-up: hard lens and reversible particle attraction
 User clarified Corn hover: no feather on the circular text aperture. Use a hard 96 px radius, subdued underlying outline and moving bright contour segments. The seeded particles retain rest positions, are attracted toward a loose shell around the pointer, and return to their original positions after it leaves. Whole-effect entrance/exit can ease; the spatial edge must stay crisp.
+
+### Opening camera choreography
+Scroll now lowers the camera below the brain and aims upward at the highlighted posterior region, approaching to 7.2 scene units. The close view holds into the second chapter before particles loosen and gather into the fibre helix. The aim point is transformed with the model; pointer rotation is attenuated during the close-up. Reverse scrolling reverses the same timeline. The helix/body morph windows moved later within the existing Origin span; later acts retain their scroll positions.

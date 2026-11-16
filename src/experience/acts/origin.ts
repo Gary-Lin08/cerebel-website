@@ -34,6 +34,7 @@ export function createOrigin(): Act {
   scene.add(world);
 
   const uniforms = {
+    uRelease: { value: 0 },
     uInteraction: { value: 0 },
     uMorph: { value: 0 },
     uStrand: { value: 0 },
@@ -67,18 +68,20 @@ export function createOrigin(): Act {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       vertexShader: /* glsl */ `
-        uniform float uMorph, uStrand, uTime, uScatter, uSize, uAspect, uInteraction; uniform vec2 uPointer;
+        uniform float uMorph, uStrand, uTime, uScatter, uSize, uAspect, uInteraction, uRelease; uniform vec2 uPointer;
         attribute vec3 aHuman; attribute float aSeed;
         varying float vCerebellum; varying float vSeed; varying float vMix; varying float vNear; varying float vStrand; varying float vKind;
         ${FIBER}
         void main(){
-          float stagger = aSeed * 0.5;
+          float cerebellar = (1.0-smoothstep(-0.60,-0.35,position.y)) * smoothstep(-1.55,-1.1,position.y) * smoothstep(-0.15,0.25,position.x);
+          float stagger = aSeed * 0.25 + (1.0-cerebellar)*0.35;
           float a = clamp(uStrand * 1.5 - stagger, 0.0, 1.0); a = a * a * (3.0 - 2.0 * a);
           float m = clamp(uMorph * 1.5 - stagger, 0.0, 1.0); m = m * m * (3.0 - 2.0 * m);
           float x = clamp(uScatter * 1.5 - stagger, 0.0, 1.0); x = x * x * (3.0 - 2.0 * x);
           vec3 s = fiber(fract(aSeed * 7.31), fiberSeed(aSeed));
           s += (vec3(fract(aSeed * 91.7), fract(aSeed * 57.3), fract(aSeed * 33.1)) - 0.5) * 0.05;
-          vec3 p = mix(mix(position, s, a), aHuman, m);
+          vec3 loose = position + vec3(sin(aSeed*71.0),cos(aSeed*43.0),sin(aSeed*97.0)) * uRelease * (0.12 + cerebellar*0.45);
+          vec3 p = mix(mix(loose, s, a), aHuman, m);
           p = mix(p, s + vec3(0.0, 1.5 * x, 0.0), x);
           p += normalize(p + 0.001) * sin(uTime * 0.7 + aSeed * 18.0) * 0.02;
           vec4 mv = modelViewMatrix * vec4(p, 1.0);
@@ -221,6 +224,8 @@ export function createOrigin(): Act {
   const last = { x: 0, y: 0 };
   const vel = { x: 0, y: 0 };
 
+  const cerebellumTarget = new THREE.Vector3();
+  const cameraTarget = new THREE.Vector3();
   const act: Act = {
     scene,
     camera,
@@ -232,10 +237,12 @@ export function createOrigin(): Act {
       const wide = ctx.aspect > 1.05;
       const hero = ctx.local("hero");
       const legible = ctx.local("legible");
-      const strand = smooth(0.0, 0.32, legible);
-      const morph = smooth(0.46, 0.76, legible);
+      const strand = smooth(0.18, 0.49, legible);
+      const morph = smooth(0.60, 0.84, legible);
       const scatter = smooth(0.9, 1.14, legible);
-      uniforms.uInteraction.value = ctx.interaction;
+      const focus = smooth(0.22, 1.0, hero) * (1 - smooth(0.18, 0.50, legible));
+      uniforms.uRelease.value = smooth(0.08, 0.30, legible);
+      uniforms.uInteraction.value = ctx.interaction * (1-focus*.8);
       uniforms.uMorph.value = morph;
       uniforms.uStrand.value = strand;
       uniforms.uScatter.value = scatter;
@@ -243,7 +250,7 @@ export function createOrigin(): Act {
       uniforms.uLift.value = scatter;
       uniforms.uTime.value = ctx.reduced ? 0 : ctx.time;
       uniforms.uAspect.value = ctx.aspect;
-      uniforms.uSize.value = (wide ? 1.5 : 1.15) * Math.min(window.devicePixelRatio || 1, 1.5);
+      uniforms.uSize.value = (wide ? 1.5 : 1.15) * Math.min(window.devicePixelRatio || 1, 1.5) * (1-focus*.22);
 
       const dt = Math.min(ctx.dt, 0.033);
       const px = ctx.pointer.x;
@@ -266,16 +273,26 @@ export function createOrigin(): Act {
       act.offset!.y = wide ? 0 : 0.14;
       group.scale.setScalar((wide ? 1.12 : 0.66) * (1 - morph * 0.2));
 
-      const wantY = -0.5 + clamp01(hero) * 0.5 + morph * 1.1 + ctx.pointer.x * 0.55 + (ctx.reduced ? 0 : Math.sin(ctx.time * 0.2) * 0.06 * ctx.interaction);
-      const wantX = -0.08 - ctx.pointer.y * 0.3;
+      const wantY = -0.5 + clamp01(hero) * 0.5 + morph * 1.1 + ctx.pointer.x * 0.55 * (1-focus*.85) + (ctx.reduced ? 0 : Math.sin(ctx.time * 0.2) * 0.06 * ctx.interaction);
+      const wantX = -0.08 - ctx.pointer.y * 0.3 * (1-focus*.85);
       // Heavy and over-damped: it starts late, moves slowly and settles without swinging back.
       spin.vy += ((wantY - spin.y) * 4 - spin.vy * 4.6) * dt;
       spin.vx += ((wantX - spin.x) * 4 - spin.vx * 4.6) * dt;
       spin.y += spin.vy * dt;
       spin.x += spin.vx * dt;
       world.rotation.set(spin.x, spin.y, 0);
-      camera.position.set(0, 0, 11 - smooth(0, 1, hero) * 1.2);
-      camera.lookAt(0, 0, 0);
+      // Approach from below, aim upward at the highlighted posterior lobe, hold, then
+      // release into fibres. The target follows the model's own transform, not a screen guess.
+      world.updateMatrixWorld(true);
+      cerebellumTarget.set(.65,-.86,0);
+      group.localToWorld(cerebellumTarget);
+      cameraTarget.copy(cerebellumTarget).multiplyScalar(focus);
+      camera.position.set(
+        cerebellumTarget.x * focus,
+        (cerebellumTarget.y - 1.55) * focus,
+        11 + (7.2 - 11) * focus,
+      );
+      camera.lookAt(cameraTarget);
     },
   };
   return act;
