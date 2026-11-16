@@ -192,3 +192,6 @@ Reduce seeded field to 1,080 points; enlarge point radii to 1.8–6.4px before d
 
 ### Two-force hover and breakable links
 Each seeded point now has velocity and displacement. Cursor attraction acts locally, nearby points exert weaker mutual attraction with a short-range separation force, and an overdamped rest-position spring preserves the full-screen field. Existing local depth turn remains. Links use deformed positions: connect below 28px, disconnect above 40px, with endpoint fading and hysteresis. At most four active links and two per node; stroke widened from 0.65 to 1.2px. Corn was inspected for visible connection changes; these forces are our implementation of the requested behavior, not a claim about its source.
+
+### Progress-bar entrance and two-zone cursor force
+Removed visible loading numbers. The centred wordmark now sits above a slim violet progress track with a travelling highlight, quiet framing lines and mono captions. Fill follows the existing actual act-readiness progress; percentage is exposed only through progressbar ARIA. Reduced-motion disables the sweep. Cursor force now has a positive inner core and a negative outer annulus with smooth crossover: inner pull promotes proximity links, outer push stretches/breaks them. Mutual particle attraction, separation, anchor return and the 28/40px link thresholds remain.

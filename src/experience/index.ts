@@ -7,7 +7,7 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "./experience.css";
 import { benchmark, chapters, glassesParts, flywheelSteps } from "./data";
 import { asset, page } from "./paths";
-import { type Act, TOTAL, createStage, damp, spans } from "./stage";
+import { type Act, TOTAL, createStage, damp, smooth, spans } from "./stage";
 import { createOrigin } from "./acts/origin";
 import { type SwingData, createSwing } from "./acts/swing";
 import { createBenchmark } from "./acts/benchmark";
@@ -218,7 +218,7 @@ function markup() {
     </div>
   </div>
 
-  <div class="xp-loader" role="status"><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"><b class="num">0%</b><span>Loading the experience.</span></div>
+  <div class="xp-loader"><div class="xp-loader__halo" aria-hidden="true"></div><div class="xp-loader__content"><span class="xp-loader__eyebrow">HUMAN MOTION / MACHINE INTELLIGENCE</span><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"><div class="xp-loader__track" role="progressbar" aria-label="Loading experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="xp-loader__fill"></i></div><span class="xp-loader__caption">PREPARING THE EXPERIENCE</span></div><span class="xp-loader__signature" aria-hidden="true">CEREBEL AI</span></div>
   <canvas class="xp-lens" aria-hidden="true"></canvas>
   <div class="xp-cursor" aria-hidden="true"></div>`;
 }
@@ -395,7 +395,8 @@ export function mountExperience(root: HTMLElement) {
 
   // ---- Loader.
   const loader = $(".xp-loader");
-  const loaderNum = loader.querySelector("b")!;
+  const loaderTrack = loader.querySelector<HTMLElement>(".xp-loader__track")!;
+  const loaderFill = loader.querySelector<HTMLElement>(".xp-loader__fill")!;
   let loaded = 0;
   let shownPct = 0;
   acts.forEach((a) => a.ready.then(() => (loaded += 1), () => (loaded += 1)));
@@ -504,8 +505,12 @@ export function mountExperience(root: HTMLElement) {
       // Anchor memory prevents the whole field being dragged along with the pointer.
       n.fx=-n.ox*16; n.fy=-n.oy*16;
       if(lensOn && Math.hypot(cur.x-bx,cur.y-by)<particleRadius+20){
-        const pull=Math.max(0,1-distance/(particleRadius+20));
-        n.fx+=dx*9*pull; n.fy+=dy*9*pull;
+        // Positive core attracts; the negative outer annulus pushes points apart.
+        const q=distance/particleRadius;
+        const core=9*(1-smooth(.18,.52,q));
+        const shell=7*smooth(.35,.58,q)*(1-smooth(.82,1.08,q));
+        const force=core-shell;
+        n.fx+=dx*force; n.fy+=dy*force;
         local.push(n);
       }
     }
@@ -694,7 +699,8 @@ export function mountExperience(root: HTMLElement) {
     if (!started) {
       const pct = (loaded / acts.length) * 100;
       shownPct = Math.min(pct, shownPct + dt * 160);
-      loaderNum.textContent = `${Math.round(shownPct)}%`;
+      loaderFill.style.width = `${shownPct}%`;
+      loaderTrack.setAttribute("aria-valuenow", String(Math.round(shownPct)));
       if (shownPct >= 100) {
         started = true;
         root.classList.add("is-ready");
