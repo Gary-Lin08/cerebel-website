@@ -463,11 +463,11 @@ export function mountExperience(root: HTMLElement) {
   // The constellation is a small 3D cloud drawn live: it turns, breathes, and each node trails the pointer at its own pace.
   const lens = root.querySelector<HTMLCanvasElement>(".xp-lens")!;
   const lensCtx = lens.getContext("2d")!;
-  // A local, irregular volume: sparse larger foreground points and smaller rear points.
-  const nodes = Array.from({length: 78}, (_,i) => ({
+  // Permanent seeded particles across the viewport; the pointer reveals a local window.
+  const nodes = Array.from({length: 1650}, (_,i) => ({
     x: ((Math.sin(i * 127.1 + 3.7) * 43758.5453) % 1 + 1) % 1,
     y: ((Math.sin(i * 311.7 + 9.1) * 19341.337) % 1 + 1) % 1,
-    z: 0, angle: 0, alpha: 0, sx: 0, sy: 0,
+    z: Math.sin(i * 19.17) * 32, angle: 0, alpha: 0, sx: 0, sy: 0,
     size: .9 + Math.pow(((i * .61803398875) % 1), 2.1) * 3.9,
   }));
   const glyphContours = new Map<string,{path:Path2D;length:number}[]>();
@@ -493,25 +493,19 @@ export function mountExperience(root: HTMLElement) {
     lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     const visible: typeof nodes = [];
     const particleRadius = Math.max(135, textRadius * 1.85);
-    const yaw = time * .13 + cur.tx * .0009;
-    const tilt = .28 * Math.sin(time * .17) + cur.ty * .0005;
     for(const n of nodes) {
-      const latitude = n.x * 2 - 1;
-      const circumference = Math.sqrt(1-latitude*latitude);
-      const theta = n.y * Math.PI * 2 + Math.sin(time*.23+n.x*9)*.12;
-      const x = circumference * Math.cos(theta), y = latitude, z = circumference * Math.sin(theta);
-      const rx=x*Math.cos(yaw)+z*Math.sin(yaw), rz=z*Math.cos(yaw)-x*Math.sin(yaw);
-      const ry=y*Math.cos(tilt)-rz*Math.sin(tilt), depth=rz*Math.cos(tilt)+y*Math.sin(tilt);
-      const shell = particleRadius * (.68 + n.y*.27 + Math.sin(n.x*24+time*.19)*.025);
-      const perspective = 1 + depth*.12;
-      n.sx=cur.x+rx*shell*perspective; n.sy=cur.y+ry*shell*perspective;
-      n.z=depth*shell; n.angle=(depth+1)*.5;
-      // Depth affects appearance; there is no broad radial opacity gradient.
-      n.alpha=damp(n.alpha,lensOn ? .32+n.angle*.6 : 0,4,dt);
+      const bx=n.x*innerWidth, by=n.y*innerHeight;
+      const dx=cur.x-bx, dy=cur.y-by;
+      const inside=lensOn && Math.hypot(dx,dy)<particleRadius;
+      // Rest positions never travel with the cursor. Only a slight local depth tilt reacts.
+      n.angle=damp(n.angle,inside ? dx/particleRadius*.3 : 0,3,dt);
+      n.sx=bx+Math.sin(n.angle)*n.z*.25;
+      n.sy=by+Math.sin(n.angle*.7)*n.z*.15;
+      n.alpha=damp(n.alpha,inside ? .55+n.x*.3 : 0,4,dt);
       if(n.alpha>.015)visible.push(n);
     }
     lensCtx.save();
-    lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,particleRadius*1.12,0,Math.PI*2);lensCtx.clip();
+    lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,particleRadius,0,Math.PI*2);lensCtx.clip();
     lensCtx.lineWidth=.65;
     const degrees=new Map<typeof nodes[number],number>();
     for(let i=0;i<visible.length;i++) {
@@ -527,7 +521,7 @@ export function mountExperience(root: HTMLElement) {
         }
       }
       lensCtx.fillStyle=`rgba(245,250,255,${Math.min(1,a.alpha*1.7)})`;
-      lensCtx.beginPath();lensCtx.arc(a.sx,a.sy,a.size*(.65+a.angle*.55),0,Math.PI*2);lensCtx.fill();
+      lensCtx.beginPath();lensCtx.arc(a.sx,a.sy,a.size*(.82+Math.sin(a.angle)*.15),0,Math.PI*2);lensCtx.fill();
     }
     lensCtx.restore();
     // Moving bright segments run along the letter contours inside a crisp circular aperture.
