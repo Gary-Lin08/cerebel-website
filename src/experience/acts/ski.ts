@@ -22,17 +22,19 @@ export function skiPeak() {
 
 const BONE = 0xd4d8e6;
 
-// Camera: one crane move round the rider, never a cut. Each key is [azimuth°, elevation°, distance m, look-ahead m];
-// azimuth 0 is downhill of the rider looking back up, 90 beside them, 180 chasing from behind. Keys are joined by a
-// Catmull-Rom curve so the camera's speed is continuous through every key.
-const SHOTS: [number, number, number, number][] = [
-  [26, 9, 5.4, 0.4],
-  [58, 5, 4.4, 0.2],
-  [98, 8, 4.0, 0.0],
-  [134, 26, 5.0, 0.5],
-  [172, 15, 4.6, 1.0],
-  [206, 12, 5.0, 0.8],
-  [232, 18, 7.6, 0.3],
+// Camera: seven set-ups joined into one move, so the angle keeps changing without a hard cut. Each key is
+// [azimuth°, elevation°, distance m, look-ahead m, lens°]; azimuth 0 is downhill of the rider looking back up,
+// 90 beside them, 180 chasing from behind. Distance and lens swing hard between keys on purpose: wide and far,
+// then low and close on a wide lens beside the board, out to read the forces, up overhead, down into a close
+// chase, round to the far side for the lean, and a long pull-out. Catmull-Rom keeps the speed continuous.
+const SHOTS: [number, number, number, number, number][] = [
+  [22, 11, 8.6, 0.5, 29],
+  [74, 3, 2.9, 0.9, 47],
+  [112, 13, 5.0, 0.0, 32],
+  [150, 66, 7.4, 0.3, 30],
+  [184, 9, 3.1, 1.8, 45],
+  [262, 6, 4.3, 0.2, 34],
+  [322, 25, 11.5, 0.4, 27],
 ];
 const spline = (p0: number, p1: number, p2: number, p3: number, t: number) =>
   0.5 * (2 * p1 + (p2 - p0) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (3 * p1 - p0 - 3 * p2 + p3) * t * t * t);
@@ -605,7 +607,7 @@ export function createSki(onValues: (v: SkiValues) => void): Act {
       const at = (n: number) => spline(key(i1 - 1, n), key(i1, n), key(i1 + 1, n), key(i1 + 2, n), ft - i1);
       const az = (at(0) * Math.PI) / 180;
       const el = (Math.max(3, at(1)) * Math.PI) / 180;
-      const dist = at(2) * (wide ? 1 : 1.45);
+      const dist = Math.max(2.5, at(2)) * (wide ? 1 : 1.45);
       // Both are kept relative to a point that travels down the fall line with the rider, so however fast the
       // page is scrolled the rider cannot leave the frame; only the orbit and the aim are eased in time (a heavy head).
       const cx = base.x * 0.62;
@@ -626,7 +628,7 @@ export function createSki(onValues: (v: SkiValues) => void): Act {
       camera.lookAt(lookLocal);
       // A touch of bank with the turn, and the lens opens slightly at speed through the apex.
       camera.rotateZ(-leanNow * 0.045 * Math.cos(az));
-      camera.fov = 32 + 2.5 * apex;
+      camera.fov = Math.min(52, Math.max(24, at(4))) + 2 * apex;
       camera.updateProjectionMatrix();
     },
   };

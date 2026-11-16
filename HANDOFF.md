@@ -249,3 +249,6 @@ Taken over at `344b6a0`. User brief: review everything, especially colour, light
 - `environments.ts` skips the snow act: fixed linework was left behind as the rider travels.
 
 Checked in headless Chrome at 1440×900 as stills only. Not checked: real-time feel of the camera easing and the transition, phones, performance on real hardware. Headless frames run slowly with a capped `dt`, so anything eased in time looks further behind there than it is.
+
+### Snow camera: contrasting set-ups (user: one angle read as flat)
+The single even orbit was rejected as flat. `SHOTS` now has seven set-ups with large swings in distance and lens (wide establishing → low and close beside the board on a 47° lens → medium for the force triangle → overhead → close chase → far side for the lean → long pull-out), still one continuous Catmull-Rom move riding the fall line. Key 5th value is the lens angle. The user wants angle changes and zooms here; do not flatten it again. Headline entrance animation is being reworked by GPT, not here.
