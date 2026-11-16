@@ -465,11 +465,13 @@ export function mountExperience(root: HTMLElement) {
   const lensCtx = lens.getContext("2d")!;
   // Permanent seeded particles across the viewport; the pointer reveals a local window.
   const nodes = Array.from({length: 1080}, (_,i) => ({
+    id: i, ox: 0, oy: 0, vx: 0, vy: 0, fx: 0, fy: 0, pz: 0,
     x: ((Math.sin(i * 127.1 + 3.7) * 43758.5453) % 1 + 1) % 1,
     y: ((Math.sin(i * 311.7 + 9.1) * 19341.337) % 1 + 1) % 1,
     z: Math.sin(i * 19.17) * 32, angle: 0, alpha: 0, sx: 0, sy: 0,
     size: 1.8 + Math.pow(((i * .61803398875) % 1), 1.7) * 4.6,
   }));
+  const bonds = new Map<string,{a:typeof nodes[number];b:typeof nodes[number];alpha:number}>();
   const glyphContours = new Map<string,{path:Path2D;length:number}[]>();
   for(const [char,paths] of Object.entries(headingOutlines.glyphs)) {
     glyphContours.set(char,paths.map(d=>{
@@ -492,38 +494,80 @@ export function mountExperience(root: HTMLElement) {
   function drawLens(time: number, dt: number) {
     lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     const visible: typeof nodes = [];
+    const local: typeof nodes = [];
     const particleRadius = Math.max(88, textRadius * 1.25);
-    for(const n of nodes) {
+    const h=Math.min(dt,1/30);
+    for(const n of nodes){
       const bx=n.x*innerWidth, by=n.y*innerHeight;
-      const dx=cur.x-bx, dy=cur.y-by;
+      const dx=cur.x-(bx+n.ox), dy=cur.y-(by+n.oy);
+      const distance=Math.hypot(dx,dy);
+      // Anchor memory prevents the whole field being dragged along with the pointer.
+      n.fx=-n.ox*16; n.fy=-n.oy*16;
+      if(lensOn && Math.hypot(cur.x-bx,cur.y-by)<particleRadius+20){
+        const pull=Math.max(0,1-distance/(particleRadius+20));
+        n.fx+=dx*9*pull; n.fy+=dy*9*pull;
+        local.push(n);
+      }
+    }
+    // Weak mutual attraction, with short-range separation so points never collapse.
+    for(let i=0;i<local.length;i++)for(let j=i+1;j<local.length;j++){
+      const a=local[i],b=local[j];
+      const dx=(b.x-a.x)*innerWidth+b.ox-a.ox+(Math.sin(b.angle)*b.z-Math.sin(a.angle)*a.z)*.8;
+      const dy=(b.y-a.y)*innerHeight+b.oy-a.oy+(Math.sin(b.angle*.65)*b.z-Math.sin(a.angle*.65)*a.z)*.4;
+      const d=Math.hypot(dx,dy);if(d<.01||d>48)continue;
+      const gap=(a.size+b.size)*1.35+8;
+      const force=d<gap?(d-gap)*25:(d-gap)*2.1*(1-d/48);
+      const fx=dx/d*force,fy=dy/d*force;
+      a.fx+=fx;a.fy+=fy;b.fx-=fx;b.fy-=fy;
+    }
+    for(const n of nodes) {
+      n.vx=(n.vx+n.fx*h)*Math.exp(-10*h);n.vy=(n.vy+n.fy*h)*Math.exp(-10*h);
+      n.ox+=n.vx*h;n.oy+=n.vy*h;
+      const bx=n.x*innerWidth,by=n.y*innerHeight,dx=cur.x-bx,dy=cur.y-by;
       const distance=Math.hypot(dx,dy);
       const edge=particleRadius*(.88+n.y*.12);
-      const reveal=lensOn ? Math.max(0,Math.min(1,(edge-distance)/12)) : 0;
-      const inside=reveal>0;
-      // Each point turns through depth around its own fixed rest position, then returns.
-      n.angle=damp(n.angle,inside ? dx/particleRadius*2.2 + Math.sin(time*.8+n.x*12)*.14 : 0,4.5,dt);
-      n.sx=bx+Math.sin(n.angle)*n.z*.8;
-      n.sy=by+Math.sin(n.angle*.65)*n.z*.4;
+      const reveal=lensOn?Math.max(0,Math.min(1,(edge-distance)/12)):0;
+      n.angle=damp(n.angle,reveal>0?dx/particleRadius*2.2+Math.sin(time*.8+n.x*12)*.14:0,4.5,dt);
+      n.sx=bx+n.ox+Math.sin(n.angle)*n.z*.8;
+      n.sy=by+n.oy+Math.sin(n.angle*.65)*n.z*.4;
+      n.pz=n.z*Math.cos(n.angle);
       const facing=.6+.4*(.5+.5*Math.cos(n.angle+n.y*2));
       n.alpha=damp(n.alpha,reveal*facing,7,dt);
       if(n.alpha>.015)visible.push(n);
     }
     lensCtx.save();
-    // Individual points fade near staggered edges; never slice dots or links with a circular clip.
-    lensCtx.lineWidth=.65;
-    const degrees=new Map<typeof nodes[number],number>();
-    for(let i=0;i<visible.length;i++) {
-      const a=visible[i];
-      // Sparse local associations: at most two neighbours per point, with many isolated dots.
-      if(i % 3 === 0 && (degrees.get(a) || 0)<2) {
-        const candidates=visible.slice(i+1).map(b=>({b,d:Math.hypot(a.sx-b.sx,a.sy-b.sy,a.z-b.z)}))
-          .filter(({b,d})=>d<46 && (degrees.get(b)||0)<2).sort((x,y)=>x.d-y.d).slice(0,1);
-        for(const {b,d} of candidates){
-          degrees.set(a,(degrees.get(a)||0)+1);degrees.set(b,(degrees.get(b)||0)+1);
-          lensCtx.strokeStyle=`rgba(225,235,246,${Math.min(a.alpha,b.alpha)*(1-d/65)*.55})`;
-          lensCtx.beginPath();lensCtx.moveTo(a.sx,a.sy);lensCtx.lineTo(b.sx,b.sy);lensCtx.stroke();
-        }
-      }
+    lensCtx.lineWidth=1.2;
+    lensCtx.lineCap="round";
+    const distance=(a:typeof nodes[number],b:typeof nodes[number])=>Math.hypot(a.sx-b.sx,a.sy-b.sy,(a.pz-b.pz)*.4);
+    const degrees=new Map<number,number>();
+    const selected=new Set<string>();
+    const maxLinks=Math.min(4,Math.floor(visible.length/5));
+    const claim=(key:string,a:typeof nodes[number],b:typeof nodes[number])=>{
+      if(selected.has(key)||selected.size>=maxLinks||(degrees.get(a.id)||0)>=2||(degrees.get(b.id)||0)>=2)return;
+      selected.add(key);degrees.set(a.id,(degrees.get(a.id)||0)+1);degrees.set(b.id,(degrees.get(b.id)||0)+1);
+      if(!bonds.has(key))bonds.set(key,{a,b,alpha:0});
+    };
+    // Connect below 28px, release above 40px. Hysteresis avoids noisy flicker.
+    for(const [key,bond] of bonds){
+      if(bond.a.alpha>.12&&bond.b.alpha>.12&&distance(bond.a,bond.b)<40)claim(key,bond.a,bond.b);
+    }
+    const candidates:{a:typeof nodes[number];b:typeof nodes[number];d:number}[]=[];
+    for(let i=0;i<visible.length;i++)for(let j=i+1;j<visible.length;j++){
+      const a=visible[i],b=visible[j],d=distance(a,b);
+      if(d<28&&d>a.size+b.size+3&&Math.min(a.alpha,b.alpha)>.15)candidates.push({a,b,d});
+    }
+    candidates.sort((a,b)=>a.d-b.d);
+    for(const {a,b} of candidates)claim(a.id+":"+b.id,a,b);
+    for(const [key,bond] of bonds){
+      const {a,b}=bond,d=distance(a,b);
+      bond.alpha=damp(bond.alpha,selected.has(key)?1:0,10,dt);
+      if(bond.alpha<.01&&!selected.has(key)){bonds.delete(key);continue;}
+      if(d>=40)continue;
+      const alpha=Math.min(a.alpha,b.alpha)*bond.alpha*.72;
+      lensCtx.strokeStyle=`rgba(225,235,246,${alpha})`;
+      lensCtx.beginPath();lensCtx.moveTo(a.sx,a.sy);lensCtx.lineTo(b.sx,b.sy);lensCtx.stroke();
+    }
+    for(const a of visible){
       lensCtx.fillStyle=`rgba(245,250,255,${Math.min(1,a.alpha*1.7)})`;
       lensCtx.beginPath();lensCtx.arc(a.sx,a.sy,a.size*(.85+Math.sin(a.angle)*.25),0,Math.PI*2);lensCtx.fill();
     }

@@ -189,3 +189,6 @@ Reduce particle window from max(135px, 1.85×text radius) to max(88px, 1.25×tex
 
 ### Sparse larger points with visible local depth turn
 Reduce seeded field to 1,080 points; enlarge point radii to 1.8–6.4px before depth modulation. Increase local yaw from 0.3 to 2.2 radians across the hover window, with stronger depth displacement, size and facing variation. Each point still pivots around its own fixed rest position and returns when the hover leaves; no cursor-carried sphere. Keep the compact staggered reveal edge.
+
+### Two-force hover and breakable links
+Each seeded point now has velocity and displacement. Cursor attraction acts locally, nearby points exert weaker mutual attraction with a short-range separation force, and an overdamped rest-position spring preserves the full-screen field. Existing local depth turn remains. Links use deformed positions: connect below 28px, disconnect above 40px, with endpoint fading and hysteresis. At most four active links and two per node; stroke widened from 0.65 to 1.2px. Corn was inspected for visible connection changes; these forces are our implementation of the requested behavior, not a claim about its source.
