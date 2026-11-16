@@ -338,10 +338,10 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
       // into a low chair and the chest comes forward to balance. Low at the apex, taller at the change of edge.
       const apex = Math.abs(Math.sin(K * s));
       const swing = Math.sin(K * s);
-      const idle = ctx.reduced ? 0 : Math.sin(ctx.time * 1.7);
+      const idle = ctx.reduced ? 0 : Math.sin(ctx.time * 1.15);
       toeDir.crossVectors(f, up).normalize(); // across the tilted board, toward the toes
       const toe = smooth(-0.25, 0.25, up.dot(r)); // 1 on the toe edge, 0 on the heel edge
-      const height = lerp(lerp(0.56, 0.62, toe), 0.8, 1 - apex) + idle * 0.01;
+      const height = lerp(lerp(0.56, 0.62, toe), 0.8, 1 - apex) + idle * 0.0025;
       pelvis.copy(base).addScaledVector(up, height).addScaledVector(toeDir, lerp(-0.17, 0.1, toe) * (0.35 + 0.65 * apex));
       const open = 0.25 + swing * 0.08;
       hipDir.copy(f).multiplyScalar(-Math.cos(open)).addScaledVector(r, Math.sin(open));
@@ -386,16 +386,14 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
         // toward the tail, held below shoulder height with soft elbows. They see-saw against the lean, the
         // outside arm lifting as the body tips in, and spread a little wider at the apex.
         carried(body[`humerus_${tag}`].p0, body.torso.p0, chest, qTorso, shoulder);
-        // They never hold still: a see-saw against the lean, a reach fore and aft as the edge changes,
-        // and small corrections all the time, each arm on its own rhythm.
-        const tw = ctx.reduced ? 0 : ctx.time;
-        const fidget = Math.sin(tw * 2.3 + sd * 1.7) * 0.05 + Math.sin(tw * 3.9 + sd * 0.6 + s * 0.4) * 0.03;
+        // Balance is driven by the scroll pose. At rest only the shared tiny breathing lift remains.
+        const fidget = 0;
         const seesaw = -sd * swing * 0.32;
         const reach = Math.cos(K * s) * 0.16; // fastest change of lean: arms sweep to catch it
         hand.copy(shoulder)
           .addScaledVector(shoulderDir, sd * (0.4 + 0.08 * apex + fidget * 0.5))
           .addScaledVector(Y, -0.12 + seesaw + fidget)
-          .addScaledVector(facing, 0.12 + sd * reach + Math.sin(tw * 1.6 + sd) * 0.04);
+          .addScaledVector(facing, 0.12 + sd * reach);
         pole.copy(Y).multiplyScalar(-1).addScaledVector(facing, -0.5).addScaledVector(shoulderDir, sd * 0.2);
         bend(shoulder, hand, rest.upper, rest.fore, pole, elbow);
         setGroup([`humerus_${tag}`], body[`humerus_${tag}`].p0, shoulder, carry(tmp.subVectors(body[`ulna_${tag}`].p0, body[`humerus_${tag}`].p0), rest.shoulderLine, edge.subVectors(elbow, shoulder), shoulderDir, turn));

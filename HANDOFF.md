@@ -151,3 +151,14 @@ References inspected live: https://cornrevolution.resn.global and https://www.or
 - Original homepage source untouched. No goggles intro restored.
 
 Validation: TypeScript, ESLint on src/experience, production build, 10 Sites tests; desktop smoke checks modal selection/Escape and flywheel selection. Build with `npx vite build --configLoader runner` if the worktree uses symlinked dependencies. `npm run preview -- --host 127.0.0.1 --port 5177` serves the built `/experience.html` without dev-server font symlink restrictions.
+
+## November 16: pointer / anatomy / authored eyewear revision
+
+Latest feedback supersedes earlier “arms always move” instruction: when scroll stops, snowboard hands must hold their pose. Removed time-driven hand fidgets; only 2.5 mm slow shared breathing remains. Balance posture still follows the scroll turn.
+
+- Replaced the orbit's isolated normalized strips with the same captured pose's pelvis/legs GLB and registered muscle paths. Selected paths use schematic volumes; all other paths are faint context. No surface/opensim fusion. Bone model is loaded separately; the entrance waits for it.
+- Replaced procedural eyewear with `public/assets/wearable-studio/cerebel-wearable-v1.glb`, the existing export of `assets/blender/Cerebel_Wearable_Studio.blend`. Uses authored presentation groups and explosion vectors, material tuning, white key / violet rim / cool fill. Still labelled development concept.
+- Strand highlight uses projected screen height with a broad horizontal falloff. Removed the erroneous second subtraction of view offset; reduced the autonomous pulse so upper/lower pointer position controls the highlight.
+- Text hover now reveals a seeded irregular field at fixed page locations; nearby nodes pivot in depth and fade, instead of a ball of nodes chasing the cursor. Solid/outline mask strength eases in and out.
+- The opening stays noninteractive until 1.5 seconds after the text/interface appears, then pointer influence ramps up. A lower posterior area of the existing unsegmented brain mesh is highlighted green as a visual cue; it is not a labelled anatomical segmentation.
+- Benchmark typography is constrained below the fixed header. Guarded animation time deltas against negative values after page/background timing changes.

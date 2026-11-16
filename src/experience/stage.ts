@@ -15,6 +15,7 @@ export type Ctx = {
   velocity: number;
   aspect: number;
   reduced: boolean;
+  interaction: number;
 };
 
 export interface Act {
@@ -200,6 +201,7 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
   resize();
   window.addEventListener("resize", resize);
 
+  let interaction = 0;
   const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
   window.addEventListener("pointermove", (e) => {
     pointer.tx = (e.clientX / width) * 2 - 1;
@@ -226,6 +228,7 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
       velocity,
       aspect,
       reduced,
+      interaction,
     };
     act.camera.aspect = aspect;
     const off = act.offset ?? { x: 0, y: 0 };
@@ -270,8 +273,9 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
 
   let lastAct = -1;
   function frame(u: number, time: number, dt: number, velocity: number) {
-    pointer.x = damp(pointer.x, pointer.tx, 3, dt);
-    pointer.y = damp(pointer.y, pointer.ty, 3, dt);
+    interaction = damp(interaction, anchorRoot.closest(".xp")?.classList.contains("is-interactive") ? 1 : 0, 1.8, dt);
+    pointer.x = damp(pointer.x, pointer.tx * interaction, 3, dt);
+    pointer.y = damp(pointer.y, pointer.ty * interaction, 3, dt);
     // The cloud turns with the pointer on a heavy spring and rolls slowly as the page scrolls.
     const h = Math.min(dt, 0.033);
     // The cloud is stirred, not steered: moving the pointer pushes it round like a hand through water.

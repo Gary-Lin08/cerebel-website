@@ -461,16 +461,12 @@ export function mountExperience(root: HTMLElement) {
   // The constellation is a small 3D cloud drawn live: it turns, breathes, and each node trails the pointer at its own pace.
   const lens = root.querySelector<HTMLCanvasElement>(".xp-lens")!;
   const lensCtx = lens.getContext("2d")!;
-  const LN = 42;
-  const nodes = Array.from({ length: LN }, (_, i) => {
-    const a = i * 2.399963;
-    const y = 1 - (2 * (i + 0.5)) / LN;
-    const rad = Math.sqrt(1 - y * y) * (0.55 + 0.45 * ((i * 0.618) % 1));
-    return { x: Math.cos(a) * rad, y: y * (0.55 + 0.45 * ((i * 0.382) % 1)), z: Math.sin(a) * rad, cx: -999, cy: -999, vx: 0, vy: 0, lag: 16 + (i % 7) * 6, size: 1.2 + ((i * 0.37) % 1) * 2.4, sx: 0, sy: 0, d: 0 };
-  });
-  let lensAlpha = 0;
-  // Pointer speed shapes the cloud: it stretches along the motion, thins across it and spins faster.
-  const lensVel = { x: 0, y: 0, px: 0, py: 0, spin: 0, squash: 0 };
+  // Fixed seeded field: moving the pointer reveals nearby structure; it does not carry a cloud.
+  const nodes = Array.from({length: 1100}, (_,i) => ({
+    x: ((Math.sin(i * 127.1 + 3.7) * 43758.5453) % 1 + 1) % 1, y: ((Math.sin(i * 311.7 + 9.1) * 19341.337) % 1 + 1) % 1,
+    z: Math.sin(i * 19.17) * 32, angle: 0, alpha: 0, sx: 0, sy: 0,
+    size: .8 + (i * .37 % 1) * 1.6,
+  }));
   let lensOn = false;
   function sizeLens() {
     const k = Math.min(window.devicePixelRatio || 1, 2);
@@ -480,84 +476,38 @@ export function mountExperience(root: HTMLElement) {
   }
   sizeLens();
   window.addEventListener("resize", sizeLens);
-  function drawLens(time: number, dt: number) {
-    lensAlpha = damp(lensAlpha, lensOn ? 1 : 0, 7, dt);
-    if (lensAlpha < 0.01) {
-      if (lens.dataset.clear !== "1") {
-        lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-        lens.dataset.clear = "1";
-        for (const n of nodes) {
-          n.cx = n.cy = -999;
-          n.vx = n.vy = 0;
-        }
-      }
-      return;
-    }
-    lens.dataset.clear = "0";
+  function drawLens(_time: number, dt: number) {
     lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-    lensVel.x = damp(lensVel.x, (cur.tx - lensVel.px) / Math.max(dt, 0.001), 8, dt);
-    lensVel.y = damp(lensVel.y, (cur.ty - lensVel.py) / Math.max(dt, 0.001), 8, dt);
-    lensVel.px = cur.tx;
-    lensVel.py = cur.ty;
-    const speed = Math.hypot(lensVel.x, lensVel.y);
-    const pull = Math.min(1, speed / 1400);
-    lensVel.squash = damp(lensVel.squash, pull, 5, dt);
-    lensVel.spin += dt * (0.28 + lensVel.squash * 0.9);
-    const ux = speed > 1 ? lensVel.x / speed : 1;
-    const uy = speed > 1 ? lensVel.y / speed : 0;
-    const ry = lensVel.spin;
-    const rx = lensVel.spin * 0.61;
-    const R = 94 * (1 + 0.06 * Math.sin(time * 1.7) + lensVel.squash * 0.08);
-    for (const n of nodes) {
-      if (n.cx < -900) {
-        n.cx = cur.x;
-        n.cy = cur.y;
-      }
-      // Each node drags behind the ring at its own slow pace and comes to rest without overshoot.
-      const c = 2.2 * Math.sqrt(n.lag);
-      const h = Math.min(dt, 0.033);
-      n.vx += ((cur.x - n.cx) * n.lag - n.vx * c) * h;
-      n.vy += ((cur.y - n.cy) * n.lag - n.vy * c) * h;
-      n.cx += n.vx * h;
-      n.cy += n.vy * h;
-      // Rotate about y, then x; project with a little perspective.
-      const x1 = n.x * Math.cos(ry) + n.z * Math.sin(ry);
-      const z1 = -n.x * Math.sin(ry) + n.z * Math.cos(ry);
-      const y1 = n.y * Math.cos(rx) - z1 * Math.sin(rx);
-      const z2 = n.y * Math.sin(rx) + z1 * Math.cos(rx);
-      const persp = 2.6 / (2.6 - z2);
-      const ox = x1 * R * persp;
-      const oy = y1 * R * persp;
-      const along = (ox * ux + oy * uy) * (1 + 0.45 * lensVel.squash);
-      const across = (-ox * uy + oy * ux) * (1 - 0.15 * lensVel.squash);
-      n.sx = n.cx + along * ux - across * uy;
-      n.sy = n.cy + along * uy + across * ux;
-      n.d = persp;
+    const visible: typeof nodes = [];
+    for(const n of nodes) {
+      const bx=n.x*innerWidth, by=n.y*innerHeight;
+      const dx=cur.x-bx, dy=cur.y-by;
+      const distance=Math.hypot(dx,dy);
+      const influence=Math.max(0,1-distance/145);
+      n.alpha=damp(n.alpha,lensOn && root.classList.contains("is-interactive")?influence*influence:0,7,dt);
+      // A patch pivots in depth as the pointer passes across it, then settles back in place.
+      n.angle=damp(n.angle,lensOn && distance<180 ? dx/145*Math.PI*.85 : 0,4,dt);
+      n.sx=bx+Math.sin(n.angle)*n.z;
+      n.sy=by+Math.sin(n.angle*.6)*n.z*.45;
+      if(n.alpha>.015)visible.push(n);
     }
-    lensCtx.lineWidth = 0.8;
-    for (let i = 0; i < LN; i += 1) {
-      for (let j = i + 1; j < LN; j += 1) {
-        const a = nodes[i];
-        const b = nodes[j];
-        const d3 = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
-        if (d3 > 0.62) continue;
-        lensCtx.strokeStyle = `rgba(233,236,242,${(lensAlpha * 0.55 * (1 - d3 / 0.62) * Math.min(a.d, b.d)).toFixed(3)})`;
-        lensCtx.beginPath();
-        lensCtx.moveTo(a.sx, a.sy);
-        lensCtx.lineTo(b.sx, b.sy);
-        lensCtx.stroke();
+    lensCtx.lineWidth=.65;
+    for(let i=0;i<visible.length;i++) {
+      const a=visible[i];
+      for(let j=i+1;j<visible.length;j++) {
+        const b=visible[j];
+        const distance=Math.hypot((a.x-b.x)*innerWidth,(a.y-b.y)*innerHeight,a.z-b.z);
+        if(distance>61)continue;
+        lensCtx.strokeStyle=`rgba(225,235,246,${Math.min(a.alpha,b.alpha)*(1-distance/61)*.7})`;
+        lensCtx.beginPath();lensCtx.moveTo(a.sx,a.sy);lensCtx.lineTo(b.sx,b.sy);lensCtx.stroke();
       }
-    }
-    for (const n of nodes) {
-      lensCtx.fillStyle = `rgba(255,255,255,${(lensAlpha * Math.min(1, 0.35 + (n.d - 0.7) * 1.1)).toFixed(3)})`;
-      lensCtx.beginPath();
-      lensCtx.arc(n.sx, n.sy, n.size * n.d * .75, 0, 6.283);
-      lensCtx.fill();
+      lensCtx.fillStyle=`rgba(245,250,255,${Math.min(1,a.alpha*1.7)})`;
+      lensCtx.beginPath();lensCtx.arc(a.sx,a.sy,a.size*(1+Math.sin(a.angle)*.15),0,Math.PI*2);lensCtx.fill();
     }
   }
   const headSpans = $$<HTMLElement>(".ln > span");
   window.addEventListener("pointermove", (e) => {
-    if (e.pointerType === "touch") return;
+    if (e.pointerType === "touch" || !root.classList.contains("is-interactive")) return;
     let hit = false;
     for (const el of headSpans) {
       const on = el.closest(".ch")!.classList.contains("is-on");
@@ -565,14 +515,15 @@ export function mountExperience(root: HTMLElement) {
       const inside = !!r && e.clientX > r.left - 80 && e.clientX < r.right + 80 && e.clientY > r.top - 80 && e.clientY < r.bottom + 80;
       if (inside && r) {
         el.setAttribute("data-lens", "");
+        el.dataset.lensTarget = "1";
         hit = hit || (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom);
-      } else if (el.hasAttribute("data-lens")) el.removeAttribute("data-lens");
+      } else el.dataset.lensTarget = "0";
     }
     lensOn = hit;
   });
   document.documentElement.addEventListener("pointerleave", () => {
     lensOn = false;
-    for (const el of headSpans) el.removeAttribute("data-lens");
+    for (const el of headSpans) el.dataset.lensTarget = "0";
   });
 
   // ---- Loop.
@@ -580,7 +531,7 @@ export function mountExperience(root: HTMLElement) {
   let prev = performance.now();
   let lastU = u;
   function tick(now: number) {
-    const dt = Math.min(0.05, (now - prev) / 1000) || 0.016;
+    const dt = Math.max(0.001, Math.min(0.05, (now - prev) / 1000)) || 0.016;
     prev = now;
     const target = Math.min(TOTAL - 0.001, Math.max(0, window.scrollY / vh));
     u = stage.reduced ? target : damp(u, target, 7, dt);
@@ -616,6 +567,10 @@ export function mountExperience(root: HTMLElement) {
     if (!stage.reduced) drawLens(now / 1000, dt);
     for (const el of headSpans) {
       if (!el.hasAttribute("data-lens")) continue;
+      const strength = damp(Number(el.dataset.lensAlpha || 0), el.dataset.lensTarget === "1" ? 1 : 0, 4, dt);
+      el.dataset.lensAlpha = String(strength);
+      el.style.setProperty("--lens-strength",strength.toFixed(3));
+      if(strength < .005 && el.dataset.lensTarget !== "1") {el.removeAttribute("data-lens");continue;}
       const r = el.getBoundingClientRect();
       el.style.setProperty("--mx", `${(cur.x - r.left).toFixed(1)}px`);
       el.style.setProperty("--my", `${(cur.y - r.top).toFixed(1)}px`);
@@ -639,7 +594,10 @@ export function mountExperience(root: HTMLElement) {
         setTimeout(() => loader.remove(), 1200);
         // The subject holds the screen alone for a beat before any interface arrives.
         // The subject holds the screen alone for a beat before any interface arrives.
-        setTimeout(() => root.classList.add("is-live"), stage.reduced ? 0 : 1900);
+        setTimeout(() => {
+          root.classList.add("is-live");
+          setTimeout(() => root.classList.add("is-interactive"), stage.reduced ? 0 : 1500);
+        }, stage.reduced ? 0 : 1900);
       }
     }
     requestAnimationFrame(tick);

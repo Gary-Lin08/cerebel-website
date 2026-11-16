@@ -349,3 +349,14 @@
 .xp-cursor.is-hover{width:48px;height:48px;left:-24px;top:-24px;background:transparent;border-color:rgba(233,236,242,.65)}
 /* A fixed stage must never become an internal focus-scroll container. */
 .xp{overflow:clip}
+/* Keep dense benchmark copy below the fixed navigation, including short desktop windows. */
+.ch--bench{top:clamp(112px,15vh,170px);bottom:auto;gap:14px;width:min(510px,42vw);max-height:calc(100dvh - 160px)}
+.ch--bench .metric{font-size:clamp(64px,10vh,112px)}
+.ch--bench h2{font-size:clamp(32px,4.8vh,54px);line-height:1.02;max-width:100%}
+.ch--bench>p:not(.metric):not(.metric-cap){font-size:clamp(14px,1.8vh,17px)}
+.ch--bench .metric-cap{max-width:42ch}
+.muscle-entry:disabled{opacity:.4;cursor:wait}
+.ln > span::after{transition:opacity .8s ease,-webkit-text-stroke-color .8s ease}
+.xp:not(.is-interactive) .xp-cursor{opacity:0}.xp-cursor{transition:opacity 1.2s ease,width .35s,height .35s,left .35s,top .35s}
+.ln > span[data-lens]::before{-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),rgba(0,0,0,calc(1 - var(--lens-strength,0))) 64px,#000 110px);mask-image:radial-gradient(circle at var(--mx) var(--my),rgba(0,0,0,calc(1 - var(--lens-strength,0))) 64px,#000 110px)}
+.ln > span[data-lens]::after{opacity:var(--lens-strength,0)}

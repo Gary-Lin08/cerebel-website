@@ -34,6 +34,7 @@ export function createOrigin(): Act {
   scene.add(world);
 
   const uniforms = {
+    uInteraction: { value: 0 },
     uMorph: { value: 0 },
     uStrand: { value: 0 },
     uShow: { value: 0 },
@@ -66,9 +67,9 @@ export function createOrigin(): Act {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       vertexShader: /* glsl */ `
-        uniform float uMorph, uStrand, uTime, uScatter, uSize, uAspect; uniform vec2 uPointer;
+        uniform float uMorph, uStrand, uTime, uScatter, uSize, uAspect, uInteraction; uniform vec2 uPointer;
         attribute vec3 aHuman; attribute float aSeed;
-        varying float vSeed; varying float vMix; varying float vNear; varying float vStrand; varying float vKind;
+        varying float vCerebellum; varying float vSeed; varying float vMix; varying float vNear; varying float vStrand; varying float vKind;
         ${FIBER}
         void main(){
           float stagger = aSeed * 0.5;
@@ -84,8 +85,10 @@ export function createOrigin(): Act {
           vec4 clip = projectionMatrix * mv;
           vec2 ndc = clip.xy / clip.w;
           vec2 d = ndc - uPointer; d.x *= uAspect;
-          float near = exp(-dot(d, d) * 9.0);
+          float near = exp(-dot(d, d) * 9.0) * uInteraction;
+          vCerebellum = (1.0-smoothstep(-0.60,-0.35,position.y)) * smoothstep(-1.55,-1.1,position.y) * smoothstep(-0.15,0.25,position.x) * (1.0-a);
           float onStrand = max(a * (1.0 - m), x);
+          vSeed = aSeed; vMix = m; vNear = near; vStrand = onStrand; vKind = step(0.5, fract(fiberSeed(aSeed) * 3.17));
           mv.xy += normalize(d + 0.0001) * near * 0.42 * (1.0 - onStrand);
           gl_Position = projectionMatrix * mv;
           float sparkle = 1.0 + 0.7 * sin(aSeed * 74.0 + uTime * 0.5);
@@ -93,7 +96,7 @@ export function createOrigin(): Act {
         }`,
       fragmentShader: /* glsl */ `
         precision highp float;
-        varying float vSeed; varying float vMix; varying float vNear; varying float vStrand; varying float vKind;
+        varying float vCerebellum; varying float vSeed; varying float vMix; varying float vNear; varying float vStrand; varying float vKind;
         void main(){
           vec2 q = gl_PointCoord - 0.5;
           float a = smoothstep(0.5, 0.1, length(q));
@@ -101,10 +104,12 @@ export function createOrigin(): Act {
           vec3 violet = vec3(0.61, 0.42, 1.0);
           float pick = step(0.72, fract(vSeed * 7.31));
           vec3 col = mix(cool, violet, max(pick, vNear * (1.0 - vStrand)));
+
           col = mix(col, violet, (1.0 - vMix) * 0.35);
+          col = mix(col, vec3(.12, .90, .36), vCerebellum);
           vec3 rail = mix(vec3(0.7, 0.5, 1.0), vec3(0.25, 0.95, 0.62), vKind);
           col = mix(col, mix(rail, vec3(1.0, 0.97, 0.9), vNear * 0.8), vStrand * 0.9);
-          float alpha = (0.5 + 0.3 * pick + vNear * 0.6) * mix(1.0, 0.75, vStrand);
+          float alpha = (0.5 + 0.3 * pick + vNear * 0.6) * mix(1.0, 0.22, vStrand);
           gl_FragColor = vec4(col, a * alpha);
         }`,
     });
@@ -141,7 +146,7 @@ export function createOrigin(): Act {
           p.y += uLift * 1.5;
           vec4 clip = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
           vec2 d = clip.xy / clip.w - uGlow; d.x *= uAspect;
-          vNear = exp(-dot(d, d) * 5.0);
+          vNear = exp(-d.y * d.y * 12.0 - d.x * d.x * 0.55);
           vKind = step(0.5, fract(aSeed * 3.17));
           // Each fibre draws itself in from one end, at its own moment.
           float reach = clamp(uShow * 1.6 - fract(aSeed * 9.7) * 0.6, 0.0, 1.0);
@@ -155,8 +160,8 @@ export function createOrigin(): Act {
         varying float vNear; varying float vKind; varying float vFade; varying float vPulse;
         void main(){
           vec3 rail = mix(vec3(0.62, 0.42, 1.0), vec3(0.2, 0.9, 0.58), vKind);
-          vec3 col = mix(rail, vec3(1.0, 0.96, 0.86), clamp(vNear * 0.9 + vPulse * 0.5, 0.0, 1.0));
-          gl_FragColor = vec4(col, vFade * (0.2 + 0.28 * vPulse + 1.1 * vNear));
+          vec3 col = mix(rail, vec3(1.0, 0.96, 0.86), clamp(vNear * 0.95 + vPulse * 0.12, 0.0, 1.0));
+          gl_FragColor = vec4(col, vFade * (0.10 + 0.08 * vPulse + 1.55 * vNear));
         }`,
     }));
     lines.frustumCulled = false;
@@ -191,7 +196,7 @@ export function createOrigin(): Act {
           vec4 mv = modelViewMatrix * vec4(p, 1.0);
           vec4 clip = projectionMatrix * mv;
           vec2 d = clip.xy / clip.w - uGlow; d.x *= uAspect;
-          vNear = exp(-dot(d, d) * 5.0);
+          vNear = exp(-d.y * d.y * 12.0 - d.x * d.x * 0.55);
           vKind = step(0.5, fract(aSeed * 3.17));
           vA = smoothstep(0.0, 0.08, t) * smoothstep(1.0, 0.92, t) * uShow * (0.4 + 0.6 * fract(aT * 91.0));
           gl_Position = clip;
@@ -230,6 +235,7 @@ export function createOrigin(): Act {
       const strand = smooth(0.0, 0.32, legible);
       const morph = smooth(0.46, 0.76, legible);
       const scatter = smooth(0.9, 1.14, legible);
+      uniforms.uInteraction.value = ctx.interaction;
       uniforms.uMorph.value = morph;
       uniforms.uStrand.value = strand;
       uniforms.uScatter.value = scatter;
@@ -240,14 +246,12 @@ export function createOrigin(): Act {
       uniforms.uSize.value = (wide ? 1.5 : 1.15) * Math.min(window.devicePixelRatio || 1, 1.5);
 
       const dt = Math.min(ctx.dt, 0.033);
-      const px = ctx.pointer.x - act.offset!.x * 2;
-      const py = ctx.pointer.y - act.offset!.y * 2;
+      const px = ctx.pointer.x;
+      const py = ctx.pointer.y;
       uniforms.uPointer.value.set(px, py);
       // The light trails the pointer on its own spring.
-      glow.vx += ((px - glow.x) * 9 - glow.vx * 6.6) * dt;
-      glow.vy += ((py - glow.y) * 9 - glow.vy * 6.6) * dt;
-      glow.x += glow.vx * dt;
-      glow.y += glow.vy * dt;
+      glow.x = damp(glow.x, px, 6, ctx.dt);
+      glow.y = damp(glow.y, py, 6, ctx.dt);
       uniforms.uGlow.value.set(glow.x, glow.y);
       // Pointer speed, smoothed, leans the cloud.
       vel.x = damp(vel.x, (ctx.pointer.x - last.x) / dt, 6, dt);
@@ -262,7 +266,7 @@ export function createOrigin(): Act {
       act.offset!.y = wide ? 0 : 0.14;
       group.scale.setScalar((wide ? 1.12 : 0.66) * (1 - morph * 0.2));
 
-      const wantY = -0.5 + clamp01(hero) * 0.5 + morph * 1.1 + ctx.pointer.x * 0.55 + (ctx.reduced ? 0 : Math.sin(ctx.time * 0.2) * 0.06);
+      const wantY = -0.5 + clamp01(hero) * 0.5 + morph * 1.1 + ctx.pointer.x * 0.55 + (ctx.reduced ? 0 : Math.sin(ctx.time * 0.2) * 0.06 * ctx.interaction);
       const wantX = -0.08 - ctx.pointer.y * 0.3;
       // Heavy and over-damped: it starts late, moves slowly and settles without swinging back.
       spin.vy += ((wantY - spin.y) * 4 - spin.vy * 4.6) * dt;
