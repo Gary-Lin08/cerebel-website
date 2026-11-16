@@ -77,30 +77,49 @@ vec3 sampleScene(sampler2D t, vec2 uv, float ca){
 }
 void main(){
   float ca = 0.0005 + min(abs(uVel), 1.0) * 0.0028;
-  vec3 col;
-  float glow = 0.0;
-  // Ground glass: the whole scene is seen through a lightly frosted pane. Each pixel looks a pixel or two
-  // aside, in a direction fixed to the screen, so the tooth of the glass stays put while the scene moves.
+  // Ground glass: each pixel looks a pixel or two aside, in a direction fixed to the screen.
   vec2 cell = floor(gl_FragCoord.xy);
   vec2 tooth = (vec2(hash(cell), hash(cell + 37.3)) - 0.5) * uFrost / uRes;
-  if (uWipe <= 0.001) col = mix(sampleScene(tA, vUv, ca), sampleScene(tA, vUv + tooth, ca), 0.5);
-  else {
+  bool wiping = uWipe > 0.001;
+  float blend = 1.0;
+  float glow = 0.0;
+  vec2 uvA = vUv;
+  vec2 uvB = vUv;
+  if (wiping) {
     vec2 p = vec2(vUv.x * uAspect, vUv.y);
     float shape = fbm(p * 1.7 + vec2(0.0, uTime * 0.015)) - 0.5;
     float front = vUv.y - 0.22 * (vUv.x - 0.5) + shape * 0.55;
     float side = front - mix(-0.62, 1.62, uWipe);
-    float blend = smoothstep(-0.3, 0.3, side);
-    vec2 uvA = (vUv - 0.5) * (1.0 - uWipe * 0.045) + 0.5;
-    vec2 uvB = (vUv - 0.5) * (1.0 + (1.0 - uWipe) * 0.045) + 0.5;
-    col = mix(sampleScene(tB, uvB + tooth * 0.5, ca), sampleScene(tA, uvA + tooth * 0.5, ca), blend);
+    blend = smoothstep(-0.3, 0.3, side);
+    uvA = (vUv - 0.5) * (1.0 - uWipe * 0.045) + 0.5;
+    uvB = (vUv - 0.5) * (1.0 + (1.0 - uWipe) * 0.045) + 0.5;
     glow = exp(-side * side * 9.0) * sin(uWipe * 3.14159);
-    col += glow * col * 0.35;
   }
+  vec3 col = sampleScene(tA, uvA + tooth * 0.5, ca);
+  if (wiping) col = mix(sampleScene(tB, uvB + tooth * 0.5, ca), col, blend);
+  // Diffusion, as through a soft filter on the lens: a wide, cheap blur of the scene is laid back over it, so
+  // lights bloom, edges lose their hardness and the dark areas fill with the colour around them.
+  vec3 haze = vec3(0.0);
+  for (int i = 0; i < 12; i++) {
+    float ang = float(i) * 2.399963 + hash(cell) * 6.2832;
+    float rad = (i < 6 ? 7.0 : 19.0) * uFrost / 1.5;
+    vec2 o = vec2(cos(ang), sin(ang)) * rad / uRes;
+    vec3 tap = texture2D(tA, uvA + o).rgb;
+    if (wiping) tap = mix(texture2D(tB, uvB + o).rgb, tap, blend);
+    haze += tap;
+  }
+  haze /= 12.0;
+  col = mix(col, max(col, haze), 0.3) + haze * 0.06;
+  // Keep the blacks: diffusion lifts everything, so the tone curve is pulled back down at the bottom.
+  col = mix(col, smoothstep(0.0, 1.0, col), 0.4);
+  col += glow * col * 0.35;
   vec2 q = vUv - 0.5; q.x *= uAspect;
   col *= 1.0 - 0.42 * smoothstep(0.35, 1.05, length(q));
-  col += (hash(vUv * vec2(1920.0, 1080.0) + fract(uTime) * 61.0) - 0.5) * 0.04;
-  // The pane itself: a faint fixed speckle, and light catching it across one corner.
-  col += (hash(cell * 0.5 + 91.0) - 0.5) * 0.018;
+  // Film grain: coarse enough to see, moving every frame, strongest in the mid-tones.
+  vec2 gcell = floor(gl_FragCoord.xy / (uFrost / 1.5 * 1.35));
+  float grain = hash(gcell + fract(uTime * 7.0) * 113.0) + hash(gcell * 1.7 + fract(uTime * 5.0) * 71.0) - 1.0;
+  float luma = dot(col, vec3(0.3, 0.59, 0.11));
+  col += grain * (0.03 + 0.055 * smoothstep(0.0, 0.35, luma) * (1.0 - 0.6 * smoothstep(0.6, 1.0, luma)));
   float sheen = smoothstep(0.55, 0.0, abs((vUv.x * uAspect * 0.55 + (1.0 - vUv.y)) - 0.32));
   col += vec3(0.75, 0.82, 1.0) * sheen * 0.022;
   gl_FragColor = vec4(col, 1.0);
@@ -161,8 +180,8 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
         g += blob(p, c + vec2(cos(uTime * 0.07) * 0.7, sin(uTime * 0.13) * 0.4 - 0.2), 0.24) * 0.28;
         col += uGlow * g;
         float lift = 0.35 + 0.65 * smoothstep(-0.1, 0.9, vUv.y);
-        col += uA * bankA * 0.085 * lift;
-        col += uB * bankB * 0.06 * (1.3 - lift);
+        col += uA * bankA * 0.15 * lift;
+        col += uB * bankB * 0.11 * (1.3 - lift);
         col *= 0.86 + 0.28 * veil;
         gl_FragColor = vec4(col, 1.0);
       }`,
