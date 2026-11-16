@@ -9,16 +9,19 @@
 // toggle turns it off and the choice is remembered in this browser.
 
 // One chord per act (Hz), all close to each other so the glide between them stays smooth.
+// One chord per act (Hz), all close to each other so the glide between them stays smooth. Kept above 100 Hz:
+// laptop speakers do not reproduce the octave below, which made the first version silent on a MacBook.
 const CHORDS: number[][] = [
-  [55.0, 82.41, 110.0, 164.81], // Origin: A, open fifth
-  [61.74, 92.5, 123.47, 185.0], // Motion: B
-  [65.41, 98.0, 130.81, 196.0], // Snow: C, brighter
-  [55.0, 82.41, 130.81, 164.81], // Benchmark: A with a sixth
-  [49.0, 73.42, 98.0, 146.83], // Glasses: G, lower
-  [58.27, 87.31, 116.54, 174.61], // Data loop: B flat
-  [55.0, 82.41, 110.0, 138.59], // Field: A major
+  [110.0, 164.81, 220.0, 329.63], // Origin: A, open fifth
+  [123.47, 185.0, 246.94, 369.99], // Motion: B
+  [130.81, 196.0, 261.63, 392.0], // Snow: C, brighter
+  [110.0, 164.81, 261.63, 329.63], // Benchmark: A with a sixth
+  [98.0, 146.83, 196.0, 293.66], // Glasses: G, lower
+  [116.54, 174.61, 233.08, 349.23], // Data loop: B flat
+  [110.0, 164.81, 220.0, 277.18], // Field: A major
 ];
-const KEY = "cerebel-xp-sound";
+// New key: an earlier build could store "off" by mistake (see the click handler), so start everyone fresh.
+const KEY = "cerebel-xp-sound-v2";
 
 export function createSound(button: HTMLButtonElement) {
   let wanted = true;
@@ -42,8 +45,13 @@ export function createSound(button: HTMLButtonElement) {
 
   const reflect = () => {
     button.setAttribute("aria-pressed", String(wanted));
-    button.classList.toggle("is-on", wanted && !!ctx && ctx.state === "running");
-    button.setAttribute("aria-label", wanted ? "Sound on. Turn off" : "Sound off. Turn on");
+    const running = wanted && !!ctx && ctx.state === "running";
+    button.classList.toggle("is-on", running);
+    // Until the first press the browser keeps audio blocked; say so instead of looking switched off.
+    button.classList.toggle("is-waiting", wanted && !running);
+    const label = button.querySelector("em");
+    if (label) label.textContent = wanted && !running ? "Click for sound" : "Sound";
+    button.setAttribute("aria-label", running ? "Sound on. Turn off" : wanted ? "Turn sound on" : "Sound off. Turn on");
   };
 
   function build() {
@@ -53,9 +61,21 @@ export function createSound(button: HTMLButtonElement) {
     master = ctx.createGain();
     master.gain.value = 0;
     const limiter = ctx.createDynamicsCompressor();
-    limiter.threshold.value = -18;
+    limiter.threshold.value = -10;
     limiter.ratio.value = 6;
     master.connect(limiter).connect(ctx.destination);
+    if (import.meta.env.DEV) {
+      // Dev only: lets a headless test read the output level.
+      const meter = ctx.createAnalyser();
+      limiter.connect(meter);
+      const buf = new Float32Array(meter.fftSize);
+      (window as unknown as Record<string, unknown>).__xpSoundLevel = () => {
+        meter.getFloatTimeDomainData(buf);
+        let sum = 0;
+        for (const v of buf) sum += v * v;
+        return Math.sqrt(sum / buf.length);
+      };
+    }
 
     // A short, dark room for everything to sit in.
     reverb = ctx.createConvolver();
@@ -73,17 +93,17 @@ export function createSound(button: HTMLButtonElement) {
     // Pad: four detuned triangles through a slowly breathing low-pass.
     padFilter = ctx.createBiquadFilter();
     padFilter.type = "lowpass";
-    padFilter.frequency.value = 520;
+    padFilter.frequency.value = 1100;
     padFilter.Q.value = 0.6;
     padBus = ctx.createGain();
-    padBus.gain.value = 0.09;
+    padBus.gain.value = 0.16;
     padFilter.connect(padBus);
     padBus.connect(master);
     padBus.connect(reverb);
     const lfo = ctx.createOscillator();
     lfo.frequency.value = 0.05;
     const lfoAmt = ctx.createGain();
-    lfoAmt.gain.value = 180;
+    lfoAmt.gain.value = 350;
     lfo.connect(lfoAmt).connect(padFilter.frequency);
     lfo.start();
     for (let i = 0; i < 4; i += 1) {
@@ -129,7 +149,7 @@ export function createSound(button: HTMLButtonElement) {
     if (!ctx) build();
     if (!ctx) return;
     void ctx.resume().then(() => {
-      master.gain.setTargetAtTime(0.5, ctx!.currentTime, 1.2);
+      master.gain.setTargetAtTime(0.9, ctx!.currentTime, 0.8);
       reflect();
     });
   }
@@ -141,18 +161,24 @@ export function createSound(button: HTMLButtonElement) {
     }, 900);
   }
 
-  const firstGesture = () => {
+  // True when the press that unblocked audio was on the toggle itself; that press must not then switch it off.
+  let unlockedByButton = false;
+  const firstGesture = (e: Event) => {
+    unlockedByButton = button.contains(e.target as Node);
     start();
-    window.removeEventListener("pointerdown", firstGesture);
-    window.removeEventListener("keydown", firstGesture);
-    window.removeEventListener("touchend", firstGesture);
+    for (const type of ["pointerdown", "click", "keydown", "touchend"]) window.removeEventListener(type, firstGesture, { capture: true });
   };
-  window.addEventListener("pointerdown", firstGesture);
-  window.addEventListener("keydown", firstGesture);
-  window.addEventListener("touchend", firstGesture);
+  for (const type of ["pointerdown", "click", "keydown", "touchend"]) window.addEventListener(type, firstGesture, { capture: true });
 
   button.addEventListener("click", (e) => {
     e.stopPropagation();
+    // If sound was wanted but still blocked, this press is what unblocks it: do not also switch it off.
+    // (The first build toggled here, so a visitor pressing "Sound" to hear it turned it off instead.)
+    if (unlockedByButton || (wanted && !(ctx && ctx.state === "running"))) {
+      unlockedByButton = false;
+      start();
+      return;
+    }
     wanted = !wanted;
     try {
       localStorage.setItem(KEY, wanted ? "on" : "off");
@@ -199,15 +225,15 @@ export function createSound(button: HTMLButtonElement) {
     const now = performance.now();
     if (now - lastTick < 70) return;
     lastTick = now;
-    note(2637 + Math.random() * 200, 0.012, 0.002, 0.06);
+    note(2200 + Math.random() * 200, 0.035, 0.002, 0.07);
   });
   document.addEventListener("pointerout", (e) => {
     if (hovered && !hovered.contains(e.relatedTarget as Node)) hovered = null;
   });
   document.addEventListener("click", (e) => {
     if (!(e.target as Element).closest?.("a, button, [data-cursor]")) return;
-    note(196, 0.05, 0.004, 0.22);
-    note(1568, 0.014, 0.003, 0.35);
+    note(220, 0.12, 0.004, 0.25, "triangle");
+    note(1320, 0.04, 0.003, 0.4);
   });
 
   return {
@@ -219,21 +245,21 @@ export function createSound(button: HTMLButtonElement) {
         act = nextAct;
         const chord = CHORDS[act % CHORDS.length];
         voices.forEach((o, i) => o.frequency.setTargetAtTime(chord[i], t, 1.4));
-        padFilter.frequency.setTargetAtTime(act === 2 ? 760 : 520, t, 2);
+        padFilter.frequency.setTargetAtTime(act === 2 ? 1600 : 1100, t, 2);
       }
       if (nextChapter && nextChapter !== chapter) {
         const first = chapter === "";
         chapter = nextChapter;
         if (!first) {
           const chord = CHORDS[Math.max(0, act) % CHORDS.length];
-          note(chord[3] * 4, 0.022, 0.01, 1.6);
-          note(chord[2] * 4, 0.012, 0.03, 2.2);
+          note(chord[3] * 2, 0.07, 0.01, 1.8);
+          note(chord[2] * 4, 0.035, 0.03, 2.4);
         }
       }
       // Air follows scroll speed, never fully silent so it does not click in and out.
       level += (Math.min(1, Math.abs(speed) / 2.2) - level) * 0.08;
-      airGain.gain.setTargetAtTime(0.004 + level * (act === 2 ? 0.075 : 0.045), t, 0.12);
-      airFilter.frequency.setTargetAtTime(380 + level * (act === 2 ? 2600 : 1500), t, 0.15);
+      airGain.gain.setTargetAtTime(0.012 + level * (act === 2 ? 0.22 : 0.13), t, 0.12);
+      airFilter.frequency.setTargetAtTime(600 + level * (act === 2 ? 3000 : 1800), t, 0.15);
     },
   };
 }
