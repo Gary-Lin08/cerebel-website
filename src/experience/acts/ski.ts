@@ -385,11 +385,16 @@ export function createSki(onValues: (v: { kmh: number; radius: number; lean: num
         // toward the tail, held below shoulder height with soft elbows. They see-saw against the lean, the
         // outside arm lifting as the body tips in, and spread a little wider at the apex.
         carried(body[`humerus_${tag}`].p0, body.torso.p0, chest, qTorso, shoulder);
-        const seesaw = sd * swing * 0.2 * (toe > 0.5 ? -1 : 1);
+        // They never hold still: a see-saw against the lean, a reach fore and aft as the edge changes,
+        // and small corrections all the time, each arm on its own rhythm.
+        const tw = ctx.reduced ? 0 : ctx.time;
+        const fidget = Math.sin(tw * 2.3 + sd * 1.7) * 0.05 + Math.sin(tw * 3.9 + sd * 0.6 + s * 0.4) * 0.03;
+        const seesaw = -sd * swing * 0.32;
+        const reach = Math.cos(K * s) * 0.16; // fastest change of lean: arms sweep to catch it
         hand.copy(shoulder)
-          .addScaledVector(shoulderDir, sd * (0.4 + 0.06 * apex))
-          .addScaledVector(Y, -0.16 + seesaw + idle * 0.012 * sd)
-          .addScaledVector(facing, 0.13);
+          .addScaledVector(shoulderDir, sd * (0.4 + 0.08 * apex + fidget * 0.5))
+          .addScaledVector(Y, -0.12 + seesaw + fidget)
+          .addScaledVector(facing, 0.12 + sd * reach + Math.sin(tw * 1.6 + sd) * 0.04);
         pole.copy(Y).multiplyScalar(-1).addScaledVector(facing, -0.5).addScaledVector(shoulderDir, sd * 0.2);
         bend(shoulder, hand, rest.upper, rest.fore, pole, elbow);
         setGroup([`humerus_${tag}`], body[`humerus_${tag}`].p0, shoulder, carry(tmp.subVectors(body[`ulna_${tag}`].p0, body[`humerus_${tag}`].p0), rest.shoulderLine, edge.subVectors(elbow, shoulder), shoulderDir, turn));

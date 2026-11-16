@@ -26,87 +26,151 @@ export const originIntro = { start: Infinity, length: 3.9, skipped: false };
 const FREEZE = typeof location !== "undefined" && new URLSearchParams(location.search).has("introAt") ? Number(new URLSearchParams(location.search).get("introAt")) : null;
 const UNIT = new THREE.Vector3(0.0, 1.36, 0.3); // the camera unit's lens, in goggle space
 
-// Goggles, strap, helmet edge and camera unit as a point cloud. Returns position, part id and lens uv per point.
-function buildGoggles(count: number) {
-  const pos = new Float32Array(count * 3);
-  const part = new Float32Array(count);
-  const uv = new Float32Array(count * 2);
-  let seed = 23;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+// Goggles, strap, helmet edge and camera unit as line art, seen nearly square-on.
+// Returns line segments with, per vertex, a draw-on order (0..1) and a kind:
+// 0 outline, 1 camera unit, 2 speed line in the lens, 3 gate in the lens, 4 strap / helmet.
+function buildGoggleLines() {
+  const pos: number[] = [];
+  const order: number[] = [];
+  const kind: number[] = [];
   const A = 2.3;
   const B = 1.02;
   const N = 2.6;
-  const lensZ = (x: number, y: number) => -0.17 * x * x + 0.14 * (1 - (y / B) * (y / B));
+  const lensZ = (x: number, y: number) => -0.1 * x * x + 0.08 * (1 - (y / B) * (y / B));
   const notch = (x: number) => 0.42 * Math.exp(-((x / 0.46) ** 2));
-  const inside = (x: number, y: number) => Math.abs(x / A) ** N + Math.abs(y / B) ** N <= 1 && y > -B + notch(x) * 2.2 - 0.02;
-  const put = (i: number, x: number, y: number, z: number, id: number, u = 0, v = 0) => {
-    pos.set([x, y, z], i * 3);
-    part[i] = id;
-    uv.set([u, v], i * 2);
+  const floor = (x: number) => -B + notch(x) * 2.2;
+  const inside = (x: number, y: number) => Math.abs(x / A) ** N + Math.abs(y / B) ** N <= 1 && y > floor(x);
+  // Drawn by hand, not by ruler: outlines and the figure carry a small wander.
+  const wander = (x: number, y: number, k: number) => (k === 0 || k >= 4 ? Math.sin(x * 7.3 + y * 5.1 + k) * 0.014 + Math.sin(x * 19.0 - y * 13.0) * 0.006 : 0);
+  const seg = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, o0: number, o1: number, k: number) => {
+    pos.push(x0 + wander(x0, y0, k), y0 + wander(y0, x0, k), z0, x1 + wander(x1, y1, k), y1 + wander(y1, x1, k), z1);
+    order.push(o0, o1);
+    kind.push(k, k);
   };
-  for (let i = 0; i < count; i += 1) {
-    const pick = i / count;
-    if (pick < 0.4) {
-      // Lens
-      let x = 0;
-      let y = 0;
-      do {
-        x = (rnd() * 2 - 1) * A;
-        y = (rnd() * 2 - 1) * B;
-      } while (!inside(x, y));
-      put(i, x, y, lensZ(x, y), 0, x / A, y / B);
-    } else if (pick < 0.62) {
-      // Frame: a band round the lens with some depth behind it
-      const th = rnd() * 6.283;
+  const outline = (grow: number, back: number, k: number, from: number) => {
+    const STEPS = 220;
+    let px = 0;
+    let py = 0;
+    for (let i = 0; i <= STEPS; i += 1) {
+      const th = (i / STEPS) * Math.PI * 2;
       const c = Math.cos(th);
       const sn = Math.sin(th);
       const rad = (Math.abs(c) ** N + Math.abs(sn) ** N) ** (-1 / N);
       let x = c * rad * A;
       let y = sn * rad * B;
-      if (y < 0) y = Math.max(y, -B + notch(x) * 2.2);
-      const grow = 1.02 + rnd() * 0.13;
+      if (y < 0) y = Math.max(y, floor(x));
       x *= grow;
       y *= grow;
-      put(i, x, y, lensZ(x / grow, y / grow) - rnd() * 0.42, 1);
-    } else if (pick < 0.78) {
-      // Strap, running back round the head on both sides
-      const side = rnd() < 0.5 ? -1 : 1;
-      const t = rnd();
-      const ang = t * 1.45;
-      put(i, side * (2.55 * Math.cos(ang) + 0.05), (rnd() - 0.5) * 0.62, lensZ(2.4, 0) - 0.3 - 2.9 * Math.sin(ang), 2, t, 0);
-    } else if (pick < 0.9) {
-      // Camera unit: a small housing clipped to the top of the frame, with a lens ring and a mount
-      const r = rnd();
-      if (r < 0.34) {
-        const ang = rnd() * 6.283;
-        const rad = rnd() < 0.6 ? 0.17 : rnd() * 0.17;
-        put(i, UNIT.x + Math.cos(ang) * rad, UNIT.y + Math.sin(ang) * rad, UNIT.z + 0.02, 3, 1, 0);
-      } else if (r < 0.9) {
-        const w = 0.52;
-        const h = 0.27;
-        const d = 0.3;
-        const face = Math.floor(rnd() * 6);
-        const a = rnd() * 2 - 1;
-        const b = rnd() * 2 - 1;
-        const q = face < 2 ? [face ? w : -w, a * h, b * d] : face < 4 ? [a * w, face === 2 ? h : -h, b * d] : [a * w, b * h, face === 4 ? d : -d];
-        put(i, UNIT.x + q[0], UNIT.y + q[1], UNIT.z - d + q[2], 3, 0, 0);
-      } else {
-        put(i, UNIT.x + (rnd() - 0.5) * 0.3, UNIT.y - 0.27 - rnd() * 0.14, UNIT.z - 0.3 + (rnd() - 0.5) * 0.3, 3, 0, 0);
-      }
-    } else {
-      // Helmet edge above, and the line of a cheek below
-      if (rnd() < 0.7) {
-        const th = (rnd() - 0.5) * 2.5;
-        const ph = 0.42 + rnd() * 0.75;
-        put(i, 3.0 * Math.sin(th) * Math.cos(ph), 0.35 + 3.0 * Math.sin(ph), -2.55 + 3.0 * Math.cos(th) * Math.cos(ph), 4);
-      } else {
-        const th = (rnd() - 0.5) * 1.9;
-        const dn = rnd();
-        put(i, 2.2 * Math.sin(th) * (1 - dn * 0.25), -1.15 - dn * 1.25, -2.0 + 2.25 * Math.cos(th) * (1 - dn * 0.12), 4);
+      if (i > 0) seg(px, py, lensZ(px / grow, py / grow) - back, x, y, lensZ(x / grow, y / grow) - back, from + ((i - 1) / STEPS) * 0.4, from + (i / STEPS) * 0.4, k);
+      px = x;
+      py = y;
+    }
+  };
+  outline(1, 0, 0, 0);
+  outline(1.1, 0.06, 0, 0.1);
+  outline(1.16, 0.3, 4, 0.2);
+
+  // Camera unit: housing, lens rings, mount.
+  const w = 0.56;
+  const h = 0.28;
+  const d = 0.3;
+  const cz = UNIT.z;
+  const corners = [[-w, -h], [w, -h], [w, h], [-w, h]];
+  for (let i = 0; i < 4; i += 1) {
+    const [x0, y0] = corners[i];
+    const [x1, y1] = corners[(i + 1) % 4];
+    seg(UNIT.x + x0, UNIT.y + y0, cz, UNIT.x + x1, UNIT.y + y1, cz, 0.45, 0.6, 1);
+    seg(UNIT.x + x0, UNIT.y + y0, cz - d * 2, UNIT.x + x1, UNIT.y + y1, cz - d * 2, 0.5, 0.65, 1);
+    seg(UNIT.x + x0, UNIT.y + y0, cz, UNIT.x + x0, UNIT.y + y0, cz - d * 2, 0.5, 0.62, 1);
+  }
+  for (const [r, o] of [[0.19, 0.6], [0.14, 0.66], [0.07, 0.72]]) {
+    for (let i = 0; i < 40; i += 1) {
+      const a0 = (i / 40) * 6.2832;
+      const a1 = ((i + 1) / 40) * 6.2832;
+      seg(UNIT.x + Math.cos(a0) * r, UNIT.y + Math.sin(a0) * r, cz + 0.02, UNIT.x + Math.cos(a1) * r, UNIT.y + Math.sin(a1) * r, cz + 0.02, o, o + 0.1, 1);
+    }
+  }
+  seg(UNIT.x - 0.2, UNIT.y - h, cz - 0.1, UNIT.x - 0.24, B * 1.1 + 0.02, -0.02, 0.6, 0.7, 1);
+  seg(UNIT.x + 0.2, UNIT.y - h, cz - 0.1, UNIT.x + 0.24, B * 1.1 + 0.02, -0.02, 0.6, 0.7, 1);
+
+  // In the lens: speed lines fanning out from the vanishing point, a horizon, and gates coming at the rider.
+  const vx = 0.1;
+  const vy = 0.14;
+  for (let i = 0; i < 46; i += 1) {
+    const ang = Math.PI + (i / 45) * Math.PI + (i % 3) * 0.02; // the lower half: the slope
+    const dx = Math.cos(ang);
+    const dy = Math.sin(ang) * 0.75;
+    let px = vx + dx * 0.12;
+    let py = vy + dy * 0.12;
+    for (let st = 1; st <= 30; st += 1) {
+      const r = 0.12 + (st / 30) * 2.6;
+      const x = vx + dx * r;
+      const y = vy + dy * r;
+      if (inside(x * 1.04, y * 1.06) && inside(px * 1.04, py * 1.06)) seg(px, py, lensZ(px, py) + 0.01, x, y, lensZ(x, y) + 0.01, (st - 1) / 30, st / 30, 2);
+      px = x;
+      py = y;
+    }
+  }
+  for (let st = 0; st < 60; st += 1) {
+    const x0 = -A + (st / 60) * 2 * A;
+    const x1 = -A + ((st + 1) / 60) * 2 * A;
+    if (inside(x0 * 1.05, vy) && inside(x1 * 1.05, vy)) seg(x0, vy, lensZ(x0, vy) + 0.01, x1, vy, lensZ(x1, vy) + 0.01, 0.7, 0.8, 0);
+  }
+  for (let g = 0; g < 14; g += 1) {
+    const ph = (Math.floor(g / 2) + 1) / 7; // near gates are larger and further out
+    const side = g % 2 === 0 ? -1 : 1;
+    const x = vx + side * (0.08 + 1.75 * ph * ph);
+    const top = vy + 0.08 + 0.5 * ph;
+    const bottom = vy - 0.05 - 0.55 * ph;
+    if (!inside(x * 1.05, top * 1.05) || !inside(x * 1.05, bottom * 1.05)) continue;
+    seg(x, bottom, lensZ(x, bottom) + 0.02, x, top, lensZ(x, top) + 0.02, ph, ph, 3);
+    seg(x, top, lensZ(x, top) + 0.02, x + side * -0.22 * ph, top - 0.02, lensZ(x, top) + 0.02, ph, ph, 3);
+    seg(x + side * -0.22 * ph, top - 0.02, lensZ(x, top) + 0.02, x, top - 0.16 * ph, lensZ(x, top) + 0.02, ph, ph, 3);
+  }
+
+  // Strap either side and the helmet's edge above.
+  for (const side of [-1, 1]) {
+    for (const off of [-0.3, 0, 0.3]) {
+      let px = side * 2.62;
+      let pz = lensZ(2.4, 0) - 0.3;
+      for (let st = 1; st <= 24; st += 1) {
+        const ang = (st / 24) * 1.2;
+        const x = side * (2.62 * Math.cos(ang) + 0.04);
+        const z = lensZ(2.4, 0) - 0.3 - 2.9 * Math.sin(ang);
+        seg(px, off, pz, x, off * (1 - st / 60), z, 0.6 + (st / 24) * 0.3, 0.6 + ((st + 1) / 24) * 0.3, 4);
+        px = x;
+        pz = z;
       }
     }
   }
-  return { pos, part, uv };
+  // The rider, in a few strokes: a curve through free points for each feature (kind 5).
+  const stroke = (pts: [number, number][], from: number, z = -0.25) => {
+    const at = (i: number) => pts[Math.max(0, Math.min(pts.length - 1, i))];
+    let px = pts[0][0];
+    let py = pts[0][1];
+    const STEPS = (pts.length - 1) * 10;
+    for (let st = 1; st <= STEPS; st += 1) {
+      const f = st / 10;
+      const i = Math.min(Math.floor(f), pts.length - 2);
+      const t = f - i;
+      const c = (a: number, b: number, cc: number, dd: number) => 0.5 * (2 * b + (-a + cc) * t + (2 * a - 5 * b + 4 * cc - dd) * t * t + (-a + 3 * b - 3 * cc + dd) * t * t * t);
+      const x = c(at(i - 1)[0], at(i)[0], at(i + 1)[0], at(i + 2)[0]);
+      const y = c(at(i - 1)[1], at(i)[1], at(i + 1)[1], at(i + 2)[1]);
+      seg(px, py, z, x, y, z, from + ((st - 1) / STEPS) * 0.25, from + (st / STEPS) * 0.25, 5);
+      px = x;
+      py = y;
+    }
+  };
+  stroke([[-0.16, -0.72], [-0.22, -1.2], [-0.36, -1.52], [-0.2, -1.66], [0, -1.6], [0.2, -1.66], [0.36, -1.52], [0.22, -1.2], [0.16, -0.72]], 0.55); // nose
+  stroke([[-0.62, -2.12], [-0.3, -2.2], [0, -2.14], [0.3, -2.2], [0.62, -2.12]], 0.7); // mouth
+  stroke([[-0.3, -2.42], [0, -2.47], [0.3, -2.42]], 0.75);
+  stroke([[-2.45, -0.75], [-2.3, -1.7], [-1.75, -2.75], [-0.85, -3.4], [0, -3.55], [0.85, -3.4], [1.75, -2.75], [2.3, -1.7], [2.45, -0.75]], 0.6); // jaw
+  stroke([[-1.15, -3.3], [-1.3, -4.1], [-2.3, -4.7], [-3.9, -5.1]], 0.8, -0.6); // neck and shoulder
+  stroke([[1.15, -3.3], [1.3, -4.1], [2.3, -4.7], [3.9, -5.1]], 0.8, -0.6);
+  stroke([[-2.75, -0.2], [-2.95, 0.9], [-2.6, 2.25], [-1.5, 3.2], [0, 3.52], [1.5, 3.2], [2.6, 2.25], [2.95, 0.9], [2.75, -0.2]], 0.5, -0.4); // helmet
+  stroke([[-2.75, -0.2], [-2.85, -1.1], [-2.5, -2.0]], 0.7, -0.4);
+  stroke([[2.75, -0.2], [2.85, -1.1], [2.5, -2.0]], 0.7, -0.4);
+  return { pos: new Float32Array(pos), order: new Float32Array(order), kind: new Float32Array(kind) };
 }
 
 // Act 0 — the cerebellar field gathers into a woven strand, then resolves into a moving body.
@@ -126,6 +190,7 @@ export function createOrigin(): Act {
     uStrand: { value: 0 },
     uShow: { value: 0 },
     uIntro: { value: 1 },
+    uDraw: { value: 0 },
     uLift: { value: 0 },
     uTime: { value: 0 },
     uScatter: { value: 0 },
@@ -148,10 +213,6 @@ export function createOrigin(): Act {
     geometry.setAttribute("position", new THREE.BufferAttribute(cerebellum, 3));
     geometry.setAttribute("aHuman", new THREE.BufferAttribute(human, 3));
     geometry.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
-    const goggles = buildGoggles(count);
-    geometry.setAttribute("aGoggle", new THREE.BufferAttribute(goggles.pos, 3));
-    geometry.setAttribute("aPart", new THREE.BufferAttribute(goggles.part, 1));
-    geometry.setAttribute("aUv", new THREE.BufferAttribute(goggles.uv, 2));
     geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 40);
     const material = new THREE.ShaderMaterial({
       uniforms,
@@ -160,32 +221,9 @@ export function createOrigin(): Act {
       blending: THREE.AdditiveBlending,
       vertexShader: /* glsl */ `
         uniform float uMorph, uStrand, uTime, uScatter, uSize, uAspect, uIntro; uniform vec2 uPointer;
-        attribute vec3 aHuman; attribute vec3 aGoggle; attribute float aSeed; attribute float aPart; attribute vec2 aUv;
+        attribute vec3 aHuman; attribute float aSeed;
         varying float vSeed; varying float vMix; varying float vNear; varying float vStrand; varying float vKind;
-        varying float vIntro; varying vec3 vTone;
-        // What the lens shows: the slope rushing past, gates coming at the rider, a low sun.
-        vec3 reflection(vec2 uv, float t){
-          vec2 vp = vec2(0.05, 0.16);
-          vec2 d = uv - vp;
-          float r = length(d);
-          float ang = atan(d.y, d.x);
-          float sky = smoothstep(vp.y - 0.05, 0.95, uv.y);
-          vec3 col = mix(vec3(0.34, 0.8, 0.86), vec3(0.42, 0.26, 0.95), sky) * 0.55;
-          float ground = 1.0 - smoothstep(vp.y - 0.04, vp.y + 0.04, uv.y);
-          float rush = pow(0.5 + 0.5 * sin(log(r + 0.03) * 10.0 - t * 11.0 + sin(ang * 6.0) * 1.4), 4.0);
-          col += ground * rush * vec3(0.8, 1.0, 1.0) * 0.9;
-          for (int k = 0; k < 3; k++) {
-            float ph = fract(t * 0.55 + float(k) * 0.333);
-            float side = mod(float(k), 2.0) < 0.5 ? -1.0 : 1.0;
-            float gx = vp.x + side * (0.05 + 1.1 * ph * ph);
-            float tall = 0.1 + 0.9 * ph;
-            float bar = smoothstep(0.02 + 0.05 * ph, 0.0, abs(uv.x - gx)) * step(vp.y - tall * 0.7, uv.y) * step(uv.y, vp.y + tall * 0.6);
-            col += bar * (side < 0.0 ? vec3(0.75, 0.5, 1.0) : vec3(0.3, 1.0, 0.7)) * (0.4 + ph);
-          }
-          col += exp(-dot(uv - vec2(-0.5, 0.62), uv - vec2(-0.5, 0.62)) * 26.0) * vec3(1.0, 0.95, 0.85) * 1.6;
-          col += pow(max(0.0, 1.0 - abs(uv.y - 0.74 + uv.x * 0.2) * 9.0), 3.0) * 0.5;
-          return col;
-        }
+        varying float vIntro;
         ${FIBER}
         void main(){
           float stagger = aSeed * 0.5;
@@ -194,10 +232,11 @@ export function createOrigin(): Act {
           float x = clamp(uScatter * 1.5 - stagger, 0.0, 1.0); x = x * x * (3.0 - 2.0 * x);
           vec3 s = fiber(fract(aSeed * 7.31), fiberSeed(aSeed));
           s += (vec3(fract(aSeed * 91.7), fract(aSeed * 57.3), fract(aSeed * 33.1)) - 0.5) * 0.05;
-          // Opening: every particle starts as part of the goggles, then bursts out and lands on the cerebellum.
+          // Opening: every particle waits inside the camera unit, then bursts out of its lens and lands on the cerebellum.
           float g = clamp(uIntro * 1.35 - aSeed * 0.35, 0.0, 1.0); g = g * g * (3.0 - 2.0 * g);
-          vec3 flung = normalize(aGoggle - vec3(0.0, 1.3, 0.3) + (vec3(fract(aSeed * 17.0), fract(aSeed * 29.0), fract(aSeed * 41.0)) - 0.5)) * (2.0 + 5.0 * aSeed);
-          vec3 start = mix(position, aGoggle, g) + flung * sin(g * 3.14159) * (1.0 - step(0.999, uIntro));
+          vec3 dir = normalize(vec3(fract(aSeed * 17.0), fract(aSeed * 29.0), fract(aSeed * 41.0)) - 0.5);
+          vec3 unit = vec3(${UNIT.x.toFixed(2)}, ${UNIT.y.toFixed(2)}, ${UNIT.z.toFixed(2)});
+          vec3 start = mix(position, unit + dir * 0.05, g) + dir * (2.0 + 5.0 * aSeed) * sin(g * 3.14159);
           vec3 p = mix(mix(start, s, a), aHuman, m);
           p = mix(p, s + vec3(0.0, 1.5 * x, 0.0), x);
           p += normalize(p + 0.001) * sin(uTime * 0.7 + aSeed * 18.0) * 0.02;
@@ -210,20 +249,13 @@ export function createOrigin(): Act {
           mv.xy += normalize(d + 0.0001) * near * 0.42 * (1.0 - onStrand);
           gl_Position = projectionMatrix * mv;
           float sparkle = 1.0 + 0.7 * sin(aSeed * 74.0 + uTime * 0.5);
-          gl_PointSize = max(1.5, uSize * sparkle * mix(mix(17.0, 11.0, onStrand), aPart < 0.5 ? 19.0 : (aPart < 3.5 ? 15.0 : 11.0), g) / -mv.z);
+          gl_PointSize = max(1.5, uSize * sparkle * mix(17.0, 11.0, onStrand) / -mv.z);
           vIntro = g;
-          vTone = aPart < 0.5 ? reflection(aUv, uTime) * 2.1
-            : aPart < 1.5 ? vec3(0.95, 0.97, 1.0)
-            : aPart < 2.5 ? mix(vec3(0.5, 0.36, 0.95), vec3(0.2, 0.85, 0.6), step(0.5, fract(aUv.x * 6.0)))
-            : aPart < 3.5 ? mix(vec3(0.85, 0.9, 1.0), vec3(0.3, 1.0, 0.72), aUv.x) * (1.0 + aUv.x * (0.6 + 0.6 * sin(uTime * 6.0)))
-            : vec3(0.5, 0.5, 0.75);
-          vSeed = aSeed; vMix = m; vNear = near; vStrand = onStrand;
-          vKind = step(0.5, fract(fiberSeed(aSeed) * 3.17));
         }`,
       fragmentShader: /* glsl */ `
         precision highp float;
         varying float vSeed; varying float vMix; varying float vNear; varying float vStrand; varying float vKind;
-        varying float vIntro; varying vec3 vTone;
+        varying float vIntro;
         void main(){
           vec2 q = gl_PointCoord - 0.5;
           float a = smoothstep(0.5, 0.1, length(q));
@@ -235,7 +267,7 @@ export function createOrigin(): Act {
           vec3 rail = mix(vec3(0.7, 0.5, 1.0), vec3(0.25, 0.95, 0.62), vKind);
           col = mix(col, mix(rail, vec3(1.0, 0.97, 0.9), vNear * 0.8), vStrand * 0.9);
           float alpha = (0.5 + 0.3 * pick + vNear * 0.6) * mix(1.0, 0.75, vStrand);
-          gl_FragColor = vec4(mix(col, vTone, vIntro), a * mix(alpha, 0.95, vIntro));
+          gl_FragColor = vec4(mix(col, vec3(1.0, 0.98, 0.92), vIntro * 0.6), a * alpha * (1.0 - smoothstep(0.8, 1.0, vIntro)));
         }`,
     });
     group.add(new THREE.Points(geometry, material));
@@ -340,26 +372,130 @@ export function createOrigin(): Act {
     group.add(beads);
   }
 
-  // Wind: streaks of light and flecks of snow tearing past the goggles while the opening plays.
+  // ---- The opening's goggles, as line art that draws itself on.
   {
-    const W = 220;
+    const built = buildGoggleLines();
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(built.pos, 3));
+    geo.setAttribute("aOrder", new THREE.BufferAttribute(built.order, 1));
+    geo.setAttribute("aKind", new THREE.BufferAttribute(built.kind, 1));
+    const lines = new THREE.LineSegments(geo, new THREE.ShaderMaterial({
+      uniforms,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      blending: THREE.AdditiveBlending,
+      vertexShader: /* glsl */ `
+        uniform float uTime, uIntro, uDraw; attribute float aOrder; attribute float aKind;
+        varying float vA; varying float vKind;
+        void main(){
+          vec3 p = position;
+          // On the burst the drawing flies apart from the camera unit.
+          float gone = 1.0 - uIntro;
+          vec3 away = p - vec3(${UNIT.x.toFixed(2)}, ${UNIT.y.toFixed(2)}, ${UNIT.z.toFixed(2)});
+          p += away * gone * (1.2 + 1.5 * fract(aOrder * 37.0));
+          float drawn = smoothstep(aOrder * 0.75, aOrder * 0.75 + 0.2, uDraw);
+          float a = drawn * uIntro * uIntro * uIntro;
+          if (aKind > 1.5 && aKind < 2.5) {
+            // Speed lines: dashes of light running outward from the vanishing point.
+            a *= 0.12 + 0.88 * pow(0.5 + 0.5 * sin(aOrder * 16.0 - uTime * 9.0 + position.x * 3.0), 6.0);
+          } else if (aKind > 2.5 && aKind < 3.5) {
+            // Gates: each lights as the run reaches it, far to near, again and again.
+            float ph = fract(uTime * 0.7);
+            a *= smoothstep(0.16, 0.0, abs(ph - aOrder)) * (0.5 + aOrder);
+          } else if (aKind > 4.5) {
+            a *= 0.7;
+          } else if (aKind > 3.5) {
+            a *= 0.38;
+          }
+          vA = a;
+          vKind = aKind;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+        }`,
+      fragmentShader: /* glsl */ `
+        precision highp float; varying float vA; varying float vKind;
+        void main(){
+          vec3 c = vKind < 0.5 ? vec3(0.93, 0.95, 1.0)
+            : vKind < 1.5 ? vec3(0.45, 1.0, 0.76)
+            : vKind < 2.5 ? vec3(0.62, 0.9, 1.0)
+            : vKind < 3.5 ? vec3(0.78, 0.56, 1.0)
+            : vKind < 4.5 ? vec3(0.6, 0.55, 0.9)
+            : vec3(0.9, 0.92, 1.0);
+          gl_FragColor = vec4(c, vA);
+        }`,
+    }));
+    lines.frustumCulled = false;
+    lines.renderOrder = 5;
+    group.add(lines);
+  }
+
+  // ---- Snow in the air while the opening plays. Nothing regular about it: every flake has its own
+  // speed, fall, wobble, size and colour, and a few come past as fast streaks.
+  {
+    const FLAKES = 1100;
+    const p0 = new Float32Array(FLAKES * 3);
+    const q = new Float32Array(FLAKES * 4);
+    for (let i = 0; i < FLAKES; i += 1) {
+      p0.set([(Math.random() - 0.5) * 22, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12 + 1], i * 3);
+      q.set([Math.random(), Math.random(), Math.random(), Math.random()], i * 4);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(p0, 3));
+    geo.setAttribute("aQ", new THREE.BufferAttribute(q, 4));
+    const snow = new THREE.Points(geo, new THREE.ShaderMaterial({
+      uniforms,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      blending: THREE.AdditiveBlending,
+      vertexShader: /* glsl */ `
+        uniform float uTime, uIntro, uSize; attribute vec4 aQ; varying float vA; varying float vC; varying float vSoft;
+        void main(){
+          vec3 p = position;
+          float speed = 0.8 + 26.0 * aQ.x * aQ.x * aQ.x + 3.0 * aQ.y;         // a few fast, most slow
+          float gust = 1.0 + 0.5 * sin(uTime * 0.7 + aQ.z * 6.283) * aQ.w;    // gusts hit flakes unevenly
+          p.x = mod(p.x - uTime * speed * gust + 11.0, 22.0) - 11.0;
+          p.y = mod(p.y - uTime * (0.3 + 2.4 * aQ.w * aQ.y) + 6.0, 12.0) - 6.0;
+          p.y += sin(uTime * (0.6 + 2.2 * aQ.z) + aQ.x * 40.0) * (0.05 + 0.35 * aQ.w);
+          p.z += cos(uTime * (0.4 + 1.5 * aQ.y) + aQ.z * 30.0) * 0.3 * aQ.x;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          float big = pow(aQ.z, 5.0);
+          gl_PointSize = uSize * (11.0 + 70.0 * big + 14.0 * aQ.w) / -mv.z;
+          vSoft = big;
+          vC = aQ.y;
+          vA = uIntro * (0.45 + 0.75 * aQ.w) * (0.55 + 0.45 * sin(uTime * (1.0 + 4.0 * aQ.x) + aQ.y * 50.0)) * smoothstep(11.0, 8.0, abs(p.x));
+        }`,
+      fragmentShader: /* glsl */ `
+        precision highp float; varying float vA; varying float vC; varying float vSoft;
+        void main(){
+          float d = length(gl_PointCoord - 0.5);
+          float a = smoothstep(0.5, mix(0.0, 0.35, vSoft), d);
+          vec3 c = vC > 0.9 ? vec3(0.8, 0.6, 1.0) : (vC > 0.72 ? vec3(0.45, 1.0, 0.82) : (vC > 0.4 ? vec3(0.78, 0.9, 1.0) : vec3(1.0)));
+          gl_FragColor = vec4(c, a * vA * mix(0.9, 0.22, vSoft));
+        }`,
+    }));
+    snow.frustumCulled = false;
+    scene.add(snow);
+
+    const W = 46;
     const a: number[] = [];
     const end: number[] = [];
     const sd: number[] = [];
     for (let i = 0; i < W; i += 1) {
-      const x = (Math.random() - 0.5) * 16;
-      const y = (Math.random() - 0.5) * 7;
-      const z = (Math.random() - 0.3) * 5;
+      const x = (Math.random() - 0.5) * 22;
+      const y = (Math.random() - 0.5) * 9;
+      const z = (Math.random() - 0.3) * 6;
       const k = Math.random();
       a.push(x, y, z, x, y, z);
       end.push(0, 1);
       sd.push(k, k);
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(a), 3));
-    geo.setAttribute("aEnd", new THREE.BufferAttribute(new Float32Array(end), 1));
-    geo.setAttribute("aSeed", new THREE.BufferAttribute(new Float32Array(sd), 1));
-    const wind = new THREE.LineSegments(geo, new THREE.ShaderMaterial({
+    const sgeo = new THREE.BufferGeometry();
+    sgeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(a), 3));
+    sgeo.setAttribute("aEnd", new THREE.BufferAttribute(new Float32Array(end), 1));
+    sgeo.setAttribute("aSeed", new THREE.BufferAttribute(new Float32Array(sd), 1));
+    const streaks = new THREE.LineSegments(sgeo, new THREE.ShaderMaterial({
       uniforms,
       transparent: true,
       depthWrite: false,
@@ -368,23 +504,23 @@ export function createOrigin(): Act {
         uniform float uTime, uIntro; attribute float aEnd; attribute float aSeed; varying float vA; varying float vK;
         void main(){
           vec3 p = position;
-          float speed = 9.0 + aSeed * 16.0;
-          p.x = mod(p.x - uTime * speed + 8.0, 16.0) - 8.0 + aEnd * (0.5 + aSeed * 1.8);
-          p.y += sin(p.x * 0.6 + aSeed * 30.0) * 0.12 - p.x * 0.05;
-          vA = (1.0 - aEnd) * uIntro * (0.25 + 0.6 * aSeed) * smoothstep(8.0, 5.0, abs(p.x));
+          float speed = 14.0 + 40.0 * aSeed * aSeed;
+          p.x = mod(p.x - uTime * speed + 11.0, 22.0) - 11.0 + aEnd * (0.3 + 2.6 * aSeed * aSeed);
+          p.y += sin(aSeed * 80.0) * 0.4 - p.x * (0.02 + 0.1 * fract(aSeed * 7.0));
+          vA = (1.0 - aEnd) * uIntro * (0.15 + 0.5 * fract(aSeed * 13.0)) * smoothstep(11.0, 7.0, abs(p.x));
           vK = aSeed;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
         }`,
       fragmentShader: /* glsl */ `
         precision highp float; varying float vA; varying float vK;
-        void main(){ gl_FragColor = vec4(mix(vec3(0.85, 0.95, 1.0), vec3(0.6, 0.45, 1.0), step(0.7, vK)), vA); }`,
+        void main(){ gl_FragColor = vec4(mix(vec3(0.9, 0.96, 1.0), vec3(0.6, 0.45, 1.0), step(0.75, vK)), vA); }`,
     }));
-    wind.frustumCulled = false;
-    scene.add(wind);
+    streaks.frustumCulled = false;
+    scene.add(streaks);
   }
 
   // Rotation carries weight: a spring with some mass, so the scene follows the pointer late and settles.
-  const spin = { y: -0.5, x: -0.08, vy: 0, vx: 0 };
+  const spin = { y: -0.08, x: 0, vy: 0, vx: 0 };
   const glow = { x: 0, y: 0, vx: 0, vy: 0 };
   const last = { x: 0, y: 0 };
   const vel = { x: 0, y: 0 };
@@ -435,7 +571,7 @@ export function createOrigin(): Act {
       const targetX = wide ? 0.06 + 0.16 * smooth(0.5, 1.0, hero) : 0;
       act.offset!.x = damp(act.offset!.x, targetX, 4, ctx.dt);
       act.offset!.y = wide ? 0 : 0.14;
-      group.scale.setScalar((wide ? 1.12 : 0.66) * (1 - morph * 0.2) * (1 + 0.28 * uniforms.uIntro.value));
+      group.scale.setScalar((wide ? 1.12 : 0.66) * (1 - morph * 0.2) * (1 - 0.3 * uniforms.uIntro.value));
 
       // Opening clock: hold on the goggles, push into the camera unit, burst into the cerebellum.
       if ((hero > 0.2 || ctx.reduced) && FREEZE === null) originIntro.skipped = true;
@@ -443,9 +579,10 @@ export function createOrigin(): Act {
       const intro = e < 0 ? 1 : 1 - smooth(2.7, originIntro.length, e);
       const push = e < 0 ? 0 : smooth(1.5, 2.9, e) * (1 - smooth(2.9, 3.5, e));
       uniforms.uIntro.value = intro;
+      uniforms.uDraw.value = e < 0 ? 0 : Math.min(1.4, e / 0.9);
 
-      const wantY = lerp(-0.5 + clamp01(hero) * 0.5 + morph * 1.1, -0.42, intro) + ctx.pointer.x * lerp(0.55, 0.25, intro) + (ctx.reduced ? 0 : Math.sin(ctx.time * 0.2) * 0.06);
-      const wantX = lerp(-0.08, 0.06, intro) - ctx.pointer.y * 0.3;
+      const wantY = lerp(-0.5 + clamp01(hero) * 0.5 + morph * 1.1, -0.08, intro) + ctx.pointer.x * lerp(0.55, 0.12, intro) + (ctx.reduced ? 0 : Math.sin(ctx.time * 0.2) * 0.06);
+      const wantX = lerp(-0.08, 0.0, intro) - ctx.pointer.y * lerp(0.3, 0.08, intro);
       // Heavy and over-damped: it starts late, moves slowly and settles without swinging back.
       spin.vy += ((wantY - spin.y) * 4 - spin.vy * 4.6) * dt;
       spin.vx += ((wantX - spin.x) * 4 - spin.vx * 4.6) * dt;
