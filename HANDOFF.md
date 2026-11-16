@@ -198,3 +198,6 @@ Removed visible loading numbers. The centred wordmark now sits above a slim viol
 
 ### Smooth headline re-entry
 Replace binary raw-pointer text hit testing with continuous aperture-to-text proximity, using the same lagged coordinates as the rendered lens. The effect remains active while its circle overlaps a headline, bridging line gaps; text strength and particle visibility ease independently without resetting node positions or bonds. Keep the crisp spatial text mask and existing particle radius.
+
+### Outline-first headline entrance
+Active headlines now briefly reveal their existing outline layer, followed by a bottom-up white fill in 620ms (90ms line stagger). Entrance is gated on is-live so loading cannot consume it. The outline animation releases its opacity back to the existing hover rules; fill uses clip-path independently of the pointer mask. Reduced motion skips the new effect.

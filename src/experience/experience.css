@@ -374,3 +374,24 @@
 
 /* No decorative pointer ring; retain the native cursor. */
 .xp .xp-cursor{display:none}
+
+/* Fast outline-first headline entrance; hover masks remain independent. */
+.xp.is-live .ch.is-on .ln > span::before {
+  animation: xp-type-fill .62s cubic-bezier(.22,.7,.2,1) calc(.3s + var(--i,0) * .09s) backwards;
+}
+.xp.is-live .ch.is-on .ln > span::after {
+  animation: xp-type-outline .72s ease-out calc(.3s + var(--i,0) * .09s) backwards;
+}
+@keyframes xp-type-fill {
+  0%, 22% { clip-path: inset(100% 0 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+@keyframes xp-type-outline {
+  0% { opacity: 0; }
+  18%, 68% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xp.is-live .ch.is-on .ln > span::before,
+  .xp.is-live .ch.is-on .ln > span::after { animation: none; }
+}
