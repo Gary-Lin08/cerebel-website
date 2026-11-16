@@ -300,3 +300,6 @@ Everything is in D major now: each act's pad chord is diatonic with open voicing
 
 ### Phone layout pass (390 × 844 checked as stills)
 New block at the end of `experience.css`. Top bar: "Previous site" hidden, smaller Request a demo pill, sound icon only. Headlines: one size per line that fits the width, lines never wrap internally (this was the odd gap in the hero). Motion: copy clears the readouts; the muscle entry moves to the top right and shrinks; traces hidden. Snow: copy clears the readouts; per-force labels hidden (leg load label stays); the "Computed… Not measured" disclosure stays visible. Benchmark: number and headline at the top, tapes in the middle (offset tuned), switch and table at the bottom; the explanatory sentence is hidden on phones. Glasses and Data loop: subject centred in the upper half on phones (`offset` set per aspect in `acts/glasses.ts` and `acts/flywheel.ts`; the loop is scaled to 0.56); loop step buttons span the width. Not checked: other phone sizes, landscape, real devices.
+
+### Sound removed (user: remove it)
+`sound.ts`, the toggle and its CSS are deleted. Do not add sound back unless asked.
