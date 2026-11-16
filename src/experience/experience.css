@@ -595,3 +595,6 @@
 .ch p, .ch li, .ch .metric { text-shadow: 0 0 20px rgba(233, 236, 242, 0.16); }
 .ln > span::before { text-shadow: 0 0 30px rgba(233, 236, 242, 0.24), 0 0 5px rgba(233, 236, 242, 0.16); }
 .xp:not(.is-ready) .xp-glass { opacity: 0; } .xp-glass { transition: opacity 0.9s; }
+/* Lines no longer slide up from behind a mask, so nothing needs clipping here; clipping cut the headline's halo
+   off in a rectangle. */
+.ln { overflow: visible; }

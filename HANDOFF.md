@@ -284,3 +284,6 @@ Scene grain now holds a pattern for 1/6 s and cross-fades to the next (it used t
 
 ### Grain streaks (user saw vertical lines in the grain)
 Two causes, both fixed in `stage.ts`: the `sin()` hash lined up in columns on large pixel coordinates (replaced by a fract-based hash, also used by `fbm`), and the grain cell was 1.35 device pixels, giving columns of uneven width (now a whole number of pixels). Grain amount reduced again (shader about 20% down, copy tile opacity 0.17).
+
+### Headline halo box
+The halo round headlines was cut off in a rectangle by `.ln { overflow: hidden }`, left over from the old slide-up. `.ln` is now `overflow: visible`.
