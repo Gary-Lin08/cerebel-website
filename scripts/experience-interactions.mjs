@@ -17,6 +17,7 @@ await page.locator('[data-group="Data loop"]').first().click();
 await page.waitForTimeout(2800);
 await page.locator('[data-loop="3"]').click();
 await page.waitForTimeout(2800);
+if(await page.locator('.xp').evaluate(el=>el.scrollLeft!==0 || el.scrollTop!==0)) throw Error('Stage shifted during focus restoration');
 await page.screenshot({path:'/tmp/cerebel-flywheel.png'});
 if (await page.locator('[data-loop="3"]').getAttribute('aria-current') !== 'true') throw Error('Flywheel selection failed');
 await page.locator('[data-group="Origin"]').first().click();

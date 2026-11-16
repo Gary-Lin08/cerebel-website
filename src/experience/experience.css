@@ -347,3 +347,5 @@
 .xp .loop-nav button[aria-current="true"]{color:#c5eea7;border-color:#c5eea7}.loop-nav button:hover i{transform:translate(3px,-3px)}
 @media(prefers-reduced-motion:reduce){.muscle-orbit *{transition:none!important}.orb svg{animation:none}}
 .xp-cursor.is-hover{width:48px;height:48px;left:-24px;top:-24px;background:transparent;border-color:rgba(233,236,242,.65)}
+/* A fixed stage must never become an internal focus-scroll container. */
+.xp{overflow:clip}
