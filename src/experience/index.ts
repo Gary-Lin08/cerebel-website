@@ -381,8 +381,9 @@ export function mountExperience(root: HTMLElement) {
     skiEls.radius.textContent = Number.isFinite(v.radius) && v.radius < 400 ? v.radius.toFixed(0) : "–";
   }
 
+  let entranceStartedAt: number | null = null;
   const acts: Act[] = [
-    createOrigin(),
+    createOrigin(() => entranceStartedAt === null ? 0 : Math.max(0, (performance.now() - entranceStartedAt) / 1200)),
     createSwing(fillSwing, showFrame, () => scrub),
     createSki(showSki),
     createBenchmark(() => seqKey, showBench),
@@ -397,6 +398,7 @@ export function mountExperience(root: HTMLElement) {
   const loader = $(".xp-loader");
   const loaderTrack = loader.querySelector<HTMLElement>(".xp-loader__track")!;
   const loaderFill = loader.querySelector<HTMLElement>(".xp-loader__fill")!;
+  const loadingStartedAt = performance.now();
   let homeReady = false;
   acts[0].ready.then(() => { homeReady = true; });
   // Later scenes load concurrently, but do not block the landing page.
@@ -708,14 +710,21 @@ export function mountExperience(root: HTMLElement) {
     cursor.style.transform = `translate3d(${cur.x}px, ${cur.y}px, 0)`;
 
     if (!started) {
-      if (homeReady) {
+      const elapsed = now - loadingStartedAt;
+      // A short paced presentation, capped below completion until Origin is ready.
+      const progress = Math.min(94, 94 * (1 - Math.exp(-elapsed / 500)));
+      loaderFill.style.width = `${progress}%`;
+      loaderTrack.setAttribute("aria-valuenow", String(Math.round(progress)));
+      if (homeReady && (stage.reduced || elapsed >= 1400)) {
         started = true;
         loaderFill.style.width = "100%";
         loaderTrack.setAttribute("aria-valuenow", "100");
-        root.classList.add("is-ready", "is-live");
-        setTimeout(() => loader.remove(), stage.reduced ? 0 : 350);
-        // Hover follows the headline entrance, without an extra brain-only hold.
-        setTimeout(() => root.classList.add("is-interactive"), stage.reduced ? 0 : 1300);
+        root.classList.add("is-ready");
+        entranceStartedAt = performance.now() + (stage.reduced ? 0 : 150);
+        setTimeout(() => loader.remove(), stage.reduced ? 0 : 600);
+        setTimeout(() => root.classList.add("is-live"), stage.reduced ? 0 : 450);
+        // Enable the pointer only after the title and opening turn have settled.
+        setTimeout(() => root.classList.add("is-interactive"), stage.reduced ? 0 : 1750);
       }
     }
     requestAnimationFrame(tick);

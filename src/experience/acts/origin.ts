@@ -23,7 +23,7 @@ const FIBER = /* glsl */ `
 
 // Act 0 — the cerebellar field gathers into a woven strand, then resolves into a moving body.
 // Both shapes are the precomputed surface-point buffers already shipped with the site.
-export function createOrigin(): Act {
+export function createOrigin(getEntrance: () => number = () => 1): Act {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
   camera.position.set(0, 0, 11);
@@ -280,7 +280,8 @@ export function createOrigin(): Act {
       spin.vx += ((wantX - spin.x) * 4 - spin.vx * 4.6) * dt;
       spin.y += spin.vy * dt;
       spin.x += spin.vx * dt;
-      world.rotation.set(spin.x, spin.y, 0);
+      const entrance = ctx.reduced ? 0 : (1 - smooth(0, 1, getEntrance())) * (1 - smooth(0, .3, hero));
+      world.rotation.set(spin.x + entrance * .1, spin.y - entrance * .65, 0);
       // Approach from below, aim upward at the highlighted posterior lobe, hold, then
       // release into fibres. The target follows the model's own transform, not a screen guess.
       world.updateMatrixWorld(true);

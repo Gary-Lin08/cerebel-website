@@ -180,7 +180,7 @@
 .xp-menu__side a:hover { background: var(--ink); color: #050507; }
 
 /* Loader */
-.xp-loader{position:absolute;inset:0;z-index:40;display:grid;place-items:center;overflow:hidden;background:#08070b;transition:clip-path .3s var(--ease);clip-path:polygon(0 0,100% 0,100% 100%,0 134%)}
+.xp-loader{position:absolute;inset:0;z-index:40;display:grid;place-items:center;overflow:hidden;background:#08070b;transition:clip-path .55s var(--ease);clip-path:polygon(0 0,100% 0,100% 100%,0 134%)}
 .xp-loader::before,.xp-loader::after{content:"";position:absolute;top:0;bottom:0;width:1px;background:linear-gradient(transparent,#ffffff0b,transparent);left:18%}
 .xp-loader::after{left:auto;right:18%}
 .xp-loader__halo{position:absolute;left:50%;top:47%;width:min(680px,95vw);height:480px;transform:translate(-50%,-50%);background:radial-gradient(ellipse,#54328020,transparent 65%);pointer-events:none}

@@ -219,3 +219,6 @@ Landing now waits only for Origin assets; later scene readiness no longer gates 
 
 ### Menu viewport fit
 Menu type now depends on viewport height as well as width, with fixed header clearance, compact chapter spacing and safe internal overflow. Narrow/tall layouts place the three secondary links in a compact bottom row. Seven chapter items must fit without overlapping the logo.
+
+### Paced opening restored at user request
+User wants the loading interface visible again, with a brief designed rhythm. Minimum presentation is 1400ms, still gated only by actual Origin readiness; progress is presentation-paced and capped before ready. Loader wipes out in 550ms; brain makes a one-time 0.65-radian yaw settle over 1200ms, starting 150ms into reveal. Text begins 450ms after reveal starts and hover unlocks at 1750ms. Reduced motion skips holds and turn. Later model loads never block the opening.
