@@ -85,7 +85,7 @@ reconstructions (hands differ by up to 0.68 m). They stand side by side.
 
 ## Done in this round
 
-- Opening sequence in `acts/origin.ts`: the rider in line art (`buildGoggleLines`: helmet, face, goggles, camera unit, speed lines and gates in the lens) with irregular snow → push into the camera unit → particles burst out of its lens into the cerebellum. Hold it for review with `?introAt=<seconds>`. Wanted next: a truer reflection in the lens (a real little scene rendered to a texture instead of the procedural pattern), part of a face under the goggles, better goggle and unit geometry from CAD.
+- Opening sequence in `acts/origin.ts`: the rider as glowing light strips (`buildLightStrips`: visor, camera unit, helmet edge, bars of light in the visor; the user rejected points and rejected sketch-like lines) with irregular snow → push into the camera unit → particles burst out of its lens into the cerebellum. Hold it for review with `?introAt=<seconds>`. Wanted next: a truer reflection in the lens (a real little scene rendered to a texture instead of the procedural pattern), part of a face under the goggles, better goggle and unit geometry from CAD.
 
 - Intro order: subject alone for a beat, then top bar, rail and headline (`is-ready` → `is-live`).
 - Headline lens: under the pointer, letters fall back to outlines and a live 3D node cloud (2D canvas, `drawLens` in `index.ts`) trails it. The masks apply only while `data-lens` is set; an earlier version left the headline invisible once the pointer moved away.
