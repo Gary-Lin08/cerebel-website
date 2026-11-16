@@ -463,11 +463,12 @@ export function mountExperience(root: HTMLElement) {
   // The constellation is a small 3D cloud drawn live: it turns, breathes, and each node trails the pointer at its own pace.
   const lens = root.querySelector<HTMLCanvasElement>(".xp-lens")!;
   const lensCtx = lens.getContext("2d")!;
-  // Fixed seeded field: moving the pointer reveals nearby structure; it does not carry a cloud.
-  const nodes = Array.from({length: 1650}, (_,i) => ({
-    x: ((Math.sin(i * 127.1 + 3.7) * 43758.5453) % 1 + 1) % 1, y: ((Math.sin(i * 311.7 + 9.1) * 19341.337) % 1 + 1) % 1,
-    z: Math.sin(i * 19.17) * 32, angle: 0, alpha: 0, sx: 0, sy: 0, ox: 0, oy: 0,
-    size: .8 + (i * .37 % 1) * 1.6,
+  // A local, irregular volume: sparse larger foreground points and smaller rear points.
+  const nodes = Array.from({length: 78}, (_,i) => ({
+    x: ((Math.sin(i * 127.1 + 3.7) * 43758.5453) % 1 + 1) % 1,
+    y: ((Math.sin(i * 311.7 + 9.1) * 19341.337) % 1 + 1) % 1,
+    z: 0, angle: 0, alpha: 0, sx: 0, sy: 0,
+    size: .9 + Math.pow(((i * .61803398875) % 1), 2.1) * 3.9,
   }));
   const glyphContours = new Map<string,{path:Path2D;length:number}[]>();
   for(const [char,paths] of Object.entries(headingOutlines.glyphs)) {
@@ -478,6 +479,8 @@ export function mountExperience(root: HTMLElement) {
   }
   const baselines = new WeakMap<HTMLElement,HTMLElement>();
   let lensOn = false;
+  let pointerPresent = false;
+  let textRadius = 64;
   function sizeLens() {
     const k = Math.min(window.devicePixelRatio || 1, 2);
     lens.width = Math.round(window.innerWidth * k);
@@ -489,30 +492,26 @@ export function mountExperience(root: HTMLElement) {
   function drawLens(time: number, dt: number) {
     lensCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     const visible: typeof nodes = [];
+    const particleRadius = Math.max(135, textRadius * 1.85);
+    const yaw = time * .13 + cur.tx * .0009;
+    const tilt = .28 * Math.sin(time * .17) + cur.ty * .0005;
     for(const n of nodes) {
-      const bx=n.x*innerWidth, by=n.y*innerHeight;
-      const dx=cur.x-bx, dy=cur.y-by;
-      const distance=Math.hypot(dx,dy);
-      const active = lensOn && root.classList.contains("is-interactive");
-      // A bounded local field, not a 250px radial opacity gradient.
-      const influence = active && distance < 150 ? .72 : 0;
-      const theta = Math.atan2(-dy,-dx);
-      n.angle=damp(n.angle,influence * dx/180,3,dt);
-      // Each particle owns a permanent rest position. The pointer attracts it toward a loose
-      // spherical shell; removing that attraction returns it to exactly that rest position.
-      const radius = 68 + n.size * 19;
-      const tx = cur.x + Math.cos(theta+n.angle*.22)*radius;
-      const ty = cur.y + Math.sin(theta+n.angle*.22)*radius*.85 + Math.sin(n.angle)*n.z;
-      n.ox=damp(n.ox,(tx-bx)*influence,3.2,dt);
-      n.oy=damp(n.oy,(ty-by)*influence,3.2,dt);
-      n.sx=bx+n.ox; n.sy=by+n.oy;
-      // Fade in time only; particles do not get fainter with cursor distance.
-      n.alpha=damp(n.alpha,influence > 0 ? .55 + n.size * .12 : 0,4,dt);
+      const latitude = n.x * 2 - 1;
+      const circumference = Math.sqrt(1-latitude*latitude);
+      const theta = n.y * Math.PI * 2 + Math.sin(time*.23+n.x*9)*.12;
+      const x = circumference * Math.cos(theta), y = latitude, z = circumference * Math.sin(theta);
+      const rx=x*Math.cos(yaw)+z*Math.sin(yaw), rz=z*Math.cos(yaw)-x*Math.sin(yaw);
+      const ry=y*Math.cos(tilt)-rz*Math.sin(tilt), depth=rz*Math.cos(tilt)+y*Math.sin(tilt);
+      const shell = particleRadius * (.68 + n.y*.27 + Math.sin(n.x*24+time*.19)*.025);
+      const perspective = 1 + depth*.12;
+      n.sx=cur.x+rx*shell*perspective; n.sy=cur.y+ry*shell*perspective;
+      n.z=depth*shell; n.angle=(depth+1)*.5;
+      // Depth affects appearance; there is no broad radial opacity gradient.
+      n.alpha=damp(n.alpha,lensOn ? .32+n.angle*.6 : 0,4,dt);
       if(n.alpha>.015)visible.push(n);
     }
-    // Hard circular boundary also clips links and returning particles.
     lensCtx.save();
-    lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,120,0,Math.PI*2);lensCtx.clip();
+    lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,particleRadius*1.12,0,Math.PI*2);lensCtx.clip();
     lensCtx.lineWidth=.65;
     const degrees=new Map<typeof nodes[number],number>();
     for(let i=0;i<visible.length;i++) {
@@ -528,7 +527,7 @@ export function mountExperience(root: HTMLElement) {
         }
       }
       lensCtx.fillStyle=`rgba(245,250,255,${Math.min(1,a.alpha*1.7)})`;
-      lensCtx.beginPath();lensCtx.arc(a.sx,a.sy,a.size*(1+Math.sin(a.angle)*.15),0,Math.PI*2);lensCtx.fill();
+      lensCtx.beginPath();lensCtx.arc(a.sx,a.sy,a.size*(.65+a.angle*.55),0,Math.PI*2);lensCtx.fill();
     }
     lensCtx.restore();
     // Moving bright segments run along the letter contours inside a crisp circular aperture.
@@ -539,7 +538,7 @@ export function mountExperience(root: HTMLElement) {
       const rect=el.getBoundingClientRect();
       const style=getComputedStyle(el);
       lensCtx.save();
-      lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,50.4,0,Math.PI*2);lensCtx.clip();
+      lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,textRadius,0,Math.PI*2);lensCtx.clip();
       lensCtx.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
       lensCtx.letterSpacing=style.letterSpacing;
       const baseline=baselines.get(el)?.getBoundingClientRect().top ?? rect.bottom;
@@ -569,25 +568,27 @@ export function mountExperience(root: HTMLElement) {
     marker.style.cssText="display:inline-block;width:0;height:0;padding:0;margin:0;vertical-align:baseline";
     el.append(marker);baselines.set(el,marker);
   }
-  window.addEventListener("pointermove", (e) => {
-    if (e.pointerType === "touch" || !root.classList.contains("is-interactive")) return;
-    let hit = false;
-    for (const el of headSpans) {
-      const on = el.closest(".ch")!.classList.contains("is-on");
-      const r = on ? el.getBoundingClientRect() : null;
-      const inside = !!r && e.clientX > r.left - 80 && e.clientX < r.right + 80 && e.clientY > r.top - 80 && e.clientY < r.bottom + 80;
-      if (inside && r) {
-        el.setAttribute("data-lens", "");
-        el.dataset.lensTarget = "1";
-        hit = hit || (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom);
-      } else el.dataset.lensTarget = "0";
+  window.addEventListener("pointermove", e => { if(e.pointerType !== "touch")pointerPresent=true; });
+  document.documentElement.addEventListener("pointerleave", () => {pointerPresent=false;});
+  function updateLensHit() {
+    lensOn=false;
+    const enabled=pointerPresent && root.classList.contains("is-interactive") && !root.classList.contains("is-menu") && !document.querySelector(".muscle-orbit[open]");
+    for(const el of headSpans){
+      const on=enabled && el.closest(".ch")!.classList.contains("is-on");
+      let inside=false;
+      if(on && el.firstChild){
+        const range=document.createRange();range.selectNode(el.firstChild);
+        const r=range.getBoundingClientRect();
+        inside=cur.tx>r.left && cur.tx<r.right && cur.ty>r.top && cur.ty<r.bottom;
+      }
+      el.dataset.lensTarget=inside?"1":"0";
+      if(inside){
+        lensOn=true;el.setAttribute("data-lens","");
+        textRadius=Math.max(60,Math.min(112,parseFloat(getComputedStyle(el).fontSize)*.60));
+        el.style.setProperty("--lens-radius",textRadius+"px");
+      }
     }
-    lensOn = hit;
-  });
-  document.documentElement.addEventListener("pointerleave", () => {
-    lensOn = false;
-    for (const el of headSpans) el.dataset.lensTarget = "0";
-  });
+  }
 
   // ---- Loop.
   let u = window.scrollY / vh;
@@ -627,6 +628,7 @@ export function mountExperience(root: HTMLElement) {
       hudBar.tabIndex = scrubbing ? 0 : -1;
       if (!scrubbing) scrub = null;
     }
+    updateLensHit();
     if (!stage.reduced) drawLens(now / 1000, dt);
     for (const el of headSpans) {
       if (!el.hasAttribute("data-lens")) continue;

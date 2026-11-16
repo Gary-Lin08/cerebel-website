@@ -355,5 +355,8 @@
 .ln > span::after{transition:opacity .8s ease,-webkit-text-stroke-color .8s ease}
 .xp:not(.is-interactive) .xp-cursor{opacity:0}.xp-cursor{transition:opacity 1.2s ease,width .35s,height .35s,left .35s,top .35s}
 /* A hard aperture, not a feathered spotlight. Only the whole effect eases on/off. */
-.ln > span[data-lens]::before{-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),rgba(0,0,0,calc(1 - var(--lens-strength,0))) 50.4px,#000 50.4px);mask-image:radial-gradient(circle at var(--mx) var(--my),rgba(0,0,0,calc(1 - var(--lens-strength,0))) 50.4px,#000 50.4px)}
-.ln > span[data-lens]::after{opacity:calc(var(--lens-strength,0) * .24);-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),#000 50.4px,transparent 50.4px);mask-image:radial-gradient(circle at var(--mx) var(--my),#000 50.4px,transparent 50.4px)}
+.ln > span[data-lens]::before{-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),rgba(0,0,0,calc(1 - var(--lens-strength,0))) var(--lens-radius,64px),#000 var(--lens-radius,64px));mask-image:radial-gradient(circle at var(--mx) var(--my),rgba(0,0,0,calc(1 - var(--lens-strength,0))) var(--lens-radius,64px),#000 var(--lens-radius,64px))}
+.ln > span[data-lens]::after{opacity:calc(var(--lens-strength,0) * .24);-webkit-mask-image:radial-gradient(circle at var(--mx) var(--my),#000 var(--lens-radius,64px),transparent var(--lens-radius,64px));mask-image:radial-gradient(circle at var(--mx) var(--my),#000 var(--lens-radius,64px),transparent var(--lens-radius,64px))}
+
+/* No decorative pointer ring; retain the native cursor. */
+.xp .xp-cursor{display:none}
