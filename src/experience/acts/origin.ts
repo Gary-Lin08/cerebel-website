@@ -88,7 +88,7 @@ export function createOrigin(): Act {
           vec4 clip = projectionMatrix * mv;
           vec2 ndc = clip.xy / clip.w;
           vec2 d = ndc - uPointer; d.x *= uAspect;
-          float near = exp(-dot(d, d) * 9.0) * uInteraction;
+          float near = exp(-dot(d, d) * 25.0) * uInteraction;
           vCerebellum = (1.0-smoothstep(-0.60,-0.35,position.y)) * smoothstep(-1.55,-1.1,position.y) * smoothstep(-0.15,0.25,position.x) * (1.0-a);
           float onStrand = max(a * (1.0 - m), x);
           vSeed = aSeed; vMix = m; vNear = near; vStrand = onStrand; vKind = step(0.5, fract(fiberSeed(aSeed) * 3.17));

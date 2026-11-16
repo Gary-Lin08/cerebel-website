@@ -534,7 +534,7 @@ export function mountExperience(root: HTMLElement) {
       const rect=el.getBoundingClientRect();
       const style=getComputedStyle(el);
       lensCtx.save();
-      lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,72,0,Math.PI*2);lensCtx.clip();
+      lensCtx.beginPath();lensCtx.arc(cur.x,cur.y,50.4,0,Math.PI*2);lensCtx.clip();
       lensCtx.font=`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
       lensCtx.letterSpacing=style.letterSpacing;
       const baseline=baselines.get(el)?.getBoundingClientRect().top ?? rect.bottom;
