@@ -762,8 +762,10 @@ export function mountExperience(root: HTMLElement) {
   if (!new URLSearchParams(location.search).has("still")) {
     let snapTimer: number | undefined;
     let touchHeld = false;
+    let pointerHeld = false;
+    let scrolledWhileHeld = false;
     let snapFrame = 0;
-    const canSnap = () => started && !stage.reduced && !touchHeld && !timelineDragging &&
+    const canSnap = () => started && !stage.reduced && !touchHeld && !pointerHeld && !timelineDragging &&
       performance.now() >= snapPausedUntil && !root.classList.contains("is-menu") &&
       !document.querySelector(".muscle-orbit[open]");
 
@@ -792,26 +794,47 @@ export function mountExperience(root: HTMLElement) {
     };
     const scheduleSnap = () => {
       if (snapFrame) return;
+      if (pointerHeld) scrolledWhileHeld = true;
       window.clearTimeout(snapTimer);
       snapTimer = window.setTimeout(() => {
         if (!canSnap()) return;
 
         const position = window.scrollY / pixelsPerUnit();
-        const lastPoint = readingPoints[readingPoints.length - 1];
-        const finalGap = lastPoint - readingPoints[readingPoints.length - 2];
-        if (position > lastPoint + finalGap / 2) return;
-
+        const scrollRoot = document.scrollingElement!;
+        const bottom = scrollRoot.scrollHeight - scrollRoot.clientHeight;
+        const bottomPoint = bottom / pixelsPerUnit();
         const nearestPoint = readingPoints.reduce((nearest, point) =>
-          Math.abs(point - position) < Math.abs(nearest - position) ? point : nearest);
-        const top = Math.round(nearestPoint * pixelsPerUnit());
+          Math.abs(point - position) < Math.abs(nearest - position) ? point : nearest, bottomPoint);
+        const top = Math.min(bottom, Math.round(nearestPoint * pixelsPerUnit()));
         if (Math.abs(window.scrollY - top) > 2) glideTo(top);
       }, 180);
     };
 
     window.addEventListener("scroll", scheduleSnap, { passive: true });
-    window.addEventListener("wheel", cancelSnap, { passive: true });
+    window.addEventListener("wheel", event => {
+      if (event.ctrlKey || event.deltaY === 0) return;
+      cancelSnap();
+      // Trackpad momentum can emit wheel events too small to move the document.
+      scheduleSnap();
+    }, { passive: true });
     window.addEventListener("keydown", cancelSnap);
-    window.addEventListener("pointerdown", cancelSnap, { passive: true });
+    window.addEventListener("pointerdown", event => {
+      if (event.pointerType === "touch") return;
+      pointerHeld = true;
+      scrolledWhileHeld = false;
+      cancelSnap();
+    }, { passive: true });
+    const finishPointer = () => {
+      pointerHeld = false;
+      if (scrolledWhileHeld) scheduleSnap();
+      scrolledWhileHeld = false;
+    };
+    window.addEventListener("pointerup", finishPointer, { passive: true });
+    window.addEventListener("pointercancel", finishPointer, { passive: true });
+    window.addEventListener("blur", () => {
+      pointerHeld = touchHeld = scrolledWhileHeld = false;
+      cancelSnap();
+    });
     window.addEventListener("touchstart", () => {
       touchHeld = true;
       cancelSnap();
