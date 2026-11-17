@@ -848,7 +848,8 @@
 @media (prefers-reduced-motion: reduce) { .xp .xp-loader__fill::after { animation: none; } }
 
 /* Keep the loader exclusive until the opening scene is ready. */
-.xp:not(.is-ready) > :not(.xp-loader) {
-  visibility: hidden;
+.xp:not(.is-ready) > :not(.xp-loader),
+.xp:not(.is-ready) > :not(.xp-loader) * {
+  visibility: hidden !important;
   pointer-events: none;
 }
