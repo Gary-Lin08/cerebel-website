@@ -307,7 +307,7 @@
   cursor: pointer;
   transition: background .2s, border-color .2s;
 }
-.orbit-close:hover { background: #242431; border-color: #ffffff80; }
+.orbit-close:hover { background-color: #242431; border-color: #ffffff80; }
 .muscle-orbit .orbit-close:focus-visible { outline: 2px solid #fff; outline-offset: -2px; border-radius: 50%; }
 .orbit-close::before, .orbit-close::after {
   content: "";
@@ -325,7 +325,7 @@
 .orbit-cue{border-left:2px solid #b69aff;padding-left:18px;color:#bde7c2}
 .muscle-orbit nav{position:absolute;right:4vw;bottom:100px;display:flex;flex-direction:column;gap:10px}
 .muscle-orbit nav button{border:1px solid #7d748d;border-radius:40px;padding:13px 24px;background:#11111dcc;color:#dfdbea;font:inherit;text-align:left;cursor:pointer;transition:background .3s,transform .3s}
-.muscle-orbit nav button[aria-pressed="true"]{background:#c5eea7;color:#142019;border-color:#c5eea7;transform:translateX(-12px)}
+.muscle-orbit nav button[aria-pressed="true"]{background-color:#c5eea7;color:#142019;border-color:#c5eea7;transform:translateX(-12px)}
 .muscle-orbit footer{position:absolute;bottom:28px;left:5vw;max-width:430px;color:#aaa7ba;font-size:12px;line-height:1.6;pointer-events:none}
 .xp-pill{transition:background .3s,box-shadow .3s,transform .3s}
 .xp-pill:hover{transform:translateY(-3px);box-shadow:0 0 0 7px #9b6cff20}
@@ -477,7 +477,7 @@
 .partners a:is(:hover,:focus-visible)::before {transform:scaleX(1)}
 .partners a:focus-visible {padding-left:14px}
 .muscle-orbit nav button {position:relative;isolation:isolate;overflow:hidden;transition:color .3s,background .4s,transform .4s,border-color .3s}
-.muscle-orbit nav button:not([aria-pressed="true"]):is(:hover,:focus-visible) {background:#b8a1ff24;border-color:#cdb9ff;transform:translateX(-6px);color:#fff}
+.muscle-orbit nav button:not([aria-pressed="true"]):is(:hover,:focus-visible) {background-color:#b8a1ff24;border-color:#cdb9ff;transform:translateX(-6px);color:#fff}
 .muscle-orbit nav button:active {scale:.98}
 .xp.is-scrub .xp-swinghud__bar:is(:hover,:focus-within) u {transform:scale(1.25);background:#cdb9ff}
 .xp.is-scrub .xp-swinghud__bar:active u {transform:scale(1.1)}
@@ -581,10 +581,29 @@
   50% { transform: translate(52px, 96px); } 62% { transform: translate(-28px, -143px); } 75% { transform: translate(134px, 23px); } 87% { transform: translate(-96px, 118px); }
 }
 /* Grain sits over the model and background, beneath the viewer controls and copy. */
-.muscle-orbit::after { z-index: 1; pointer-events: none; opacity: 0.21; }
+.muscle-orbit::after { z-index: 1; pointer-events: none; opacity: 0.29; }
 .muscle-orbit :is(.orbit-close, .orbit-copy, nav, footer) { z-index: 2; }
 @media (prefers-reduced-motion: reduce) {
   .xp-glass::after, .muscle-orbit::after { animation: none; }
+}
+/* Use a translucent grain tile on UI surfaces and clip it to the fill of large type. */
+.xp, .muscle-orbit {
+  --matte-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='.0 .0 .0 .0 .46  0 0 0 0 .46  0 0 0 0 .46  .20 .37 .07 0 -.21'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.ch--finding .fix, .muscle-orbit nav button, .muscle-orbit .orbit-close {
+  background-image: var(--matte-grain);
+}
+@supports (background-clip: text) {
+  .ln > span::before, .orbit-copy h2, .ch--finding .fix b, .ch .metric > span, .ch .metric[data-f] {
+    --grain-ink: var(--ink);
+    background-color: var(--grain-ink);
+    background-image: var(--matte-grain);
+    background-clip: text;
+    color: transparent;
+  }
+  .ch .metric[data-f] { -webkit-text-fill-color: transparent; }
+  .orbit-copy h2 { --grain-ink: #f5f3ff; }
+  .ch--finding .fix b { --grain-ink: var(--violet); }
 }
 /* Copy takes the same diffusion as the scene: a soft halo, and the hard edge taken off the big type. */
 .ch p, .ch li, .ch .metric { text-shadow: 0 0 20px rgba(233, 236, 242, 0.16); }
