@@ -217,7 +217,7 @@ function markup() {
     <ol>${groups.map((g) => `<li><button class="menu-chapter" type="button" data-group="${g}" data-cursor>${g}</button><nav class="menu-subchapters" aria-label="${g} subchapters">${spans.filter(s=>s.group===g).map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</nav></li>`).join("")}</ol>
   </div>
 
-  <div class="xp-loader"><div class="xp-loader__frost" aria-hidden="true"><i></i><i></i><i></i></div><div class="xp-loader__halo" aria-hidden="true"></div><div class="xp-loader__content"><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"><div class="xp-loader__track" role="progressbar" aria-label="Loading experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="xp-loader__fill"><b class="xp-loader__head" aria-hidden="true"></b></i></div><span class="xp-loader__pct" aria-hidden="true">000</span></div></div>
+  <div class="xp-loader"><div class="xp-loader__halo" aria-hidden="true"></div><div class="xp-loader__content"><span class="xp-loader__eyebrow">HUMAN MOTION / MACHINE INTELLIGENCE</span><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"><div class="xp-loader__track" role="progressbar" aria-label="Loading experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="xp-loader__fill"></i></div><span class="xp-loader__caption">PREPARING THE EXPERIENCE</span></div><span class="xp-loader__signature" aria-hidden="true">CEREBEL AI</span></div>
   <div class="xp-glass" aria-hidden="true"></div>
   <canvas class="xp-lens" aria-hidden="true"></canvas>
   <div class="xp-cursor" aria-hidden="true"></div>`;
@@ -417,7 +417,6 @@ export function mountExperience(root: HTMLElement) {
   const loader = $(".xp-loader");
   const loaderTrack = loader.querySelector<HTMLElement>(".xp-loader__track")!;
   const loaderFill = loader.querySelector<HTMLElement>(".xp-loader__fill")!;
-  const loaderPct = loader.querySelector<HTMLElement>(".xp-loader__pct")!;
   const loadingStartedAt = performance.now();
   let homeReady = false;
   acts[0].ready.then(() => { homeReady = true; });
@@ -873,12 +872,10 @@ export function mountExperience(root: HTMLElement) {
       // A short paced presentation, capped below completion until Origin is ready.
       const progress = Math.min(94, 94 * (1 - Math.exp(-elapsed / 500)));
       loaderFill.style.width = `${progress}%`;
-      loaderPct.textContent = String(Math.round(progress)).padStart(3, "0");
       loaderTrack.setAttribute("aria-valuenow", String(Math.round(progress)));
       if (homeReady && (stage.reduced || elapsed >= 1400)) {
         started = true;
         loaderFill.style.width = "100%";
-        loaderPct.textContent = "100";
         loaderTrack.setAttribute("aria-valuenow", "100");
         root.classList.add("is-ready");
         entranceStartedAt = performance.now() + (stage.reduced ? 0 : 150);
