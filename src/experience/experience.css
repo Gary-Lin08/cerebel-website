@@ -574,17 +574,27 @@
 /* Keep the grain behind chapter copy so it does not blend into animated text layers. */
 .xp-glass::after, .muscle-orbit::after { content: ""; position: absolute; inset: -220px; opacity: 0.17; mix-blend-mode: soft-light;
   background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='220' height='220' filter='url(%23n)'/></svg>");
-  animation: xp-grain 2.8s steps(1) infinite;
+  background-position: var(--xp-grain-x) var(--xp-grain-y);
 }
+
+/* A shared clock keeps late-mounted cards and the muscle dialog in phase. */
+@property --xp-grain-x { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --xp-grain-y { syntax: "<length>"; inherits: true; initial-value: 0px; }
+:root:has(.xp) { animation: xp-grain 2.8s steps(1) infinite; }
 @keyframes xp-grain {
-  0% { transform: translate(0, 0); } 12% { transform: translate(-63px, 41px); } 25% { transform: translate(87px, -102px); } 37% { transform: translate(-121px, -37px); }
-  50% { transform: translate(52px, 96px); } 62% { transform: translate(-28px, -143px); } 75% { transform: translate(134px, 23px); } 87% { transform: translate(-96px, 118px); }
+  0% { --xp-grain-x: 0px; --xp-grain-y: 0px; }
+  12% { --xp-grain-x: -63px; --xp-grain-y: 41px; }
+  25% { --xp-grain-x: 87px; --xp-grain-y: -102px; }
+  37% { --xp-grain-x: -121px; --xp-grain-y: -37px; }
+  50% { --xp-grain-x: 52px; --xp-grain-y: 96px; }
+  62% { --xp-grain-x: -28px; --xp-grain-y: -143px; }
+  75% { --xp-grain-x: 134px; --xp-grain-y: 23px; }
+  87% { --xp-grain-x: -96px; --xp-grain-y: 118px; }
 }
-/* Grain sits over the model and background, beneath the viewer controls and copy. */
 .muscle-orbit::after { z-index: 1; pointer-events: none; opacity: 0.29; }
 .muscle-orbit :is(.orbit-close, .orbit-copy, nav, footer) { z-index: 2; }
 @media (prefers-reduced-motion: reduce) {
-  .xp-glass::after, .muscle-orbit::after { animation: none; }
+  :root:has(.xp) { animation: none; }
 }
 /* Use a translucent grain tile on UI surfaces and clip it to the fill of large type. */
 .xp, .muscle-orbit {
@@ -592,12 +602,14 @@
 }
 .ch--finding .fix, .muscle-orbit nav button, .muscle-orbit .orbit-close {
   background-image: var(--matte-grain);
+  background-position: var(--xp-grain-x) var(--xp-grain-y);
 }
 @supports (background-clip: text) {
   .ln > span::before, .orbit-copy h2, .ch--finding .fix b, .ch .metric > span, .ch .metric[data-f] {
     --grain-ink: var(--ink);
     background-color: var(--grain-ink);
     background-image: var(--matte-grain);
+    background-position: var(--xp-grain-x) var(--xp-grain-y);
     background-clip: text;
     color: transparent;
   }
