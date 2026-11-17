@@ -726,7 +726,6 @@
 /* ---- Layout pass, November 17: legibility over busy scenes, consistent sizes, nothing that only counts. */
 /* Hero line under the headline sits on the particle brain: give it a dark halo so it reads. */
 .ch--hero p { text-shadow: 0 0 14px rgba(5, 5, 10, 0.95), 0 0 4px rgba(5, 5, 10, 0.9); color: #f2f0f7; }
-/* Readout strips float over the figures: a frosted strip keeps the numbers readable when a bone crosses them. */
 /* Smallest labels: never under 11px. */
 .scene-timeline__top span, .scene-timeline__stops button { font-size: 0.75rem; }
 .ch--finding svg text { font-size: 11px; }
