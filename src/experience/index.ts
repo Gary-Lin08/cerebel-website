@@ -7,7 +7,7 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "./experience.css";
 import { benchmark, chapters, glassesParts, flywheelSteps } from "./data";
 import { asset, page } from "./paths";
-import { type Act, TOTAL, WIPE, createStage, damp, smooth, spans } from "./stage";
+import { type Act, TOTAL, createStage, damp, smooth, spans } from "./stage";
 import { createOrigin } from "./acts/origin";
 import { type SwingData, createSwing } from "./acts/swing";
 import { createBenchmark } from "./acts/benchmark";
@@ -235,7 +235,10 @@ export function mountExperience(root: HTMLElement) {
   const $ = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
   const $$ = <T extends HTMLElement>(sel: string) => [...root.querySelectorAll<T>(sel)];
 
+  // More physical scroll per scene unit makes small wheel and trackpad motions easier to control.
+  const scrollDistanceScale = 1.65;
   let vh = window.innerHeight;
+  const pixelsPerUnit = () => vh * scrollDistanceScale;
   let vw = window.innerWidth;
   const layout = () => {
     // Ignore mobile address-bar height changes so the scroll map does not jump.
@@ -243,11 +246,11 @@ export function mountExperience(root: HTMLElement) {
       vw = window.innerWidth;
       vh = window.innerHeight;
     }
-    spacer.style.height = `${(TOTAL + 0.62) * vh}px`;
+    spacer.style.height = `${TOTAL * pixelsPerUnit() + 0.62 * vh}px`;
   };
   layout();
   window.addEventListener("resize", layout);
-  const jump = (units: number) => window.scrollTo({ top: units * vh + 2, behavior: stage.reduced ? "auto" : "smooth" });
+  const jump = (units: number) => window.scrollTo({ top: units * pixelsPerUnit() + 2, behavior: stage.reduced ? "auto" : "smooth" });
 
   // ---- Swing: copy and traces come from the capture's own analysis file.
   let swing: SwingData | null = null;
@@ -474,7 +477,7 @@ export function mountExperience(root: HTMLElement) {
   for (const {input} of timelines) {
     input.addEventListener("pointerdown",()=>{timelineDragging=true;});
     for(const event of ["pointerup","pointercancel","lostpointercapture"]) input.addEventListener(event,()=>{timelineDragging=false;});
-    input.addEventListener("input",()=>{scrub=null;u=Number(input.value);window.scrollTo({top:u*vh,behavior:"instant"});});
+    input.addEventListener("input",()=>{scrub=null;u=Number(input.value);window.scrollTo({top:u*pixelsPerUnit(),behavior:"instant"});});
   }
   const subchapterButtons=$$<HTMLElement>("[data-subchapter]");
 
@@ -745,71 +748,14 @@ export function mountExperience(root: HTMLElement) {
     }
   }
 
-  // ---- Settling. The page never forces a position while it is being scrolled. But if the hand stops inside a
-  // change (text half drawn, two acts dissolving), the page drifts on, slowly, to where that change is complete.
-  const rests = spans.slice(1).map((span, i) => {
-    const act = span.act !== spans[i].act;
-    return { at: span.start, before: act ? WIPE : EXIT + 0.02, after: act ? Math.max(WIPE, ENTER + 0.04) : ENTER + 0.04 };
-  });
-  let lastInput = 0;
-  let lastMove = 0;
-  let lastY = window.scrollY;
-  let glide: number | null = null;
-  let glideY = 0;
-  let held = false;
-  // `?still` keeps the page where it is put, for screenshots of intermediate states.
-  const noSettle = new URLSearchParams(location.search).has("still");
-  const touched = () => {
-    lastInput = performance.now();
-    glide = null;
-  };
-  for (const type of ["wheel", "touchstart", "touchmove", "keydown"] as const) window.addEventListener(type, touched, { passive: true });
-  window.addEventListener("pointerdown", () => { held = true; touched(); }, { passive: true });
-  window.addEventListener("pointerup", () => { held = false; touched(); }, { passive: true });
-  function settle(now: number, dt: number) {
-    const y = window.scrollY;
-    if (glide !== null) {
-      // Something else moved the page (a menu jump, a scrubber): give way at once.
-      if (Math.abs(y - glideY) > 3) {
-        glide = null;
-        lastMove = now;
-        lastY = y;
-        return;
-      }
-      const d = glide - glideY;
-      if (Math.abs(d) < 0.7) {
-        window.scrollTo({ top: glide, behavior: "instant" });
-        glide = null;
-      } else {
-        glideY += d * (1 - Math.exp(-2.6 * dt));
-        window.scrollTo({ top: glideY, behavior: "instant" });
-      }
-      lastY = window.scrollY;
-      return;
-    }
-    if (Math.abs(y - lastY) > 0.5) lastMove = now;
-    lastY = y;
-    if (noSettle || stage.reduced || held || timelineDragging || root.classList.contains("is-menu") || document.querySelector(".muscle-orbit[open]")) return;
-    if (now - lastInput < 320 || now - lastMove < 180) return;
-    const at = y / vh;
-    for (const r of rests) {
-      if (at <= r.at - r.before + 0.01 || at >= r.at + r.after - 0.01) continue;
-      // Mostly onward; back only when the change has barely begun.
-      glide = (at < r.at - r.before * 0.55 ? r.at - r.before : r.at + r.after) * vh;
-      glideY = y;
-      break;
-    }
-  }
-
   // ---- Loop.
-  let u = window.scrollY / vh;
+  let u = window.scrollY / pixelsPerUnit();
   let prev = performance.now();
   let lastU = u;
   function tick(now: number) {
     const dt = Math.max(0.001, Math.min(0.05, (now - prev) / 1000)) || 0.016;
     prev = now;
-    const target = Math.min(TOTAL - 0.001, Math.max(0, window.scrollY / vh));
-    if (started) settle(now, dt);
+    const target = Math.min(TOTAL - 0.001, Math.max(0, window.scrollY / pixelsPerUnit()));
     u = stage.reduced || timelineDragging ? target : damp(u, target, 8, dt);
     if (Math.abs(u - target) < 0.0005) u = target;
     const velocity = (u - lastU) / dt;
