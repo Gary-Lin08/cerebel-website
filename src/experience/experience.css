@@ -294,7 +294,7 @@
 
 /* Spatial exploration: a separate, reversible layer above the scroll story. */
 .muscle-entry{position:fixed;right:7vw;bottom:150px;z-index:25;display:none;align-items:center;gap:16px;border:0;background:none;color:#f5f3ff;font:inherit;cursor:pointer}
-.xp[data-act="1"] .muscle-entry{display:flex}
+.xp[data-act="1"]:not(.is-menu) .muscle-entry{display:flex}
 .muscle-entry span{display:grid;place-items:center;width:62px;height:62px;border:1px solid #bba0ff;border-radius:50%;font-size:30px;transition:background .3s,transform .5s}
 .muscle-entry:hover span,.muscle-entry:focus-visible span{background:#7950c9;transform:rotate(90deg)}
 .muscle-orbit{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;color:#f5f3ff;background:radial-gradient(ellipse at 60% 40%,#192d2c,#100e20 55%,#06070c);overflow:hidden}
@@ -595,7 +595,11 @@
 .xp:not(.is-ready) .xp-glass { opacity: 0; } .xp-glass { transition: opacity 0.9s; }
 /* Lines no longer slide up from behind a mask, so nothing needs clipping here; clipping cut the headline's halo
    off in a rectangle. */
-.ln { overflow: visible; }
+.ln {
+  overflow: visible;
+  /* Glow follows the masked glyphs, above the grain layer. */
+  filter: drop-shadow(0 0 12px rgba(233, 236, 242, 0.22));
+}
 
 
 /* ---- Phone layout pass. The subject owns the upper half, the copy the lower half on a scrim, and the fixed
