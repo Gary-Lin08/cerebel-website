@@ -752,8 +752,7 @@ export function mountExperience(root: HTMLElement) {
     }
   }
 
-  // Settle only near a reading point, after the title and any scene dissolve are visible.
-  const snapRadius = 0.23;
+  // Reading points sit after the title and any scene dissolve.
   const readingPoints = spans.map((span, index) => {
     if (index === 0) return 0;
     const changesScene = span.act !== spans[index - 1].act;
@@ -763,25 +762,60 @@ export function mountExperience(root: HTMLElement) {
   if (!new URLSearchParams(location.search).has("still")) {
     let snapTimer: number | undefined;
     let touchHeld = false;
+    let snapFrame = 0;
+    const canSnap = () => started && !stage.reduced && !touchHeld && !timelineDragging &&
+      performance.now() >= snapPausedUntil && !root.classList.contains("is-menu") &&
+      !document.querySelector(".muscle-orbit[open]");
+
+    const cancelSnap = () => {
+      window.clearTimeout(snapTimer);
+      cancelAnimationFrame(snapFrame);
+      snapFrame = 0;
+    };
+
+    const glideTo = (top: number) => {
+      const start = window.scrollY;
+      const distance = top - start;
+      const duration = Math.min(1050, 550 + Math.abs(distance) * 0.45);
+      const startedAt = performance.now();
+      const glide = (now: number) => {
+        if (!canSnap()) {
+          snapFrame = 0;
+          return;
+        }
+        const progress = clamp((now - startedAt) / duration);
+        const eased = progress * progress * (3 - 2 * progress);
+        window.scrollTo({ top: start + distance * eased, behavior: "instant" });
+        snapFrame = progress < 1 ? requestAnimationFrame(glide) : 0;
+      };
+      snapFrame = requestAnimationFrame(glide);
+    };
     const scheduleSnap = () => {
+      if (snapFrame) return;
       window.clearTimeout(snapTimer);
       snapTimer = window.setTimeout(() => {
-        if (!started || stage.reduced || touchHeld || timelineDragging ||
-          performance.now() < snapPausedUntil || root.classList.contains("is-menu") ||
-          document.querySelector(".muscle-orbit[open]")) return;
+        if (!canSnap()) return;
 
         const position = window.scrollY / pixelsPerUnit();
-        const nearbyPoint = readingPoints.find(point => Math.abs(point - position) <= snapRadius);
-        if (nearbyPoint === undefined) return;
+        const lastPoint = readingPoints[readingPoints.length - 1];
+        const finalGap = lastPoint - readingPoints[readingPoints.length - 2];
+        if (position > lastPoint + finalGap / 2) return;
 
-        const top = Math.round(nearbyPoint * pixelsPerUnit());
-        if (Math.abs(window.scrollY - top) > 2) window.scrollTo({ top, behavior: "smooth" });
+        const nearestPoint = readingPoints.reduce((nearest, point) =>
+          Math.abs(point - position) < Math.abs(nearest - position) ? point : nearest);
+        const top = Math.round(nearestPoint * pixelsPerUnit());
+        if (Math.abs(window.scrollY - top) > 2) glideTo(top);
       }, 180);
     };
 
     window.addEventListener("scroll", scheduleSnap, { passive: true });
-    window.addEventListener("wheel", scheduleSnap, { passive: true });
-    window.addEventListener("touchstart", () => { touchHeld = true; }, { passive: true });
+    window.addEventListener("wheel", cancelSnap, { passive: true });
+    window.addEventListener("keydown", cancelSnap);
+    window.addEventListener("pointerdown", cancelSnap, { passive: true });
+    window.addEventListener("touchstart", () => {
+      touchHeld = true;
+      cancelSnap();
+    }, { passive: true });
     const finishTouch = (event: TouchEvent) => {
       touchHeld = event.touches.length > 0;
       if (!touchHeld) scheduleSnap();
