@@ -27,8 +27,8 @@ export function mountMuscleOrbit(root: HTMLElement, data: SwingData) {
   controls.enablePan = false;
   controls.minDistance = 1.6;
   controls.maxDistance = 7;
-  scene.add(new THREE.HemisphereLight(0xf0eaff, 0x251336, 1.6));
-  const light = new THREE.DirectionalLight(0xffffff, 2.2);
+  scene.add(new THREE.HemisphereLight(0xe9f3eb, 0x23342e, 1.5));
+  const light = new THREE.DirectionalLight(0xfffaf0, 1.8);
   light.position.set(3, 4, 5); scene.add(light);
   const anatomy = new THREE.Group(); scene.add(anatomy);
   const sculpture = new THREE.Group(); anatomy.add(sculpture);
@@ -42,7 +42,7 @@ export function mountMuscleOrbit(root: HTMLElement, data: SwingData) {
       const node = bones!.getObjectByName(name);
       if(node) {
         node.visible = i < 13;
-        node.traverse(child => {if(child instanceof THREE.Mesh) child.material = new THREE.MeshStandardMaterial({color:0x8f9ba8,roughness:.72,metalness:.08});});
+        node.traverse(child => {if(child instanceof THREE.Mesh) child.material = new THREE.MeshStandardMaterial({color:0x8f9ba8,roughness: 0.94, metalness: 0});});
       }
       return node;
     });
