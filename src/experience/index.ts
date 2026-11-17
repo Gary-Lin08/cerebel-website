@@ -137,7 +137,9 @@ function markup() {
     ${flywheelSteps.map((step,i)=>`<section class="ch ch--flywheel" data-ch="loop-${i}">
       <h2 class="h-sm">${lines(...step.head)}</h2>
       <p>${step.copy}</p>
-      ${i === 1 ? `<div class="loop-total"><strong class="num">20,000<span> h</span></strong><p>5,000 captured / 15,000 simulated · team-reported</p></div>` : ""}
+      <p class="loop-detail num">${step.detail}</p>
+      <div class="loop-total"><strong class="num">20,000<span> h</span></strong><p>5,000 real / 15,000 simulated</p></div>
+      <p class="fine">Team-reported dataset. Every deployment can strengthen the motion model. Loop shown schematically.</p>
     </section>`).join("")}
     <section class="ch ch--field" data-ch="field">
       <h2>${lines("In the field.")}</h2>
@@ -206,6 +208,8 @@ function markup() {
   <div class="xp-menu" aria-hidden="true">
     <ol>${groups.map((g) => `<li><button class="menu-chapter" type="button" data-group="${g}" data-cursor>${g}</button><nav class="menu-subchapters" aria-label="${g} subchapters">${spans.filter(s=>s.group===g).map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</nav></li>`).join("")}</ol>
   </div>
+
+  <div class="xp-hint"><span>Scroll to discover</span><i aria-hidden="true"></i></div>
 
   <div class="xp-loader"><div class="xp-loader__halo" aria-hidden="true"></div><div class="xp-loader__content"><span class="xp-loader__eyebrow">HUMAN MOTION / MACHINE INTELLIGENCE</span><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"><div class="xp-loader__track" role="progressbar" aria-label="Loading experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="xp-loader__fill"></i></div><span class="xp-loader__caption">PREPARING THE EXPERIENCE</span></div><span class="xp-loader__signature" aria-hidden="true">CEREBEL AI</span></div>
   <div class="xp-glass" aria-hidden="true"></div>

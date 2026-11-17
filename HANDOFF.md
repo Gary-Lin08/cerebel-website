@@ -335,3 +335,6 @@ Checked: `node scripts/scroll-snap-check.mjs` (dev server running) in headless C
 ## November 17: copy reduction across the scroll experience
 
 User asked to remove filler across the whole site. Trimmed all seven acts plus muscle viewer: golf findings retain metric/title/trace/one cue, with metric context in aria-label; snow retains value/title/modelled disclosure; glasses use one sentence and development label; loop dataset appears once at Capture instead of four times. Benchmark keeps metric definition, all values, sequence switching and table. Removed obsolete next-method DOM write alongside its paragraph. Source capture JSON and animation/scroll logic are unchanged. Presentation-only finding copy in data.ts also shortens the muscle viewer. Required provenance, consent, development labels and NVIDIA trademark text remain.
+
+### Copy pass follow-up
+User requested the original Data flywheel content back: restored its original four headings, explanations, detail lines and dataset context. Restored home Scroll to discover hint, hidden in menu and after leaving hero. Benchmark copy starts at 21vh on desktop (previously 15vh), 98px on narrow/portrait layouts (previously 74px). Other copy reductions remain.

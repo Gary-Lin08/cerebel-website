@@ -162,3 +162,5 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 
 
 - November 17, copy density: keep the entire scroll experience concise. One conclusion per stop; do not repeat a displayed metric in a caption and explanatory paragraph. Golf findings use metric, title, trace and one short cue. Snow uses metric, title and a short modelled/not-measured note. Remove generic slogans, redundant labels and descriptions of obvious UI. Retain data provenance, development status, consent and essential controls.
+
+- November 17 follow-up: restore the home “Scroll to discover” hint (explicit exception to no filler hints). Keep Data flywheel’s full four-step narrative, dataset breakdown and planned robotics licensing context; user explicitly asked to restore this content after the copy reduction.

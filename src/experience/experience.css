@@ -841,3 +841,15 @@
     color: transparent;
   }
 }
+
+/* Keep the benchmark copy lower in the frame, clear of the header. */
+@media (min-width: 861px) and (min-aspect-ratio: 21/20) {
+  .ch--bench { top: clamp(140px, 21vh, 220px); max-height: calc(100dvh - clamp(140px, 21vh, 220px) - 24px); }
+}
+@media (max-width: 860px), (max-aspect-ratio: 21/20) {
+  .ch--bench { top: 98px; }
+  .xp-hint span { display: block; }
+  .xp-hint { left: 50%; right: auto; transform: translateX(-50%); font-size: .625rem; bottom: 22px; }
+}
+.xp.is-menu .xp-hint { opacity: 0; transition-delay: 0s; }
+@media (prefers-reduced-motion: reduce) { .xp-hint i { animation: none; } }

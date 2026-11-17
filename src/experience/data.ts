@@ -85,10 +85,10 @@ export const glassesParts = [
 ] as const;
 
 export const flywheelSteps = [
-  {title: "Deploy", head: ["Deploy."], copy: "Bring the model into partner sports apps and devices."},
-  {title: "Capture", head: ["Capture."], copy: "Collect video and optional IMU data with consent."},
-  {title: "Validate", head: ["Validate."], copy: "Synchronize, filter and review each session."},
-  {title: "Improve", head: ["Improve."], copy: "Train, test and release the next model."},
+  {title: "Deploy", head: ["Every deployment.", "A new beginning."], copy: "Partner apps and devices bring the motion model into real movement. Sports is the first deployment path.", detail: "Partner apps + devices"},
+  {title: "Capture", head: ["Movement becomes", "training material."], copy: "With consent, video and optional IMU become inputs for a growing motion dataset.", detail: "Video + optional IMU · with consent"},
+  {title: "Validate", head: ["Useful data.", "Not just more data."], copy: "Synchronize, filter and review sessions before they enter the training loop. Quality makes a capture useful beyond its first application.", detail: "Sync → filter → review"},
+  {title: "Improve", head: ["Back to the model.", "Forward to robots."], copy: "Train, test and release the next motion model. The planned second revenue stream licenses motion datasets to robotics teams by hour or contract.", detail: "Train → test → release"},
 ] as const;
 
 // Presentation copy only; the source capture and measured values stay unchanged.
