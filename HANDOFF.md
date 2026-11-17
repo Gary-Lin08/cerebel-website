@@ -308,7 +308,7 @@ New block at the end of `experience.css`. Top bar: "Previous site" hidden, small
 
 ## November 17: coming to rest (snap.ts), rewritten
 
-User report: with a trackpad, letting go often left the page in the middle of a transition. Wanted: release between two stops, even near halfway, and the page glides softly to the right one; gentle; yields at once to new input; keep the current slow scroll sensitivity (`scrollDistanceScale = 2`, unchanged).
+User report: with a trackpad, letting go often left the page in the middle of a transition. Wanted: release between two stops, even near halfway, and the page glides softly to the right one; gentle; yields at once to new input; keep the current slow scroll sensitivity (`scrollDistanceScale = 2` at the time; later the same day lowered 30% to `2 / 0.7` at the user's request).
 
 What was wrong (reproduced):
 - **Stops were not where the picture is still.** The old reading point was the same rule for every chapter (just after the headline). Golf findings move the skeleton to the extreme frame until 55% of the chapter and push the camera in between 40% and 70%; the stop was at 35%, so the page rested mid-swing before the push-in. Benchmark tapes were still growing, the glasses' optical explosion was half done, and Snow and Field never stop moving at all. That reads as "stuck in the transition" even when the snap fired.
@@ -322,3 +322,13 @@ What it is now:
 - Dev-only aids: `window.__xpSnap` (stops and a log) and `?norender` (skips WebGL so input tests run at real event rates in a software-rendered browser). Neither is in production builds.
 
 Checked: `node scripts/scroll-snap-check.mjs` (dev server running) in headless Chrome at 1440×900 without rendering: 47 of 47 trials came to rest on a stop and on the stop the rule expects (20/35/50/70% down and up from four stops including across Benchmark, random flicks with modelled momentum, re-scrolling mid-glide: yields immediately, 1 px tail mid-glide: does not cancel, wheel notches). Rendered stills at three stops and ±0.08 units: identical picture; at −0.3 the push-in and headline trace are still running. Not checked: a real trackpad (synthetic input only), Safari, phones and touch momentum, how the 0.6–1.4 s glide feels in hand.
+
+## November 17 (later): menu, loader, muscle ring, viewer, layout pass
+
+- **No filler labels.** User: nobody reads kickers like "Explore the story", nobody counts chapters. Removed the menu kicker and "Chapter N", the glasses "0N / 04" counter, the loop-nav numbers, the "Scroll to discover" hint, the "Snowboard" timeline label and the viewer's "Inside the movement" kicker. Don't add them back.
+- **Menu.** Frosted (gradient + `backdrop-filter: blur(26px)` + grain), rows on a two-column grid with hairlines. The Cerebel logo no longer shifts when the menu opens: the top links are hidden with `visibility`, not `display:none`, so the bar keeps its height.
+- **Loader.** Game-style: segmented track, fill with a burning white head (comet trail + flare), frosted drifting background, logo 280px, a three-digit % readout.
+- **Explore muscle groups ring.** Drawn in rhythm instead of popping: a dot blinks, the arc draws in four strokes with holds, ticks step in, an inner arc sweeps, then the label types in. Pure CSS on SVG strokes (`pathLength="100"`); reduced motion shows it static.
+- **Muscle viewer.** Frosted like the homepage, with a HUD (rings drawn with the same rhythm, corner brackets) behind the figure; copy and buttons flicker in staggered. Nav moved to the left column under the copy.
+- **Layout pass.** Hero copy gets a dark halo; the golf readout sits on a fitted frosted strip; small timeline/finding labels raised to 12/11px; metric units are set small after the number ("6 cm" → 6<small>cm</small>); company photo offset only on desktop; phone: pill fits its text, figure labels and the joint caption hidden so they don't sit on the copy; benchmark offset smaller on narrow screens so labels aren't cut.
+- **Verified:** headless Chrome stills at 1440×900 and 390×844; snap trials 37/37 at sensitivity 2/0.7. **Not verified:** real trackpad feel, Safari, real phones, the animations in motion on real hardware.

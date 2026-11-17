@@ -8,13 +8,15 @@ import type { SwingData } from "./acts/swing";
 export function mountMuscleOrbit(root: HTMLElement, data: SwingData) {
   const entry = document.createElement("button");
   entry.className = "muscle-entry";
-  entry.innerHTML = '<span aria-hidden="true">+</span> Explore muscle groups';
+  // The ring is drawn when the button appears: a seed dot, then the circle in four timed strokes, then the
+  // ticks and an inner arc, then the label (CSS, .me-*).
+  entry.innerHTML = '<svg class="me-ring" viewBox="0 0 130 130" aria-hidden="true"><circle class="me-track" cx="65" cy="65" r="60"/><circle class="me-arc" cx="65" cy="65" r="60" pathLength="100"/><circle class="me-ticks" cx="65" cy="65" r="54" pathLength="100"/><circle class="me-inner" cx="65" cy="65" r="47" pathLength="100"/><circle class="me-dot" cx="125" cy="65" r="2.2"/></svg><span class="me-label">Explore muscle groups</span>';
   entry.setAttribute("aria-haspopup", "dialog");
   root.append(entry);
   const dialog = document.createElement("dialog");
   dialog.className = "muscle-orbit";
   dialog.setAttribute("aria-label", "Explore reconstructed muscle groups");
-  dialog.innerHTML = '<canvas aria-label="Interactive reconstructed muscle group"></canvas><button class="orbit-close" aria-label="Close muscle exploration"></button><div class="orbit-copy"><p>Inside the movement</p><h2></h2><p class="orbit-detail"></p><p class="orbit-cue"></p></div><nav aria-label="Muscle groups"></nav><footer>Drag to orbit · Scroll to zoom<br>Captured pose + model-derived muscle paths. Muscle volume is schematic; coaching is inferred, not measured with EMG.</footer>';
+  dialog.innerHTML = '<canvas aria-label="Interactive reconstructed muscle group"></canvas><button class="orbit-close" aria-label="Close muscle exploration"></button><div class="orbit-hud" aria-hidden="true"><svg viewBox="0 0 200 200"><circle class="oh-a" cx="100" cy="100" r="92" pathLength="100"/><circle class="oh-b" cx="100" cy="100" r="86" pathLength="100"/><circle class="oh-c" cx="100" cy="100" r="98" pathLength="100"/></svg><i></i><i></i><i></i><i></i></div><div class="orbit-copy"><h2></h2><p class="orbit-detail"></p><p class="orbit-cue"></p></div><nav aria-label="Muscle groups"></nav><footer>Drag to orbit · Scroll to zoom<br>Captured pose + model-derived muscle paths. Muscle volume is schematic; coaching is inferred, not measured with EMG.</footer>';
   document.body.append(dialog);
   const canvas = dialog.querySelector("canvas")!;
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });

@@ -137,7 +137,6 @@ function markup() {
 
     ${glassesParts.map((p) => `
     <section class="ch ch--part" data-ch="${p.id}">
-      <p class="index num">${p.n}<small>/ 04</small></p>
       <h2 class="h-sm">${lines(p.title)}</h2>
       <p>${p.copy}</p>
       <p class="fine">Schematic of the development configuration.</p>
@@ -181,7 +180,7 @@ function markup() {
     </section>
   </main>
 
-  <nav class="loop-nav" aria-label="Data flywheel stages">${flywheelSteps.map((step,i)=>`<button data-loop="${i}" data-jump="${spans.find(s=>s.id===`loop-${i}`)!.start+.1}"><span>0${i+1}</span>${step.title}<i>↗</i></button>`).join("")}</nav>
+  <nav class="loop-nav" aria-label="Data flywheel stages">${flywheelSteps.map((step,i)=>`<button data-loop="${i}" data-jump="${spans.find(s=>s.id===`loop-${i}`)!.start+.1}">${step.title}<i>↗</i></button>`).join("")}</nav>
   <div class="xp-anchors" aria-hidden="true">
     ${seq.map((row, i) => `<div class="tag tag--bar${i === 0 ? " is-lead" : ""}" data-anchor="bar-${i}"><b>${row[0]}</b><span class="num" data-bar="${i}">0.0</span></div>`).join("")}
     ${[0, 20, 40, 60, 80].map((mm) => `<div class="tag tag--tick num" data-anchor="tick-${mm}">${mm}</div>`).join("")}
@@ -212,15 +211,13 @@ function markup() {
     <div><span>Load</span><b class="num" data-ski="load3">1.0</b><em>× BW</em></div>
   </div>
 
-  ${[2].map(act=>{ const sections=spans.filter(s=>s.act===act); return `<nav class="scene-timeline" data-timeline="${act}" aria-label="Snow chapter navigation"><div class="scene-timeline__top"><span>Snowboard</span><span data-timeline-label></span></div><input type="range" min="${sections[0].start+.02}" max="${sections[sections.length-1].end-.08}" step="0.005" value="${sections[0].start+.02}" aria-label="Snow chapter progress"><div class="scene-timeline__stops">${sections.map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</div></nav>`; }).join("")}
-  <div class="xp-hint" aria-hidden="true"><span>Scroll to discover</span><i></i></div>
-
+  ${[2].map(act=>{ const sections=spans.filter(s=>s.act===act); return `<nav class="scene-timeline" data-timeline="${act}" aria-label="Snow chapter navigation"><div class="scene-timeline__top"><span data-timeline-label></span></div><input type="range" min="${sections[0].start+.02}" max="${sections[sections.length-1].end-.08}" step="0.005" value="${sections[0].start+.02}" aria-label="Snow chapter progress"><div class="scene-timeline__stops">${sections.map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</div></nav>`; }).join("")}
+  
   <div class="xp-menu" aria-hidden="true">
-    <p class="fine">Explore the story</p>
-    <ol>${groups.map((g, i) => `<li><button class="menu-chapter" type="button" data-group="${g}" data-cursor><em>Chapter ${i + 1}</em>${g}</button><nav class="menu-subchapters" aria-label="${g} subchapters">${spans.filter(s=>s.group===g).map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</nav></li>`).join("")}</ol>
+    <ol>${groups.map((g) => `<li><button class="menu-chapter" type="button" data-group="${g}" data-cursor>${g}</button><nav class="menu-subchapters" aria-label="${g} subchapters">${spans.filter(s=>s.group===g).map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</nav></li>`).join("")}</ol>
   </div>
 
-  <div class="xp-loader"><div class="xp-loader__halo" aria-hidden="true"></div><div class="xp-loader__content"><span class="xp-loader__eyebrow">HUMAN MOTION / MACHINE INTELLIGENCE</span><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"><div class="xp-loader__track" role="progressbar" aria-label="Loading experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="xp-loader__fill"></i></div><span class="xp-loader__caption">PREPARING THE EXPERIENCE</span></div><span class="xp-loader__signature" aria-hidden="true">CEREBEL AI</span></div>
+  <div class="xp-loader"><div class="xp-loader__frost" aria-hidden="true"><i></i><i></i><i></i></div><div class="xp-loader__halo" aria-hidden="true"></div><div class="xp-loader__content"><img src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194"><div class="xp-loader__track" role="progressbar" aria-label="Loading experience" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="xp-loader__fill"><b class="xp-loader__head" aria-hidden="true"></b></i></div><span class="xp-loader__pct" aria-hidden="true">000</span></div></div>
   <div class="xp-glass" aria-hidden="true"></div>
   <canvas class="xp-lens" aria-hidden="true"></canvas>
   <div class="xp-cursor" aria-hidden="true"></div>`;
@@ -237,7 +234,9 @@ export function mountExperience(root: HTMLElement) {
   const $$ = <T extends HTMLElement>(sel: string) => [...root.querySelectorAll<T>(sel)];
 
   // More physical scroll per scene unit makes small wheel and trackpad motions easier to control.
-  const scrollDistanceScale = 2;
+  // Screens of physical scroll per scene unit. Raised from 2 on November 17 at the user's request (30% less
+  // sensitive). Rest points, the hold around them and glides all scale with it.
+  const scrollDistanceScale = 2 / 0.7;
   let vh = window.innerHeight;
   const pixelsPerUnit = () => vh * scrollDistanceScale;
   let vw = window.innerWidth;
@@ -275,7 +274,11 @@ export function mountExperience(root: HTMLElement) {
     for (const a of d.annotations) {
       $$(`[data-f="${a.id}"]`).forEach((el) => {
         const k = el.dataset.k!;
-        el.textContent = k === "value" ? a.metric.value : k === "caption" ? a.metric.caption : (a as unknown as Record<string, string>)[k];
+        if (k === "value") {
+          // A trailing unit ("6 cm") is set small, the way the benchmark sets "mm"; degrees stay with the number.
+          const m = /^(.*\d)\s+([a-z%]+)$/i.exec(a.metric.value);
+          el.innerHTML = m ? `${m[1]}<small>${m[2]}</small>` : a.metric.value;
+        } else el.textContent = k === "caption" ? a.metric.caption : (a as unknown as Record<string, string>)[k];
       });
       const series = d.series.find((s) => s.id === a.series);
       const host = root.querySelector<HTMLElement>(`[data-trace="${a.id}"]`);
@@ -414,6 +417,7 @@ export function mountExperience(root: HTMLElement) {
   const loader = $(".xp-loader");
   const loaderTrack = loader.querySelector<HTMLElement>(".xp-loader__track")!;
   const loaderFill = loader.querySelector<HTMLElement>(".xp-loader__fill")!;
+  const loaderPct = loader.querySelector<HTMLElement>(".xp-loader__pct")!;
   const loadingStartedAt = performance.now();
   let homeReady = false;
   acts[0].ready.then(() => { homeReady = true; });
@@ -869,10 +873,12 @@ export function mountExperience(root: HTMLElement) {
       // A short paced presentation, capped below completion until Origin is ready.
       const progress = Math.min(94, 94 * (1 - Math.exp(-elapsed / 500)));
       loaderFill.style.width = `${progress}%`;
+      loaderPct.textContent = String(Math.round(progress)).padStart(3, "0");
       loaderTrack.setAttribute("aria-valuenow", String(Math.round(progress)));
       if (homeReady && (stage.reduced || elapsed >= 1400)) {
         started = true;
         loaderFill.style.width = "100%";
+        loaderPct.textContent = "100";
         loaderTrack.setAttribute("aria-valuenow", "100");
         root.classList.add("is-ready");
         entranceStartedAt = performance.now() + (stage.reduced ? 0 : 150);

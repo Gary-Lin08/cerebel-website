@@ -108,7 +108,7 @@ export function createBenchmark(getSeq: () => "32" | "128", onValues: (shown: nu
       const dist = lerp(wide ? 8.5 : 16, wide ? 17.5 : 36, out);
       const elev = lerp(0.3, 0.56, out);
       const az = lerp(-0.5, -0.12, out) + ctx.pointer.x * 0.05;
-      act.offset!.x = wide ? 0.17 : 0.04;
+      act.offset!.x = wide ? 0.17 : 0.08;
       act.offset!.y = wide ? 0.02 : 0.0;
       camera.position.set(focusX + Math.sin(az) * Math.cos(elev) * dist, Math.sin(elev) * dist + 0.3, 1.4 + Math.cos(az) * Math.cos(elev) * dist);
       camera.lookAt(focusX, 0.1, 1.4);
