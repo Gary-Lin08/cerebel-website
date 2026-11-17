@@ -807,3 +807,37 @@
 
 /* Loading screen uses the wordmark and progress bar as its only structure. */
 .xp .xp-loader::before, .xp .xp-loader::after { content: none; }
+
+/* Match the chapter menu's finish to the main scene. */
+.xp .xp-menu::after {
+  opacity: .29;
+  background-position: var(--xp-grain-x) var(--xp-grain-y);
+}
+.xp .xp-menu ol {
+  position: relative;
+  z-index: 1;
+}
+.xp .xp-menu ol .menu-chapter {
+  --menu-ink: var(--ink);
+  filter: drop-shadow(0 0 12px rgba(233, 236, 242, .22));
+}
+.xp .xp-menu ol .menu-chapter:is(:hover, :focus-visible) {
+  --menu-ink: #d9caff;
+  filter: drop-shadow(0 0 14px rgba(184, 161, 255, .32));
+}
+.xp .xp-menu ol .menu-subchapters button {
+  text-shadow: 0 0 20px rgba(233, 236, 242, .16);
+}
+.xp .xp-menu ol .menu-subchapters button:is(:hover, :focus-visible, [aria-current="true"]) {
+  text-shadow: 0 0 12px rgba(184, 161, 255, .3);
+}
+@supports (background-clip: text) {
+  .xp .xp-menu ol .menu-chapter,
+  .xp .xp-menu ol .menu-chapter:is(:hover, :focus-visible) {
+    background-color: var(--menu-ink);
+    background-image: var(--matte-grain);
+    background-position: var(--xp-grain-x) var(--xp-grain-y);
+    background-clip: text;
+    color: transparent;
+  }
+}
