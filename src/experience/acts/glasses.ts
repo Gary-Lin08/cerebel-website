@@ -76,7 +76,7 @@ export function createGlasses(control: HTMLElement): Act {
       let active="";
       for(const step of steps)if(ctx.local(step)>0)active=step;
       const intro=ctx.local("glasses-intro");
-      const exploded=smooth(.6,1,intro)*.25+smooth(0,.8,ctx.local("g-optical"))*.75;
+      const exploded=smooth(.6,1,intro)*.25+smooth(0,.4,ctx.local("g-optical"))*.75;
       const desired=active==="g-clock"?-.7:active==="g-modular"?.9:.42;
       yaw=damp(yaw,desired,2.4,ctx.dt);
       rotationX=damp(rotationX,targetX,ctx.reduced?100:10,ctx.dt);

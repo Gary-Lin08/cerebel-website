@@ -305,3 +305,20 @@ New block at the end of `experience.css`. Top bar: "Previous site" hidden, small
 `sound.ts`, the toggle and its CSS are deleted. Do not add sound back unless asked.
 
 - November 17, glasses inspection: drag the model region to rotate, arrow keys also rotate and Reset view/Home restores the scroll pose. Retain matte/grain/background. Hard CAD shell edges now use creased normals (36 degrees) instead of smoothing across panels, with calmer satin reflections. Typecheck and standalone build passed; browser launch failed in this environment, so the temple shading needs live visual confirmation.
+
+## November 17: coming to rest (snap.ts), rewritten
+
+User report: with a trackpad, letting go often left the page in the middle of a transition. Wanted: release between two stops, even near halfway, and the page glides softly to the right one; gentle; yields at once to new input; keep the current slow scroll sensitivity (`scrollDistanceScale = 2`, unchanged).
+
+What was wrong (reproduced):
+- **Stops were not where the picture is still.** The old reading point was the same rule for every chapter (just after the headline). Golf findings move the skeleton to the extreme frame until 55% of the chapter and push the camera in between 40% and 70%; the stop was at 35%, so the page rested mid-swing before the push-in. Benchmark tapes were still growing, the glasses' optical explosion was half done, and Snow and Field never stop moving at all. That reads as "stuck in the transition" even when the snap fired.
+- **Release was detected with a 180 ms timer.** Measured in the user's Chrome (Mac, 120 Hz): normal frames 8 ms, but in Motion and during scene changes median 16.7 ms, p90 40–50 ms and single frames up to 275 ms. One long frame passes for a pause, so the snap could start mid-gesture and fight the next momentum events.
+- Smaller: a timer that found the page blocked (menu, drag) dropped the snap for good; a timeline drag released outside the slider left `timelineDragging` stuck; the target was always the nearest stop, so a long deliberate move often slid back.
+
+What it is now:
+- `data.ts`: optional `rest` per chapter (units from its start) where the act settles later than the default. Set for `legible` (strand formed), the five golf findings (extreme frame held, camera pushed in), `benchmark` (tapes grown). Glasses `g-optical` explosion now completes by 40% of the chapter instead of 80%.
+- `stage.ts`: `RESTS` (one per chapter) and `sceneTime(u)`. The scene holds completely still for `HOLD` = 0.1 units (0.2 screens) either side of every rest point; motion between rest points runs a little faster to make up the distance. Copy is not held (raw position). `index.ts` passes `sceneTime(u)` to `stage.frame`.
+- `snap.ts` (new, replaces the block in `index.ts`). Four rules, written at the top of the file: never move the page while the reader is moving it; release = no input for 6 rendered frames and 140 ms; target = the stop the reader was heading for once 30% of the way there, else back; a blocked rest waits and fires when unblocked. Glide is smootherstep, 0.6–1.4 s by distance. 1–2 px wheel deltas within 400 ms of the last are momentum tail and never cancel a glide. Menu and chapter buttons (`jump`) glide to the chapter's rest point.
+- Dev-only aids: `window.__xpSnap` (stops and a log) and `?norender` (skips WebGL so input tests run at real event rates in a software-rendered browser). Neither is in production builds.
+
+Checked: `node scripts/scroll-snap-check.mjs` (dev server running) in headless Chrome at 1440×900 without rendering: 47 of 47 trials came to rest on a stop and on the stop the rule expects (20/35/50/70% down and up from four stops including across Benchmark, random flicks with modelled momentum, re-scrolling mid-glide: yields immediately, 1 px tail mid-glide: does not cancel, wheel notches). Rendered stills at three stops and ±0.08 units: identical picture; at −0.3 the push-in and headline trace are still running. Not checked: a real trackpad (synthetic input only), Safari, phones and touch momentum, how the 0.6–1.4 s glide feels in hand.

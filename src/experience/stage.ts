@@ -54,6 +54,34 @@ export const actSpans = ACTS.map((_, i) => {
   return { start: mine[0].start, end: mine[mine.length - 1].end };
 });
 export const WIPE = 0.6; // half-width of a scene wipe, in viewport heights
+export const ENTER = 0.34; // a chapter's copy (headline trace and fill, body) comes in over this much scroll
+
+// Rest points: one per chapter, where the page comes to rest when the hand lets go (see snap.ts). By default just
+// after the headline has finished and any scene change is over; chapters whose act settles later say so in data.ts.
+export const RESTS = spans.map((s, i) => {
+  if (i === 0) return 0;
+  const sceneChange = s.act !== spans[i - 1].act;
+  return s.start + (s.rest ?? Math.max(ENTER + 0.12, sceneChange ? WIPE + 0.06 : 0));
+});
+
+// Scene time. Around every rest point the scene holds completely still for HOLD on either side, and the motion
+// between two rest points runs a little faster to make up the distance. So a page at rest always shows a still
+// picture, and stopping slightly short of or past a rest point looks the same as stopping on it. Copy is not
+// held: it is driven by the raw scroll position (index.ts).
+export const HOLD = 0.1;
+export function sceneTime(u: number) {
+  for (let i = 0; i < RESTS.length; i += 1) {
+    const r = RESTS[i];
+    if (u <= r + HOLD) {
+      if (u >= r - HOLD) return r;
+      if (i === 0) return u;
+      const a = RESTS[i - 1];
+      return a + ((u - (a + HOLD)) / (r - HOLD - (a + HOLD))) * (r - a);
+    }
+  }
+  const last = RESTS[RESTS.length - 1];
+  return last + Math.max(0, u - (last + HOLD));
+}
 
 const NOISE = /* glsl */ `
 // A hash without sin(): the sine version loses precision on large pixel coordinates and its output lines up

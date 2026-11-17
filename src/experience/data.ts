@@ -6,24 +6,27 @@ export type Chapter = {
   act: number; // which WebGL scene is on stage
   group: string; // menu / side-rail group label
   length: number; // scroll length in viewport heights
+  /** Where the page comes to rest in this chapter, in units from its start. Omit for the default (just after the
+   * headline has finished and any scene change is over). Set it where the act settles later than that. */
+  rest?: number;
 };
 
 export const ACTS = ["origin", "swing", "ski", "benchmark", "glasses", "flywheel", "field"] as const;
 
 export const chapters: Chapter[] = [
   { id: "hero", act: 0, group: "Origin", length: 1.1 },
-  { id: "legible", act: 0, group: "Origin", length: 2.1 },
+  { id: "legible", act: 0, group: "Origin", length: 2.1, rest: 1.14 }, // the strand has formed
   { id: "swing-intro", act: 1, group: "Motion", length: 1.2 },
-  { id: "sway", act: 1, group: "Motion", length: 1.3 },
-  { id: "trail-knee", act: 1, group: "Motion", length: 1.3 },
-  { id: "lead-arm", act: 1, group: "Motion", length: 1.2 },
-  { id: "hang-back", act: 1, group: "Motion", length: 1.3 },
-  { id: "finish", act: 1, group: "Motion", length: 1.2 },
+  { id: "sway", act: 1, group: "Motion", length: 1.3, rest: 1.0 }, // finding frame held, camera pushed in
+  { id: "trail-knee", act: 1, group: "Motion", length: 1.3, rest: 1.0 },
+  { id: "lead-arm", act: 1, group: "Motion", length: 1.2, rest: 0.92 },
+  { id: "hang-back", act: 1, group: "Motion", length: 1.3, rest: 1.0 },
+  { id: "finish", act: 1, group: "Motion", length: 1.2, rest: 0.92 },
   { id: "find", act: 1, group: "Motion", length: 1.3 },
   { id: "ski-intro", act: 2, group: "Snow", length: 1.2 },
   { id: "ski-load", act: 2, group: "Snow", length: 1.3 },
   { id: "ski-edge", act: 2, group: "Snow", length: 1.3 },
-  { id: "benchmark", act: 3, group: "Benchmark", length: 1.9 },
+  { id: "benchmark", act: 3, group: "Benchmark", length: 1.9, rest: 1.05 }, // every tape has finished growing
   { id: "glasses-intro", act: 4, group: "Glasses", length: 1.1 },
   { id: "g-optical", act: 4, group: "Glasses", length: 1.1 },
   { id: "g-clock", act: 4, group: "Glasses", length: 1.1 },

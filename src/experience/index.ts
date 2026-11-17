@@ -7,7 +7,8 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "./experience.css";
 import { benchmark, chapters, glassesParts, flywheelSteps } from "./data";
 import { asset, page } from "./paths";
-import { type Act, TOTAL, WIPE, createStage, damp, smooth, spans } from "./stage";
+import { type Act, ENTER, RESTS, TOTAL, createStage, damp, sceneTime, smooth, spans } from "./stage";
+import { createSnap } from "./snap";
 import { createOrigin } from "./acts/origin";
 import { type SwingData, createSwing } from "./acts/swing";
 import { createBenchmark } from "./acts/benchmark";
@@ -250,10 +251,13 @@ export function mountExperience(root: HTMLElement) {
   };
   layout();
   window.addEventListener("resize", layout);
-  let snapPausedUntil = 0;
+  let snap: ReturnType<typeof createSnap> | null = null;
+  // Menu and chapter buttons go to the rest point of the chapter they name.
   const jump = (units: number) => {
-    snapPausedUntil = performance.now() + 1000;
-    window.scrollTo({ top: units * pixelsPerUnit() + 2, behavior: stage.reduced ? "auto" : "smooth" });
+    const i = Math.max(0, spans.findIndex((s) => units >= s.start && units < s.end));
+    const top = RESTS[i] * pixelsPerUnit();
+    if (snap && !stage.reduced) snap.to(top);
+    else window.scrollTo({ top, behavior: "auto" });
   };
 
   // ---- Swing: copy and traces come from the capture's own analysis file.
@@ -478,10 +482,12 @@ export function mountExperience(root: HTMLElement) {
 
   const timelines = $$<HTMLElement>("[data-timeline]").map(el=>({el,input:el.querySelector<HTMLInputElement>("input")!,label:el.querySelector<HTMLElement>("[data-timeline-label]")!}));
   let timelineDragging = false;
+  // A drag that ends outside the slider must still end the drag.
+  window.addEventListener("pointerup", () => { timelineDragging = false; }, { passive: true });
   for (const {input} of timelines) {
     input.addEventListener("pointerdown",()=>{timelineDragging=true;});
-    for(const event of ["pointerup","pointercancel","lostpointercapture"]) input.addEventListener(event,()=>{timelineDragging=false;});
-    input.addEventListener("input",()=>{snapPausedUntil=performance.now()+500;scrub=null;u=Number(input.value);window.scrollTo({top:u*pixelsPerUnit(),behavior:"instant"});});
+    for(const event of ["pointerup","pointercancel","lostpointercapture"]) input.addEventListener(event,()=>{timelineDragging=false;snap?.settle();});
+    input.addEventListener("input",()=>{scrub=null;u=Number(input.value);window.scrollTo({top:u*pixelsPerUnit(),behavior:"instant"});});
   }
   const subchapterButtons=$$<HTMLElement>("[data-subchapter]");
 
@@ -679,7 +685,6 @@ export function mountExperience(root: HTMLElement) {
   // the last EXIT, as a function of position: scroll back and it undoes itself. Headlines are first traced
   // (each letter's outline drawn round from the font's own contours), then filled inside that outline from the
   // baseline up. Only the opening headline runs on time, because the page has not been scrolled yet.
-  const ENTER = 0.34;
   const EXIT = 0.16;
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
   const copy = chEls.map(({ el, span }) => ({
@@ -752,101 +757,21 @@ export function mountExperience(root: HTMLElement) {
     }
   }
 
-  // Reading points sit after the title and any scene dissolve.
-  const readingPoints = spans.map((span, index) => {
-    if (index === 0) return 0;
-    const changesScene = span.act !== spans[index - 1].act;
-    return span.start + Math.max(ENTER + 0.12, changesScene ? WIPE + 0.06 : 0);
-  });
-
+  // ---- Coming to rest between chapters (snap.ts). Rest points and the scene hold around them live in stage.ts.
+  const probe = import.meta.env.DEV ? ((window as unknown as Record<string, unknown>).__xpSnap = {
+    points: () => RESTS.map((r) => Math.round(r * pixelsPerUnit())),
+    log: [] as string[],
+  }) as { log: string[] } : null;
   if (!new URLSearchParams(location.search).has("still")) {
-    let snapTimer: number | undefined;
-    let touchHeld = false;
-    let pointerHeld = false;
-    let scrolledWhileHeld = false;
-    let snapFrame = 0;
-    const canSnap = () => started && !stage.reduced && !touchHeld && !pointerHeld && !timelineDragging &&
-      performance.now() >= snapPausedUntil && !root.classList.contains("is-menu") &&
-      !document.querySelector(".muscle-orbit[open]");
-
-    const cancelSnap = () => {
-      window.clearTimeout(snapTimer);
-      cancelAnimationFrame(snapFrame);
-      snapFrame = 0;
-    };
-
-    const glideTo = (top: number) => {
-      const start = window.scrollY;
-      const distance = top - start;
-      const duration = Math.min(1050, 550 + Math.abs(distance) * 0.45);
-      const startedAt = performance.now();
-      const glide = (now: number) => {
-        if (!canSnap()) {
-          snapFrame = 0;
-          return;
-        }
-        const progress = clamp((now - startedAt) / duration);
-        const eased = progress * progress * (3 - 2 * progress);
-        window.scrollTo({ top: start + distance * eased, behavior: "instant" });
-        snapFrame = progress < 1 ? requestAnimationFrame(glide) : 0;
-      };
-      snapFrame = requestAnimationFrame(glide);
-    };
-    const scheduleSnap = () => {
-      if (snapFrame) return;
-      if (pointerHeld) scrolledWhileHeld = true;
-      window.clearTimeout(snapTimer);
-      snapTimer = window.setTimeout(() => {
-        if (!canSnap()) return;
-
-        const position = window.scrollY / pixelsPerUnit();
-        const scrollRoot = document.scrollingElement!;
-        const bottom = scrollRoot.scrollHeight - scrollRoot.clientHeight;
-        const bottomPoint = bottom / pixelsPerUnit();
-        const nearestPoint = readingPoints.reduce((nearest, point) =>
-          Math.abs(point - position) < Math.abs(nearest - position) ? point : nearest, bottomPoint);
-        const top = Math.min(bottom, Math.round(nearestPoint * pixelsPerUnit()));
-        if (Math.abs(window.scrollY - top) > 2) glideTo(top);
-      }, 180);
-    };
-
-    window.addEventListener("scroll", scheduleSnap, { passive: true });
-    window.addEventListener("wheel", event => {
-      if (event.ctrlKey || event.deltaY === 0) return;
-      cancelSnap();
-      // Trackpad momentum can emit wheel events too small to move the document.
-      scheduleSnap();
-    }, { passive: true });
-    window.addEventListener("keydown", cancelSnap);
-    window.addEventListener("pointerdown", event => {
-      if (event.pointerType === "touch") return;
-      pointerHeld = true;
-      scrolledWhileHeld = false;
-      cancelSnap();
-    }, { passive: true });
-    const finishPointer = () => {
-      pointerHeld = false;
-      if (scrolledWhileHeld) scheduleSnap();
-      scrolledWhileHeld = false;
-    };
-    window.addEventListener("pointerup", finishPointer, { passive: true });
-    window.addEventListener("pointercancel", finishPointer, { passive: true });
-    window.addEventListener("blur", () => {
-      pointerHeld = touchHeld = scrolledWhileHeld = false;
-      cancelSnap();
+    snap = createSnap({
+      stops: () => RESTS.map((r) => r * pixelsPerUnit()),
+      blocked: () => !started || stage.reduced || timelineDragging || root.classList.contains("is-menu") || !!document.querySelector(".muscle-orbit[open]"),
+      log: probe ? (line) => probe.log.push(line) : undefined,
     });
-    window.addEventListener("touchstart", () => {
-      touchHeld = true;
-      cancelSnap();
-    }, { passive: true });
-    const finishTouch = (event: TouchEvent) => {
-      touchHeld = event.touches.length > 0;
-      if (!touchHeld) scheduleSnap();
-    };
-    window.addEventListener("touchend", finishTouch, { passive: true });
-    window.addEventListener("touchcancel", finishTouch, { passive: true });
   }
 
+  const skipRender = import.meta.env.DEV && new URLSearchParams(location.search).has("norender");
+  const lastFront = 0;
   // ---- Loop.
   let u = window.scrollY / pixelsPerUnit();
   let prev = performance.now();
@@ -860,7 +785,9 @@ export function mountExperience(root: HTMLElement) {
     const velocity = (u - lastU) / dt;
     lastU = u;
 
-    const front = stage.frame(u, now / 1000, dt, velocity);
+    // Dev-only: `?norender` skips WebGL so scroll tests run at real event rates in a software-rendered browser.
+    // The scene runs on held time (still around each rest point); copy below runs on the raw position.
+    const front = import.meta.env.DEV && skipRender ? lastFront : stage.frame(sceneTime(u), now / 1000, dt, velocity);
     root.dataset.act = String(front);
     $(".glasses-controls").inert=front!==4 || root.classList.contains("is-menu");
     const activeChapter=spans.find(s=>u>=s.start && u<s.end);
