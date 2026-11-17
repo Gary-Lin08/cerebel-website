@@ -90,32 +90,27 @@ function markup() {
     </section>
 
     <section class="ch ch--ski" data-ch="ski-intro">
-      <p class="badge badge--teal">Illustrative model · not a capture</p>
-      <h2>${lines("Next: the load", "a turn puts", "on a skeleton.")}</h2>
-      <p>We have not published a snowboard capture yet. This is a carved turn modelled from two inputs, ${peak.kmh.toFixed(0)} km/h and a ${peak.radius.toFixed(0)} m arc, to show what the analysis reads on snow.</p>
+      <h2>${lines("Inside a turn.")}</h2>
+      <p>${peak.kmh.toFixed(0)} km/h · ${peak.radius.toFixed(0)} m radius</p>
+      <p class="fine">Illustrative model · not a capture</p>
     </section>
 
     <section class="ch ch--ski" data-ch="ski-load">
       <p class="metric num"><span data-ski="load">1.0</span><small>× body weight</small></p>
-      <p class="metric-cap">Carried through the legs, right now</p>
-      <h2 class="h-sm">${lines("Load follows the turn.")}</h2>
-      <p>Gravity is constant; the turn is not. At the apex of this arc the two add up to ${peak.load.toFixed(1)} times body weight, and all of it reaches the snow through two legs and one edge.</p>
-      <p class="fine">Computed from the modelled speed and arc. Not measured.</p>
+      <h2 class="h-sm">${lines("Leg load.")}</h2>
+      <p class="fine">Modelled · not measured</p>
     </section>
 
     <section class="ch ch--ski" data-ch="ski-edge">
-      <p class="metric num"><span data-ski="lean">0</span><small>° lean</small></p>
-      <p class="metric-cap">The angle that balances the load</p>
-      <h2 class="h-sm">${lines("Lean is the answer", "to the force.")}</h2>
-      <p>The body tilts until gravity and the turn line up through the edge of the board. The model computes that angle, up to ${peak.lean.toFixed(0)}° here. A capture will measure it, joint by joint.</p>
-      <p class="fine">Computed from the modelled speed and arc. Not measured.</p>
+      <p class="metric num"><span data-ski="lean">0</span><small>°</small></p>
+      <h2 class="h-sm">${lines("Body lean.")}</h2>
+      <p class="fine">Modelled · not measured</p>
     </section>
 
     <section class="ch ch--bench" data-ch="benchmark">
       <p class="metric num"><span data-bench="lead">0.0</span><small>mm</small></p>
-      <p class="metric-cap">Head-trajectory error on AMASS. Lower is better.</p>
-      <h2 class="h-sm">${lines("CeRebel leads", "the published", "methods.")}</h2>
-      <p>Four methods on one millimetre scale, starting from zero. The next published method sits at <span class="num" data-bench="next">${seq[1][4]}</span> mm.</p>
+      <p class="metric-cap">AMASS · head-trajectory error ↓</p>
+      <h2 class="h-sm">${lines("CeRebel on AMASS.")}</h2>
       <div class="seg" role="group" aria-label="Sequence length">
         <button type="button" data-seq="32" class="is-on" data-cursor>SEQ 32</button>
         <button type="button" data-seq="128" data-cursor>SEQ 128</button>
@@ -144,8 +139,6 @@ function markup() {
       <h2 class="h-sm">${lines(...step.head)}</h2>
       <p>${step.copy}</p>
       <p class="loop-detail num">${step.detail}</p>
-      <div class="loop-total"><strong class="num">20,000<span> h</span></strong><p>5,000 real / 15,000 simulated</p></div>
-      <p class="fine">Team-reported dataset. Every deployment can strengthen the motion model. Loop shown schematically.</p>
     </section>`).join("")}
     <section class="ch ch--field" data-ch="field">
       <h2>${lines("Already", "in the field.")}</h2>
@@ -177,6 +170,8 @@ function markup() {
       </footer>
     </section>
   </main>
+
+  <aside class="loop-dataset" aria-label="Dataset size"><strong class="num">20,000<span> h</span></strong><p>5,000 real / 15,000 simulated</p><small>Team-reported · schematic loop</small></aside>
 
   <nav class="loop-nav" aria-label="Data flywheel stages">${flywheelSteps.map((step,i)=>`<button data-loop="${i}" data-jump="${spans.find(s=>s.id===`loop-${i}`)!.start+.1}">${step.title}<i>↗</i></button>`).join("")}</nav>
   <div class="xp-anchors" aria-hidden="true">
@@ -373,7 +368,6 @@ export function mountExperience(root: HTMLElement) {
   const fillBenchTable = () => {
     const rows = benchmark[seqKey];
     $('[data-bench="table"]').innerHTML = rows.map((r, i) => `<tr class="${i === 0 ? "is-lead" : ""}"><th>${r[0]}</th><td>${r[1].toFixed(1)}</td><td>${r[2].toFixed(1)}</td><td>${r[3].toFixed(2)}</td></tr>`).join("");
-    $('[data-bench="next"]').textContent = String(rows[1][4]);
   };
   fillBenchTable();
   $$<HTMLButtonElement>("[data-seq]").forEach((b) => b.addEventListener("click", () => {

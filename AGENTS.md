@@ -166,3 +166,5 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 - November 17 follow-up: restore the home “Scroll to discover” hint (explicit exception to no filler hints). Keep Data flywheel’s full four-step narrative, dataset breakdown and planned robotics licensing context; user explicitly asked to restore this content after the copy reduction.
 
 - November 17 final correction: the broad copy reduction was rejected because it disrupted layout. Keep concise copy ONLY in Golf/Motion (including muscle viewer). Restore all other acts to their pre-copy-pass content and structure; do not simplify those again without a specific request. Keep the explicitly requested lower Benchmark placement and restored home scroll hint.
+
+- November 17 targeted follow-up: user explicitly requested concise Benchmark and Snow copy too. Keep their numbers/charts/controls and short provenance; remove slogans and chart narration. Flywheel dataset size is a single persistent context block across act 5, never repeated/re-entered with every step; keep the full step narratives. Other acts unchanged.

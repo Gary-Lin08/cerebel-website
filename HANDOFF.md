@@ -341,3 +341,6 @@ User requested the original Data flywheel content back: restored its original fo
 
 ### User rejected broad copy reduction
 Restored all non-Golf copy and markup exactly from c44a8ba (before the copy pass), including benchmark next-method value and update selector, all snow copy, full glasses descriptions, full flywheel, partners/team/contact and other original headings. Golf and muscle viewer stay concise. Benchmark lower placement and home hint remain per explicit requests. This supersedes the broad copy-density direction above.
+
+### Targeted Benchmark / Snow and persistent flywheel dataset
+Benchmark: concise title and metric caption, no paragraph restating the bars; removed obsolete data-bench=next write. Snow: short labels, live numbers and modelled/not-measured notes. Flywheel: full four narratives retained; 20,000 h and breakdown moved into one aside outside the chapter animation, visible throughout act 5 and hidden in menu/other acts. No snap, camera or capture-data changes.
