@@ -7,7 +7,7 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "./experience.css";
 import { benchmark, chapters, glassesParts, flywheelSteps } from "./data";
 import { asset, page } from "./paths";
-import { type Act, TOTAL, createStage, damp, smooth, spans } from "./stage";
+import { type Act, TOTAL, WIPE, createStage, damp, smooth, spans } from "./stage";
 import { createOrigin } from "./acts/origin";
 import { type SwingData, createSwing } from "./acts/swing";
 import { createBenchmark } from "./acts/benchmark";
@@ -250,7 +250,11 @@ export function mountExperience(root: HTMLElement) {
   };
   layout();
   window.addEventListener("resize", layout);
-  const jump = (units: number) => window.scrollTo({ top: units * pixelsPerUnit() + 2, behavior: stage.reduced ? "auto" : "smooth" });
+  let snapPausedUntil = 0;
+  const jump = (units: number) => {
+    snapPausedUntil = performance.now() + 1000;
+    window.scrollTo({ top: units * pixelsPerUnit() + 2, behavior: stage.reduced ? "auto" : "smooth" });
+  };
 
   // ---- Swing: copy and traces come from the capture's own analysis file.
   let swing: SwingData | null = null;
@@ -477,7 +481,7 @@ export function mountExperience(root: HTMLElement) {
   for (const {input} of timelines) {
     input.addEventListener("pointerdown",()=>{timelineDragging=true;});
     for(const event of ["pointerup","pointercancel","lostpointercapture"]) input.addEventListener(event,()=>{timelineDragging=false;});
-    input.addEventListener("input",()=>{scrub=null;u=Number(input.value);window.scrollTo({top:u*pixelsPerUnit(),behavior:"instant"});});
+    input.addEventListener("input",()=>{snapPausedUntil=performance.now()+500;scrub=null;u=Number(input.value);window.scrollTo({top:u*pixelsPerUnit(),behavior:"instant"});});
   }
   const subchapterButtons=$$<HTMLElement>("[data-subchapter]");
 
@@ -746,6 +750,43 @@ export function mountExperience(root: HTMLElement) {
         lensCtx.restore();
       }
     }
+  }
+
+  // Settle only near a reading point, after the title and any scene dissolve are visible.
+  const readingPoints = spans.map((span, index) => {
+    if (index === 0) return 0;
+    const changesScene = span.act !== spans[index - 1].act;
+    return span.start + Math.max(ENTER + 0.12, changesScene ? WIPE + 0.06 : 0);
+  });
+
+  if (!new URLSearchParams(location.search).has("still")) {
+    let snapTimer: number | undefined;
+    let touchHeld = false;
+    const scheduleSnap = () => {
+      window.clearTimeout(snapTimer);
+      snapTimer = window.setTimeout(() => {
+        if (!started || stage.reduced || touchHeld || timelineDragging ||
+          performance.now() < snapPausedUntil || root.classList.contains("is-menu") ||
+          document.querySelector(".muscle-orbit[open]")) return;
+
+        const position = window.scrollY / pixelsPerUnit();
+        const nearbyPoint = readingPoints.find(point => Math.abs(point - position) <= 0.18);
+        if (nearbyPoint === undefined) return;
+
+        const top = Math.round(nearbyPoint * pixelsPerUnit());
+        if (Math.abs(window.scrollY - top) > 2) window.scrollTo({ top, behavior: "smooth" });
+      }, 180);
+    };
+
+    window.addEventListener("scroll", scheduleSnap, { passive: true });
+    window.addEventListener("wheel", scheduleSnap, { passive: true });
+    window.addEventListener("touchstart", () => { touchHeld = true; }, { passive: true });
+    const finishTouch = (event: TouchEvent) => {
+      touchHeld = event.touches.length > 0;
+      if (!touchHeld) scheduleSnap();
+    };
+    window.addEventListener("touchend", finishTouch, { passive: true });
+    window.addEventListener("touchcancel", finishTouch, { passive: true });
   }
 
   // ---- Loop.
