@@ -338,3 +338,6 @@ User asked to remove filler across the whole site. Trimmed all seven acts plus m
 
 ### Copy pass follow-up
 User requested the original Data flywheel content back: restored its original four headings, explanations, detail lines and dataset context. Restored home Scroll to discover hint, hidden in menu and after leaving hero. Benchmark copy starts at 21vh on desktop (previously 15vh), 98px on narrow/portrait layouts (previously 74px). Other copy reductions remain.
+
+### User rejected broad copy reduction
+Restored all non-Golf copy and markup exactly from c44a8ba (before the copy pass), including benchmark next-method value and update selector, all snow copy, full glasses descriptions, full flywheel, partners/team/contact and other original headings. Golf and muscle viewer stay concise. Benchmark lower placement and home hint remain per explicit requests. This supersedes the broad copy-density direction above.

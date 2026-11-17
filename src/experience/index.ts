@@ -57,7 +57,7 @@ function markup() {
 
     <section class="ch" data-ch="legible">
       <h2>${lines("From a field", "of signals", "to a body", "in motion.")}</h2>
-      <p>CeRebel reconstructs body motion from wearable video.</p>
+      <p>CeRebel is our motion model. It recovers articulated body motion from what a wearable sees, and turns it into something a coach, a device or a robot can read.</p>
       <p class="meta"><span class="num">50.45M</span> model parameters</p>
     </section>
 
@@ -91,26 +91,31 @@ function markup() {
 
     <section class="ch ch--ski" data-ch="ski-intro">
       <p class="badge badge--teal">Illustrative model · not a capture</p>
-      <h2>${lines("Inside a turn.")}</h2>
-      <p>${peak.kmh.toFixed(0)} km/h · ${peak.radius.toFixed(0)} m turn radius.</p>
+      <h2>${lines("Next: the load", "a turn puts", "on a skeleton.")}</h2>
+      <p>We have not published a snowboard capture yet. This is a carved turn modelled from two inputs, ${peak.kmh.toFixed(0)} km/h and a ${peak.radius.toFixed(0)} m arc, to show what the analysis reads on snow.</p>
     </section>
 
     <section class="ch ch--ski" data-ch="ski-load">
       <p class="metric num"><span data-ski="load">1.0</span><small>× body weight</small></p>
-      <h2 class="h-sm">${lines("Load through the legs.")}</h2>
-      <p class="fine">Modelled from speed and radius · not measured.</p>
+      <p class="metric-cap">Carried through the legs, right now</p>
+      <h2 class="h-sm">${lines("Load follows the turn.")}</h2>
+      <p>Gravity is constant; the turn is not. At the apex of this arc the two add up to ${peak.load.toFixed(1)} times body weight, and all of it reaches the snow through two legs and one edge.</p>
+      <p class="fine">Computed from the modelled speed and arc. Not measured.</p>
     </section>
 
     <section class="ch ch--ski" data-ch="ski-edge">
       <p class="metric num"><span data-ski="lean">0</span><small>° lean</small></p>
-      <h2 class="h-sm">${lines("Body lean.")}</h2>
-      <p class="fine">Modelled from speed and radius · not measured.</p>
+      <p class="metric-cap">The angle that balances the load</p>
+      <h2 class="h-sm">${lines("Lean is the answer", "to the force.")}</h2>
+      <p>The body tilts until gravity and the turn line up through the edge of the board. The model computes that angle, up to ${peak.lean.toFixed(0)}° here. A capture will measure it, joint by joint.</p>
+      <p class="fine">Computed from the modelled speed and arc. Not measured.</p>
     </section>
 
     <section class="ch ch--bench" data-ch="benchmark">
       <p class="metric num"><span data-bench="lead">0.0</span><small>mm</small></p>
-      <p class="metric-cap">AMASS · head-trajectory error ↓</p>
-      <h2 class="h-sm">${lines("CeRebel on AMASS.")}</h2>
+      <p class="metric-cap">Head-trajectory error on AMASS. Lower is better.</p>
+      <h2 class="h-sm">${lines("CeRebel leads", "the published", "methods.")}</h2>
+      <p>Four methods on one millimetre scale, starting from zero. The next published method sits at <span class="num" data-bench="next">${seq[1][4]}</span> mm.</p>
       <div class="seg" role="group" aria-label="Sequence length">
         <button type="button" data-seq="32" class="is-on" data-cursor>SEQ 32</button>
         <button type="button" data-seq="128" data-cursor>SEQ 128</button>
@@ -122,8 +127,9 @@ function markup() {
     </section>
 
     <section class="ch" data-ch="glasses-intro">
+      <p class="badge">Development concept</p>
       <h2>${lines("The glasses,", "taken apart.")}</h2>
-      <p>Camera capture + in-lens display. Development concept, not a working product.</p>
+      <p>In-lens display and camera capture are intended capabilities of this concept. It is not a working product yet, and features and timing can change.</p>
       ${orb("Become a backer", page("/#wearable"))}
     </section>
 
@@ -131,7 +137,7 @@ function markup() {
     <section class="ch ch--part" data-ch="${p.id}">
       <h2 class="h-sm">${lines(p.title)}</h2>
       <p>${p.copy}</p>
-      <p class="fine">Development concept</p>
+      <p class="fine">Schematic of the development configuration.</p>
     </section>`).join("")}
 
     ${flywheelSteps.map((step,i)=>`<section class="ch ch--flywheel" data-ch="loop-${i}">
@@ -142,23 +148,23 @@ function markup() {
       <p class="fine">Team-reported dataset. Every deployment can strengthen the motion model. Loop shown schematically.</p>
     </section>`).join("")}
     <section class="ch ch--field" data-ch="field">
-      <h2>${lines("In the field.")}</h2>
+      <h2>${lines("Already", "in the field.")}</h2>
       <ul class="partners">
-        <li><a href="https://apocynthion.ai/" target="_blank" rel="noreferrer" data-cursor><b>Apocynthion</b><span>Humanoid robotics partner</span><i>↗</i></a></li>
-        <li><a href="${page("/")}" data-cursor><b>Athletic coaching</b><span>Ski · golf · tennis</span><i>↗</i></a></li>
-        <li><a href="https://www.instagram.com/overide_snowboards/" target="_blank" rel="noreferrer" data-cursor><b>Overide</b><span>Snowboard partner</span><i>↗</i></a></li>
+        <li><a href="https://apocynthion.ai/" target="_blank" rel="noreferrer" data-cursor><b>Apocynthion</b><span>Humanoid partnership. Its ArenaLabs line builds AlphaMotion, described on its site as the cerebellum for humanoid robots.</span><i>↗</i></a></li>
+        <li><a href="${page("/")}" data-cursor><b>Athletic coaching</b><span>Ski, golf and tennis: edge, rotation, contact.</span><i>↗</i></a></li>
+        <li><a href="https://www.instagram.com/overide_snowboards/" target="_blank" rel="noreferrer" data-cursor><b>Overide</b><span>Snowboard brand partnership. 雪鸮科技 / 风脊者, Overide Halo.</span><i>↗</i></a></li>
       </ul>
     </section>
 
     <section class="ch ch--company" data-ch="company">
-      <h2>${lines("The team.")}</h2>
-      <p>Founders: Babson / Olin, Duke, USC Marshall, USC Viterbi. Adviser: Wharton.</p>
-      <p class="fine">Team affiliations</p>
+      <h2>${lines("Built by people", "who move.")}</h2>
+      <p>The founding team comes from Babson / Olin, Duke, USC Marshall and USC Viterbi, with an adviser from the Wharton School.</p>
+      <p class="fine">Academic affiliations of the team, not institutional partnerships.</p>
       <figure class="slant"><img src="${asset("/assets/founders/founder-team-sm.jpg")}" alt="The Cerebel team" loading="lazy"></figure>
     </section>
 
     <section class="ch ch--contact" data-ch="contact">
-      <h2>${lines("Let’s talk.")}</h2>
+      <h2>${lines("Built for the", "real world, not", "only the lab.")}</h2>
       ${orb("Request a demo", "mailto:hello@cerebel.tech?subject=Demo%20request")}
       <footer class="xp-foot">
         <div class="xp-foot__marks">
@@ -183,7 +189,7 @@ function markup() {
     <div class="joint" data-anchor="joint"><i></i><div><b class="num" data-joint="value"></b><span data-joint="caption"></span></div></div>
     <div class="tag tag--fig" data-anchor="fig-surface">Body surface</div>
     <div class="tag tag--fig" data-anchor="fig-skeleton">Skeleton + muscles</div>
-    ${glassesParts.map((p) => `<div class="hot" data-anchor="h-${p.id.slice(2)}" data-hot="${p.id}"><i></i><span>${p.title}</span></div>`).join("")}
+    ${glassesParts.map((p) => `<div class="hot" data-anchor="h-${p.id.slice(2)}" data-hot="${p.id}"><i></i><span><b class="num">${p.n}</b>${p.title}</span></div>`).join("")}
   </div>
 
   <div class="glasses-controls">
@@ -367,6 +373,7 @@ export function mountExperience(root: HTMLElement) {
   const fillBenchTable = () => {
     const rows = benchmark[seqKey];
     $('[data-bench="table"]').innerHTML = rows.map((r, i) => `<tr class="${i === 0 ? "is-lead" : ""}"><th>${r[0]}</th><td>${r[1].toFixed(1)}</td><td>${r[2].toFixed(1)}</td><td>${r[3].toFixed(2)}</td></tr>`).join("");
+    $('[data-bench="next"]').textContent = String(rows[1][4]);
   };
   fillBenchTable();
   $$<HTMLButtonElement>("[data-seq]").forEach((b) => b.addEventListener("click", () => {

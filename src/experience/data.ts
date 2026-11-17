@@ -62,25 +62,25 @@ export const glassesParts = [
     id: "g-optical",
     n: "01",
     title: "Optical path",
-    copy: "Forward cameras and an in-lens display share one optical stack.",
+    copy: "A forward camera pair and an in-lens display layer share one optical stack, so what the wearer sees and what the system records start from the same view.",
   },
   {
     id: "g-clock",
     n: "02",
-    title: "Shared clock",
-    copy: "Video and motion signals use the same clock.",
+    title: "Shared-clock synchronization",
+    copy: "Image and motion signals are stamped against one clock at the source. Alignment is designed in, not repaired afterwards.",
   },
   {
     id: "g-prep",
     n: "03",
-    title: "Data preparation",
-    copy: "Signals are organised near capture for reconstruction.",
+    title: "Near-capture data preparation",
+    copy: "Signals are organised next to where they are captured, so a session arrives structured for reconstruction rather than as loose footage.",
   },
   {
     id: "g-modular",
     n: "04",
     title: "Modular architecture",
-    copy: "Separate sensing, compute and power modules.",
+    copy: "Sensing, compute and power sit in separable modules, so the development configuration can change without redrawing the frame.",
   },
 ] as const;
 
