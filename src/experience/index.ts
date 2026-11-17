@@ -236,7 +236,7 @@ export function mountExperience(root: HTMLElement) {
   const $$ = <T extends HTMLElement>(sel: string) => [...root.querySelectorAll<T>(sel)];
 
   // More physical scroll per scene unit makes small wheel and trackpad motions easier to control.
-  const scrollDistanceScale = 1.65;
+  const scrollDistanceScale = 2;
   let vh = window.innerHeight;
   const pixelsPerUnit = () => vh * scrollDistanceScale;
   let vw = window.innerWidth;
@@ -753,6 +753,7 @@ export function mountExperience(root: HTMLElement) {
   }
 
   // Settle only near a reading point, after the title and any scene dissolve are visible.
+  const snapRadius = 0.23;
   const readingPoints = spans.map((span, index) => {
     if (index === 0) return 0;
     const changesScene = span.act !== spans[index - 1].act;
@@ -770,7 +771,7 @@ export function mountExperience(root: HTMLElement) {
           document.querySelector(".muscle-orbit[open]")) return;
 
         const position = window.scrollY / pixelsPerUnit();
-        const nearbyPoint = readingPoints.find(point => Math.abs(point - position) <= 0.18);
+        const nearbyPoint = readingPoints.find(point => Math.abs(point - position) <= snapRadius);
         if (nearbyPoint === undefined) return;
 
         const top = Math.round(nearbyPoint * pixelsPerUnit());
