@@ -838,3 +838,11 @@
 .xp .xp-loader__signature { color: #8d8797; text-shadow: 0 0 8px rgba(255, 255, 255, 0.2); }
 .xp .xp-loader__fill { box-shadow: 0 0 6px rgba(184, 148, 255, 0.35); }
 .xp .xp-loader__fill::after { opacity: 0.5; }
+/* Glowing head at the leading end of the bar (user, Nov 17). The scan sweeps by background-position so the
+   fill no longer needs overflow:hidden, which would clip the glow. */
+.xp .xp-loader__fill { overflow: visible; }
+.xp .xp-loader__fill::after { transform: none; background: linear-gradient(90deg, transparent 40%, #ffffffb0 50%, transparent 60%) no-repeat; background-size: 300% 100%; animation: loader-scan-bg 1.8s ease-in-out infinite; }
+@keyframes loader-scan-bg { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.xp .xp-loader__fill::before { content: ""; position: absolute; right: -3px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: #efe6ff;
+  box-shadow: 0 0 6px 2px rgba(200, 170, 255, 0.9), 0 0 18px 6px rgba(155, 108, 255, 0.55), 0 0 40px 12px rgba(155, 108, 255, 0.25); }
+@media (prefers-reduced-motion: reduce) { .xp .xp-loader__fill::after { animation: none; } }
