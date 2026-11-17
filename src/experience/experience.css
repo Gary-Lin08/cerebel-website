@@ -17,15 +17,6 @@
 .xp :focus-visible { outline: 2px solid var(--violet); outline-offset: 4px; border-radius: 4px; }
 .xp-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
-/* Blueprint grid, used behind the glasses and the benchmark. */
-.xp-grid { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.8s; }
-.xp[data-act="4"] .xp-grid { opacity: 1; }
-.xp-grid i { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); transform: scaleY(0); transform-origin: top; transition: transform 1.2s var(--ease); }
-.xp-grid b { position: absolute; left: 0; right: 0; height: 1px; background: var(--line); transform: scaleX(0); transform-origin: left; transition: transform 1.2s var(--ease); }
-.xp[data-act="4"] .xp-grid i, .xp[data-act="4"] .xp-grid b { transform: none; }
-.xp-grid i:nth-child(1) { left: var(--pad); } .xp-grid i:nth-child(2) { left: 38%; transition-delay: 0.1s; }
-.xp-grid i:nth-child(3) { left: 62%; transition-delay: 0.2s; } .xp-grid i:nth-child(4) { right: var(--pad); transition-delay: 0.3s; }
-.xp-grid b:nth-of-type(1) { top: 22%; } .xp-grid b:nth-of-type(2) { bottom: 18%; transition-delay: 0.2s; }
 
 /* Top bar */
 .xp-top { position: absolute; z-index: 30; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 28px; padding: 26px var(--pad); }

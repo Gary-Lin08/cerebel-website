@@ -33,7 +33,6 @@ function markup() {
   const peak = skiPeak();
   return /* html */ `
   <canvas class="xp-canvas" aria-hidden="true"></canvas>
-  <div class="xp-grid" aria-hidden="true"><i></i><i></i><i></i><i></i><b></b><b></b></div>
 
   <header class="xp-top">
     <button class="xp-burger" type="button" aria-label="Open menu" aria-expanded="false" data-cursor><i></i><i></i></button>
