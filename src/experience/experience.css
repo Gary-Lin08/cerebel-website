@@ -649,3 +649,14 @@
   .loop-nav { left: var(--pad); right: var(--pad); bottom: 22px; gap: 10px; justify-content: space-between; }
   .xp .loop-nav button { min-width: 0; flex: 1; font-size: 0.75rem; padding: 10px 0; }
 }
+
+/* Product inspection stays local to the glasses, leaving page scrolling available. */
+.glasses-controls{position:fixed;inset:20% 8% 18% 47%;z-index:11;visibility:hidden;pointer-events:none}
+.xp[data-act="4"]:not(.is-menu) .glasses-controls{visibility:visible}
+.glasses-drag{position:absolute;inset:0;pointer-events:auto;cursor:grab;touch-action:pan-y}
+.glasses-drag.is-dragging{cursor:grabbing}
+.glasses-drag:focus-visible{outline:1px solid #b7a1e6;outline-offset:5px;border-radius:24px}
+.glasses-help{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:20px;font-size:13px;color:var(--muted);pointer-events:none}
+.glasses-reset{pointer-events:auto;border:0;border-bottom:1px solid currentColor;background:none;color:inherit;font:inherit;padding:0 0 3px;cursor:pointer}
+.glasses-reset:hover{color:var(--ink)}
+@media(max-width:900px){.glasses-controls{inset:18% 10% 51%}}

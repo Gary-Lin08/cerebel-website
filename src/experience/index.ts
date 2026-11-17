@@ -194,6 +194,10 @@ function markup() {
     ${glassesParts.map((p) => `<div class="hot" data-anchor="h-${p.id.slice(2)}" data-hot="${p.id}"><i></i><span><b class="num">${p.n}</b>${p.title}</span></div>`).join("")}
   </div>
 
+  <div class="glasses-controls">
+    <div class="glasses-drag" tabindex="0" role="group" aria-label="Rotate glasses: drag or use arrow keys; Home to reset"></div>
+    <div class="glasses-help"><span>Drag to rotate</span><button class="glasses-reset" type="button">Reset view</button></div>
+  </div>
   <div class="xp-swinghud">
     <div class="xp-readout" data-hud="readout" aria-hidden="true"></div>
     <div class="xp-swinghud__row" aria-hidden="true"><span data-hud="phase">Address</span><span class="num" data-hud="frame">000 / 096</span></div>
@@ -388,7 +392,7 @@ export function mountExperience(root: HTMLElement) {
     createSwing(fillSwing, showFrame, () => scrub),
     createSki(showSki),
     createBenchmark(() => seqKey, showBench),
-    createGlasses(),
+    createGlasses($(".glasses-controls")),
     createFlywheel(step => root.querySelectorAll<HTMLButtonElement>("[data-loop]").forEach((button,i)=>button.setAttribute("aria-current",String(i===step)))),
     createField(),
   ];
@@ -813,6 +817,7 @@ export function mountExperience(root: HTMLElement) {
 
     const front = stage.frame(u, now / 1000, dt, velocity);
     root.dataset.act = String(front);
+    $(".glasses-controls").inert=front!==4 || root.classList.contains("is-menu");
     const activeChapter=spans.find(s=>u>=s.start && u<s.end);
     for(const {el,input,label} of timelines){
       el.inert=Number(el.dataset.timeline)!==front || root.classList.contains("is-menu");

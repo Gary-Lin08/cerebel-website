@@ -303,3 +303,5 @@ New block at the end of `experience.css`. Top bar: "Previous site" hidden, small
 
 ### Sound removed (user: remove it)
 `sound.ts`, the toggle and its CSS are deleted. Do not add sound back unless asked.
+
+- November 17, glasses inspection: drag the model region to rotate, arrow keys also rotate and Reset view/Home restores the scroll pose. Retain matte/grain/background. Hard CAD shell edges now use creased normals (36 degrees) instead of smoothing across panels, with calmer satin reflections. Typecheck and standalone build passed; browser launch failed in this environment, so the temple shading needs live visual confirmation.
