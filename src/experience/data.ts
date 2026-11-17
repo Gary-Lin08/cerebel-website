@@ -62,31 +62,39 @@ export const glassesParts = [
     id: "g-optical",
     n: "01",
     title: "Optical path",
-    copy: "A forward camera pair and an in-lens display layer share one optical stack, so what the wearer sees and what the system records start from the same view.",
+    copy: "Forward cameras and an in-lens display share one optical stack.",
   },
   {
     id: "g-clock",
     n: "02",
-    title: "Shared-clock synchronization",
-    copy: "Image and motion signals are stamped against one clock at the source. Alignment is designed in, not repaired afterwards.",
+    title: "Shared clock",
+    copy: "Video and motion signals use the same clock.",
   },
   {
     id: "g-prep",
     n: "03",
-    title: "Near-capture data preparation",
-    copy: "Signals are organised next to where they are captured, so a session arrives structured for reconstruction rather than as loose footage.",
+    title: "Data preparation",
+    copy: "Signals are organised near capture for reconstruction.",
   },
   {
     id: "g-modular",
     n: "04",
     title: "Modular architecture",
-    copy: "Sensing, compute and power sit in separable modules, so the development configuration can change without redrawing the frame.",
+    copy: "Separate sensing, compute and power modules.",
   },
 ] as const;
 
 export const flywheelSteps = [
-  {title: "Deploy", head: ["Every deployment.", "A new beginning."], copy: "Partner apps and devices bring the motion model into real movement. Sports is the first deployment path.", detail: "Partner apps + devices"},
-  {title: "Capture", head: ["Movement becomes", "training material."], copy: "With consent, video and optional IMU become inputs for a growing motion dataset.", detail: "Video + optional IMU · with consent"},
-  {title: "Validate", head: ["Useful data.", "Not just more data."], copy: "Synchronize, filter and review sessions before they enter the training loop. Quality makes a capture useful beyond its first application.", detail: "Sync → filter → review"},
-  {title: "Improve", head: ["Back to the model.", "Forward to robots."], copy: "Train, test and release the next motion model. The planned second revenue stream licenses motion datasets to robotics teams by hour or contract.", detail: "Train → test → release"},
+  {title: "Deploy", head: ["Deploy."], copy: "Bring the model into partner sports apps and devices."},
+  {title: "Capture", head: ["Capture."], copy: "Collect video and optional IMU data with consent."},
+  {title: "Validate", head: ["Validate."], copy: "Synchronize, filter and review each session."},
+  {title: "Improve", head: ["Improve."], copy: "Train, test and release the next model."},
 ] as const;
+
+// Presentation copy only; the source capture and measured values stay unchanged.
+export const findingCopy: Record<string, { detail: string; cue: string }> = {
+  sway: { detail: "Hips slide away from the target in the backswing.", cue: "Turn your right hip back; keep pressure inside your right foot." },
+  "trail-knee": { detail: "The right knee straightens during the backswing.", cue: "Keep a soft bend in your right knee through the backswing." },
+  "lead-arm": { detail: "The left arm folds at the top of the backswing.", cue: "Keep your left arm long; stop before it folds." },
+  "hang-back": { detail: "The hips have not moved toward the target at impact.", cue: "Start down with your left hip moving toward the target." },
+};

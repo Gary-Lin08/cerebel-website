@@ -14,7 +14,7 @@ export function mountMuscleOrbit(root: HTMLElement, data: SwingData) {
   const dialog = document.createElement("dialog");
   dialog.className = "muscle-orbit";
   dialog.setAttribute("aria-label", "Explore reconstructed muscle groups");
-  dialog.innerHTML = '<canvas aria-label="Interactive reconstructed muscle group"></canvas><button class="orbit-close" aria-label="Close muscle exploration"></button><div class="orbit-copy"><p>Inside the movement</p><h2></h2><p class="orbit-detail"></p><p class="orbit-cue"></p></div><nav aria-label="Muscle groups"></nav><footer>Drag to orbit · Scroll to zoom<br>Captured pose + model-derived muscle paths. Muscle volume is schematic; coaching is inferred, not measured with EMG.</footer>';
+  dialog.innerHTML = '<canvas aria-label="Interactive reconstructed muscle group"></canvas><button class="orbit-close" aria-label="Close muscle exploration"></button><div class="orbit-copy"><h2></h2><p class="orbit-detail"></p><p class="orbit-cue"></p></div><nav aria-label="Muscle groups"></nav><footer>Drag to orbit · Scroll to zoom<br>Modelled muscles · inferred coaching, not EMG.</footer>';
   document.body.append(dialog);
   const canvas = dialog.querySelector("canvas")!;
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });

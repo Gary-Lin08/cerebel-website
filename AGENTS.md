@@ -160,3 +160,5 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 - No filler labels (user, November 17): no kickers, no chapter numbers, no index counters like 01 / 04, no "scroll to discover" hints. Every word on screen must earn its place.
 - November 17 UI: the menu is frosted to match the main page; the Explore muscle groups button and the muscle viewer stay as originally designed (a restyle was rejected); the loader keeps its original design, only black, lightly frosted, glowing type, subtle bar. Notes in HANDOFF.md.
 
+
+- November 17, copy density: keep the entire scroll experience concise. One conclusion per stop; do not repeat a displayed metric in a caption and explanatory paragraph. Golf findings use metric, title, trace and one short cue. Snow uses metric, title and a short modelled/not-measured note. Remove generic slogans, redundant labels and descriptions of obvious UI. Retain data provenance, development status, consent and essential controls.
