@@ -593,7 +593,8 @@
 @media (prefers-reduced-motion: reduce) { .xp-glass::after { animation: none; } }
 /* Copy takes the same diffusion as the scene: a soft halo, and the hard edge taken off the big type. */
 .ch p, .ch li, .ch .metric { text-shadow: 0 0 20px rgba(233, 236, 242, 0.16); }
-.ln > span::before { text-shadow: 0 0 30px rgba(233, 236, 242, 0.24), 0 0 5px rgba(233, 236, 242, 0.16); }
+/* Apply the halo after masking the glyphs so the mask cannot clip it at the line box. */
+.ln { filter: drop-shadow(0 0 15px rgba(233, 236, 242, 0.24)) drop-shadow(0 0 2.5px rgba(233, 236, 242, 0.12)); }
 .xp:not(.is-ready) .xp-glass { opacity: 0; } .xp-glass { transition: opacity 0.9s; }
 /* Lines no longer slide up from behind a mask, so nothing needs clipping here; clipping cut the headline's halo
    off in a rectangle. */
