@@ -858,3 +858,17 @@
   /* Joint value tags keep the number and drop the caption that ran off the edge. */
   .xp .joint [data-joint="caption"] { display: none; }
 }
+
+/* Loader, toned down (user, Nov 17: black, frosted, glowing type, subtle bar). */
+.xp .xp-loader { background: #050507; }
+.xp-loader__frost { opacity: 0.35; filter: blur(90px) saturate(0.6); }
+.xp-loader__frost i:nth-child(1) { background: #2a2240; opacity: 0.5; }
+.xp-loader__frost i:nth-child(2) { background: #1a1d24; opacity: 0.5; }
+.xp-loader__frost i:nth-child(3) { display: none; }
+.xp .xp-loader img { filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.28)) drop-shadow(0 0 40px rgba(190, 170, 255, 0.18)); }
+.xp .xp-loader__track { height: 2px; background: rgba(255, 255, 255, 0.08); box-shadow: none; }
+.xp .xp-loader__track::before { display: none; }
+.xp .xp-loader__fill { background: linear-gradient(90deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.85)); box-shadow: 0 0 6px rgba(255, 255, 255, 0.35); }
+.xp-loader__head { right: -2px; width: 4px; height: 4px; margin-top: -2px; box-shadow: 0 0 6px 1px rgba(255, 255, 255, 0.8), 0 0 18px 4px rgba(190, 170, 255, 0.3); animation: none; }
+.xp-loader__head::before, .xp-loader__head::after { display: none; }
+.xp-loader__pct { color: rgba(255, 255, 255, 0.7); text-shadow: 0 0 10px rgba(255, 255, 255, 0.35); font-size: 0.6875rem; }
