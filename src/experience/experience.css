@@ -846,3 +846,9 @@
 .xp .xp-loader__fill::before { content: ""; position: absolute; right: -3px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: #efe6ff;
   box-shadow: 0 0 6px 2px rgba(200, 170, 255, 0.9), 0 0 18px 6px rgba(155, 108, 255, 0.55), 0 0 40px 12px rgba(155, 108, 255, 0.25); }
 @media (prefers-reduced-motion: reduce) { .xp .xp-loader__fill::after { animation: none; } }
+
+/* Keep the loader exclusive until the opening scene is ready. */
+.xp:not(.is-ready) > :not(.xp-loader) {
+  visibility: hidden;
+  pointer-events: none;
+}
