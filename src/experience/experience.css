@@ -876,10 +876,12 @@
 /* Labels can extend to either side while their frame ticks stay fixed. */
 .xp-swinghud__bar div span { padding: 0; }
 .xp-swinghud__bar em { position: absolute; left: 4px; font-style: normal; white-space: nowrap; }
-.xp-swinghud__bar [data-phase="impact"] em { left: auto; right: 4px; }
-@media (min-width: 701px) and (max-width: 1200px) {
-  .xp-swinghud__bar [data-phase="impact"] em { bottom: 26px; }
-}
+.xp-swinghud__bar div span em { left:0; transform:translateX(-50%); }
+.xp-swinghud__bar div span:first-child em { transform:none; }
+.xp-swinghud__bar div span:last-child em { transform:translateX(-100%); }
+.xp-swinghud__bar div span::before { content:""; position:absolute; left:-2.5px; top:-9px; width:4px; height:4px; border-radius:50%; background:#beb2d9; }
+.xp-swinghud__bar .swing-phases, .xp.is-scrub .swing-stops { display:none; }
+.xp.is-scrub .swing-phases { display:block; }
 .snow-ticks { position: relative; margin: 0 4px; height: 3px; pointer-events: none; }
 .snow-ticks i { position: absolute; height: 3px; border-left: 1px solid var(--muted); }
 .scene-timeline input { touch-action: pan-y; }

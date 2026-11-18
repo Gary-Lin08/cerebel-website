@@ -299,7 +299,22 @@ export function mountExperience(root: HTMLElement) {
     bestFrame = sway.values.indexOf(Math.min(...sway.values));
     const last = d.frameCount - 1;
     hudBar.setAttribute("aria-valuemax", String(last));
-    $('[data-hud="phases"]').innerHTML = d.phases.map((p) => `<span style="left:${(p.start / last) * 100}%" data-phase="${p.id}"><em>${p.label}</em></span>`).join("");
+    replayFrames = d.phases.map((phase, i) => i === d.phases.length - 1 ? last : phase.start);
+    const ticks = (labels: string[]) => labels.map((label, i) =>
+      `<span style="left:${100 * i / (labels.length - 1)}%"><em>${label}</em></span>`).join("");
+    $('[data-hud="phases"]').innerHTML =
+      `<div class="swing-stops">${ticks(golfChapters.map(s => chapterLabels[s.id]))}</div>
+       <div class="swing-phases">${ticks(d.phases.map(p => p.label))}</div>`;
+
+  }
+  const golfChapters = spans.filter(s => s.act === 1 && s.id !== "find");
+  const golfFirstStep = scrollStep(RESTS[spans.indexOf(golfChapters[0])]);
+  let replayFrames: number[] = [];
+  function replayProgress(frame: number) {
+    const next = replayFrames.findIndex(stop => stop > frame);
+    if (next < 0) return 1;
+    const start = replayFrames[next - 1];
+    return (next - 1 + (frame - start) / (replayFrames[next] - start)) / (replayFrames.length - 1);
   }
   let readouts: { id: string; values: number[]; el: HTMLElement; cell: HTMLElement }[] = [];
   let swayValues: number[] = [];
@@ -326,8 +341,13 @@ export function mountExperience(root: HTMLElement) {
     if (!swing) return;
     const f = Math.round(frame);
     const last = swing.frameCount - 1;
-    hudHead.style.transform = `scaleX(${frame / last})`;
-    hudKnob.style.left = `${(frame / last) * 100}%`;
+    const replay = spans.find(s => s.id === "find")!;
+    const inReplay = u >= replay.start && u < replay.end;
+    const progress = inReplay ? replayProgress(frame) : clamp((scrollStep(u) - golfFirstStep) / (golfChapters.length - 1));
+    hudHead.style.transform = `scaleX(${progress})`;
+    hudKnob.style.left = `${progress * 100}%`;
+    const nearest = Math.round(progress * (golfChapters.length - 1));
+    hudPhase.textContent = inReplay ? swing.phases.find(p => f >= p.start && f <= p.end)?.label ?? "" : chapterLabels[golfChapters[nearest].id];
     const activeSeries = swing.annotations.find((a) => a.id === focus)?.series;
     for (const r of readouts) {
       r.el.textContent = at(r.values, frame).toFixed(1);
@@ -361,7 +381,6 @@ export function mountExperience(root: HTMLElement) {
     lastFrameShown = f;
     hudBar.setAttribute("aria-valuenow", String(f));
     hudFrame.textContent = `${String(f).padStart(3, "0")} / ${String(last).padStart(3, "0")}`;
-    hudPhase.textContent = swing.phases.find((p) => f >= p.start && f <= p.end)?.label ?? "";
   }
 
   // ---- Benchmark labels.
@@ -465,7 +484,8 @@ export function mountExperience(root: HTMLElement) {
   const scrubTo = (clientX: number) => {
     if (!swing) return;
     const r = hudBar.getBoundingClientRect();
-    scrub = Math.min(1, Math.max(0, (clientX - r.left) / r.width)) * (swing.frameCount - 1);
+    const step = clamp((clientX - r.left) / r.width) * (replayFrames.length - 1);
+    scrub = Math.round(at(replayFrames, step));
     hudBar.setAttribute("aria-valuenow", String(Math.round(scrub)));
   };
   hudBar.addEventListener("pointerdown", (e) => {
