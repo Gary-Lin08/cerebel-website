@@ -204,7 +204,7 @@ function markup() {
     <div><span>Load</span><b class="num" data-ski="load3">1.0</b><em>× BW</em></div>
   </div>
 
-  ${[2].map(act=>{ const sections=spans.filter(s=>s.act===act); return `<nav class="scene-timeline" data-timeline="${act}" aria-label="Snow chapter navigation"><div class="scene-timeline__top"><span data-timeline-label></span></div><input type="range" min="${sections[0].start+.02}" max="${sections[sections.length-1].end-.08}" step="0.005" value="${sections[0].start+.02}" aria-label="Snow chapter progress"></nav>`; }).join("")}
+  <nav class="scene-timeline" data-timeline="2" aria-label="Snow chapter navigation"><div class="scene-timeline__top"><span data-timeline-label></span></div><input type="range" min="0" max="1000" step="1" value="0" aria-label="Snow chapter progress"></nav>
   
   <div class="xp-menu" aria-hidden="true">
     <ol>${groups.map((g) => `<li><button class="menu-chapter" type="button" data-group="${g}" data-cursor>${g}</button><nav class="menu-subchapters" aria-label="${g} subchapters">${spans.filter(s=>s.group===g).map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</nav></li>`).join("")}</ol>
@@ -479,13 +479,23 @@ export function mountExperience(root: HTMLElement) {
 
   const timelines = $$<HTMLElement>("[data-timeline]").map(el=>({el,input:el.querySelector<HTMLInputElement>("input")!,label:el.querySelector<HTMLElement>("[data-timeline-label]")!}));
   let timelineDragging = false;
-  // A drag that ends outside the slider must still end the drag.
-  window.addEventListener("pointerup", () => { timelineDragging = false; }, { passive: true });
-  for (const {input} of timelines) {
-    input.addEventListener("pointerdown",()=>{timelineDragging=true;});
-    for(const event of ["pointerup","pointercancel","lostpointercapture"]) input.addEventListener(event,()=>{timelineDragging=false;snap?.settle();});
-    input.addEventListener("input",()=>{scrub=null;u=Number(input.value);window.scrollTo({top:pagePosition(u),behavior:"instant"});});
+  // Inset by one physical pixel so browser rounding at 100% stays in Snow.
+  const snowLimits = () => [Math.ceil(pagePosition(snowSpan.start)) + 1, Math.floor(pagePosition(snowSpan.end)) - 1];
+  for (const { input } of timelines) {
+    input.addEventListener("pointerdown", () => { timelineDragging = true; });
+    for (const event of ["pointerup", "pointercancel", "lostpointercapture", "blur"]) {
+      input.addEventListener(event, () => { timelineDragging = false; });
+    }
+    input.addEventListener("input", () => {
+      const [first, last] = snowLimits();
+      const y = first + (last - first) * input.valueAsNumber / 1000;
+      scrub = null;
+      snap?.cancel();
+      window.scrollTo({ top: y, behavior: "instant" });
+      u = readUnits();
+    });
   }
+  window.addEventListener("pointerup", () => { timelineDragging = false; });
   const subchapterButtons=$$<HTMLElement>("[data-subchapter]");
 
   // ---- Headline lens: under the pointer the letters fall back to outlines and a small constellation shows.
@@ -791,8 +801,9 @@ export function mountExperience(root: HTMLElement) {
     const activeChapter=spans.find(s=>u>=s.start && u<s.end);
     for(const {el,input,label} of timelines){
       el.inert=Number(el.dataset.timeline)!==front || root.classList.contains("is-menu");
-      if(!timelineDragging) input.value=String(u);
-      const progress=Math.max(0,Math.min(1,(u-Number(input.min))/(Number(input.max)-Number(input.min))));
+      const [first, last] = snowLimits();
+      const progress = Math.max(0, Math.min(1, (pagePosition(u) - first) / (last - first)));
+      if (!timelineDragging) input.value = String(Math.round(progress * 1000));
       input.style.setProperty("--progress", `${progress*100}%`);
       label.textContent=activeChapter?chapterLabels[activeChapter.id]:"";
       input.setAttribute("aria-valuetext",label.textContent);

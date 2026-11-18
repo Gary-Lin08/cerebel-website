@@ -422,10 +422,14 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
     let wipe = 0;
     for (let i = 0; i < actSpans.length - 1; i += 1) {
       const edge = actSpans[i].end;
-      if (Math.abs(u - edge) < WIPE) {
+      // Keep the whole Snow scrub range on the rider. Finish its entrance
+      // before its first frame and start its exit after its last frame.
+      const start = edge - (i === 2 ? 0 : WIPE);
+      const end = edge + (i + 1 === 2 ? 0 : WIPE);
+      if (u >= start && u < end) {
         a = i;
         b = i + 1;
-        wipe = smooth(0, 1, (u - edge + WIPE) / (2 * WIPE));
+        wipe = smooth(0, 1, (u - start) / (end - start));
       }
     }
     const targetA = b >= 0 ? rtA2 : rtA;

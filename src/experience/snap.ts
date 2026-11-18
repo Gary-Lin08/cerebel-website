@@ -54,7 +54,6 @@ export function createSnap({ stops, freeScroll, blocked, log }: Options) {
   };
 
   function target(y: number) {
-    if (freeScroll(y)) return y;
     const points = [...stops(), maxScroll()].filter((p) => p <= maxScroll()).sort((a, b) => a - b);
     let below = points[0];
     let above = points[points.length - 1];
@@ -77,8 +76,9 @@ export function createSnap({ stops, freeScroll, blocked, log }: Options) {
 
   function startGlide() {
     const y = window.scrollY;
-    const to = Math.round(Math.min(maxScroll(), Math.max(0, target(y))));
     pending = false;
+    if (freeScroll(y)) return;
+    const to = Math.round(Math.min(maxScroll(), Math.max(0, target(y))));
     direction = 0;
     if (Math.abs(to - y) < 1) return;
     const distance = Math.abs(to - y);
@@ -126,6 +126,7 @@ export function createSnap({ stops, freeScroll, blocked, log }: Options) {
   window.addEventListener("scroll", () => {
     // Our own glide moves the page too; only count movement we did not make.
     if (glide && Math.abs(window.scrollY - glide.lastSet) <= 3) return;
+    if (!glide && freeScroll(window.scrollY)) { pending = false; return; }
     if (!pending && !glide) origin = window.scrollY;
     input();
   }, { passive: true });
@@ -165,9 +166,11 @@ export function createSnap({ stops, freeScroll, blocked, log }: Options) {
       glide = { from: window.scrollY, to, start: performance.now(), duration: Math.min(1600, 600 + Math.sqrt(distance) * 9), lastSet: window.scrollY };
       wake();
     },
-    /** Ask for a rest once the page is free (for example after a drag that moved the page ends). */
-    settle() {
-      input();
+    /** The range input now owns the page position. */
+    cancel() {
+      glide = null;
+      pending = false;
+      direction = 0;
     },
   };
 }
