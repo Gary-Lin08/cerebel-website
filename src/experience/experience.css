@@ -913,8 +913,8 @@
 }
 
 .xp-stop-progress {
-  position:absolute; z-index:13; left:max(3px, env(safe-area-inset-left));
-  top:50%; transform:translateY(-50%); height:clamp(72px,17vh,152px); width:2px;
+  position:absolute; z-index:13; left:calc(env(safe-area-inset-left, 0px) + clamp(12px, 1.5vw, 24px));
+  top:50%; transform:translateY(-50%); height:clamp(108px,25.5vh,228px); width:2px;
   background:rgba(255,255,255,.22); overflow:hidden; border-radius:2px;
   pointer-events:none; visibility:hidden;
 }
