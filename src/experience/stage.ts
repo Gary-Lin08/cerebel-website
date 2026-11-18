@@ -72,19 +72,29 @@ export const scrollAnchors = [
   snowSpan.start, snowSpan.end, TOTAL,
 ].sort((a, b) => a - b);
 
-export function scrollStep(u: number) {
-  const index = scrollAnchors.findIndex(value => value > u);
-  if (index < 0) return scrollAnchors.length - 1;
-  if (index === 0) return 0;
-  const start = scrollAnchors[index - 1];
-  return index - 1 + (u - start) / (scrollAnchors[index] - start);
+// Screen heights between stops. Compress only intervals bounded by two Motion stops.
+const golfStops = new Set(RESTS.filter((_, i) => spans[i].act === 1));
+const screenOffsets = [0];
+for (let i = 1; i < scrollAnchors.length; i++) {
+  const golf = golfStops.has(scrollAnchors[i - 1]) && golfStops.has(scrollAnchors[i]);
+  screenOffsets.push(screenOffsets[i - 1] + 2.8 * (golf ? 0.6 : 1));
 }
 
-export function unitsAtStep(step: number) {
-  const value = Math.max(0, Math.min(scrollAnchors.length - 1, step));
-  const index = Math.floor(value);
-  return lerp(scrollAnchors[index], scrollAnchors[index + 1] ?? TOTAL, value - index);
+function stepOn(axis: number[], value: number) {
+  const next = axis.findIndex(point => point > value);
+  if (next < 0) return axis.length - 1;
+  if (next === 0) return 0;
+  return next - 1 + (value - axis[next - 1]) / (axis[next] - axis[next - 1]);
 }
+
+function atStep(axis: number[], step: number) {
+  const i = Math.floor(step);
+  return lerp(axis[i], axis[i + 1] ?? axis[i], step - i);
+}
+
+export const scrollStep = (u: number) => stepOn(scrollAnchors, u);
+export const screensAtUnits = (u: number) => atStep(screenOffsets, scrollStep(u));
+export const unitsAtScreens = (screens: number) => atStep(scrollAnchors, stepOn(screenOffsets, screens));
 
 export const HOLD = 0.1;
 const heldAt = (u: number) => u >= snowSpan.start && u <= snowSpan.end || u === TOTAL ? 0 : HOLD;

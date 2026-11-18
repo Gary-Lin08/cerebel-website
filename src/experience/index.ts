@@ -7,7 +7,7 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "./experience.css";
 import { benchmark, chapters, glassesParts, flywheelSteps, findingCopy } from "./data";
 import { asset, page } from "./paths";
-import { type Act, ENTER, RESTS, TOTAL, createStage, damp, sceneTime, scrollAnchors, scrollStep, unitsAtStep, snowSpan, smooth, spans } from "./stage";
+import { type Act, ENTER, RESTS, TOTAL, createStage, damp, sceneTime, scrollAnchors, scrollStep, screensAtUnits, unitsAtScreens, snowSpan, smooth, spans } from "./stage";
 import { createSnap } from "./snap";
 import { createOrigin } from "./acts/origin";
 import { type SwingData, createSwing } from "./acts/swing";
@@ -229,9 +229,8 @@ export function mountExperience(root: HTMLElement) {
   const $$ = <T extends HTMLElement>(sel: string) => [...root.querySelectorAll<T>(sel)];
 
   let vh = window.innerHeight;
-  const stepPixels = () => vh * 2.8;
-  const pagePosition = (units: number) => scrollStep(units) * stepPixels();
-  const readUnits = () => unitsAtStep(window.scrollY / stepPixels());
+  const pagePosition = (units: number) => screensAtUnits(units) * vh;
+  const readUnits = () => unitsAtScreens(window.scrollY / vh);
   let vw = window.innerWidth;
   const layout = () => {
     // Ignore mobile address-bar height changes so the scroll map does not jump.

@@ -169,4 +169,4 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 
 - November 17 targeted follow-up: user explicitly requested concise Benchmark and Snow copy too. Keep their numbers/charts/controls and short provenance; remove slogans and chart narration. Flywheel dataset size is a single persistent context block across act 5, never repeated/re-entered with every step; keep the full step narratives. Other acts unchanged.
 
-Snow uses one continuous scroll interval and one scrub bar. Let the reader stop anywhere in it. Use equal physical scroll distances between magnetic anchors elsewhere.
+Snow uses one continuous scroll interval and one scrub bar. Let the reader stop anywhere in it. Space adjacent Motion stops 1.68 viewport heights apart. Other adjacent anchors are 2.8 viewport heights apart.
