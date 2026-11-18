@@ -885,3 +885,29 @@
 .snow-ticks { position: relative; margin: 0 4px; height: 3px; pointer-events: none; }
 .snow-ticks i { position: absolute; height: 3px; border-left: 1px solid var(--muted); }
 .scene-timeline input { touch-action: pan-y; }
+
+/* The bright front stays attached to the advancing edge through the reveal. */
+.xp .xp-loader__track { isolation:isolate; border-radius:4px; }
+.xp .xp-loader__fill {
+  transition:none; border-radius:inherit;
+  background:linear-gradient(90deg,#7350c2,#aa81ff 64%,#e9dbff);
+}
+.xp .xp-loader__fill::after {
+  inset:0 0 0 auto; width:min(100%,64px); animation:none; opacity:.9;
+  background:linear-gradient(90deg,transparent,#faf5ff);
+}
+.xp .xp-loader__track::after {
+  left:auto; right:-2px; top:50%; width:6px; height:6px; border-radius:50%;
+  transform:translateY(-50%) scale(.5); opacity:0; background:#efe5ff;
+  box-shadow:0 0 10px 3px #c49bff,0 0 26px 6px #9962ff77;
+}
+@media (prefers-reduced-motion:no-preference) {
+  .xp .xp-loader.is-finishing .xp-loader__track::after {
+    animation:xp-loader-arrive 440ms 350ms ease-out both;
+  }
+  @keyframes xp-loader-arrive {
+    0% { opacity:0; transform:translateY(-50%) scale(.5); }
+    25% { opacity:.9; transform:translateY(-50%) scale(1); }
+    100% { opacity:0; transform:translateY(-50%) scale(1.7); }
+  }
+}

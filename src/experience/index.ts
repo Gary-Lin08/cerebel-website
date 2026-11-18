@@ -441,6 +441,8 @@ export function mountExperience(root: HTMLElement) {
   const loaderFill = loader.querySelector<HTMLElement>(".xp-loader__fill")!;
   const loadingStartedAt = performance.now();
   let homeReady = false;
+  let finishAt: number | null = null;
+  let finishFrom = 0;
   acts[0].ready.then(() => { homeReady = true; });
   // Later scenes load concurrently, but do not block the landing page.
   acts.slice(1).forEach(a => a.ready.catch(error => console.error("Scene loading failed", error)));
@@ -912,14 +914,20 @@ export function mountExperience(root: HTMLElement) {
 
     if (!started) {
       const elapsed = now - loadingStartedAt;
-      // A short paced presentation, capped below completion until Origin is ready.
-      const progress = Math.min(94, 94 * (1 - Math.exp(-elapsed / 500)));
-      loaderFill.style.width = `${progress}%`;
-      loaderTrack.setAttribute("aria-valuenow", String(Math.round(progress)));
-      if (homeReady && (stage.reduced || elapsed >= 1400)) {
+      // Reserve the final sweep for the first scene actually becoming ready.
+      const charge = 0.83 * -Math.expm1(-elapsed / 370);
+      if (finishAt === null && homeReady && (elapsed >= 650 || stage.reduced)) {
+        finishAt = now;
+        finishFrom = charge;
+        loader.classList.add("is-finishing");
+      }
+      const finish = finishAt === null ? 0 : stage.reduced ? 1 : clamp((now - finishAt) / 410);
+      const ease = finish * finish * (3 - 2 * finish);
+      const progress = finishAt === null ? charge : finishFrom + (1 - finishFrom) * ease;
+      loaderFill.style.width = `${100 * progress}%`;
+      loaderTrack.setAttribute("aria-valuenow", String(Math.round(progress * 100)));
+      if (finish === 1) {
         started = true;
-        loaderFill.style.width = "100%";
-        loaderTrack.setAttribute("aria-valuenow", "100");
         root.classList.add("is-ready");
         entranceStartedAt = performance.now() + (stage.reduced ? 0 : 150);
         setTimeout(() => loader.remove(), stage.reduced ? 0 : 600);
