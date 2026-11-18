@@ -923,3 +923,18 @@
   display:block; width:100%; height:100%; background:#fff;
   transform:scaleY(0); transform-origin:top;
 }
+
+.ch[data-ch="ski-edge"] {
+  left: calc(var(--pad) + clamp(24px, 6vw, 110px));
+  bottom: clamp(96px, 22vh, 240px);
+}
+.ch[data-ch="ski-edge"] .metric { font-size: clamp(4rem, 8.6vw, 8.6rem); }
+.ch[data-ch="ski-edge"] .h-sm { font-size: clamp(1.8rem, 2.85vw, 2.85rem); }
+@media (max-width: 860px), (max-aspect-ratio: 21/20) {
+  .xp[data-act="2"] .ch[data-ch="ski-edge"] {
+    left: calc(var(--pad) + 4vw);
+    bottom: calc(128px + min(2.5vh, 20px));
+  }
+  .ch[data-ch="ski-edge"] .metric { font-size: clamp(3rem, 16vw, 4.4rem); }
+  .ch[data-ch="ski-edge"] .h-sm { font-size: clamp(1.4rem, 6.2vw, 1.8rem); }
+}
