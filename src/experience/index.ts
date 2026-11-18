@@ -799,6 +799,7 @@ export function mountExperience(root: HTMLElement) {
     snap = createSnap({
       stops: () => scrollAnchors.map(pagePosition),
       commitDistance: (from, gap) => Math.abs(from - pagePosition(RESTS[spans.findIndex(s => s.id === "benchmark")])) < 1 ? 80 : gap,
+      coastLimits: snowLimits,
       freeScroll: y => y >= pagePosition(snowSpan.start) && y <= pagePosition(snowSpan.end),
       blocked: () => !started || stage.reduced || timelineDragging || root.classList.contains("is-menu") || !!document.querySelector(".muscle-orbit[open]"),
       log: probe ? (line) => probe.log.push(line) : undefined,

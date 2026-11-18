@@ -22,13 +22,14 @@ type Options = {
   /** Rest points in page pixels, ascending. Read every time so a resize is picked up. */
   stops: () => number[];
   freeScroll: (y: number) => boolean;
+  coastLimits: () => number[];
   commitDistance: (from: number, gap: number) => number;
   /** True while something else owns the page (menu, drag, reduced motion, not started). */
   blocked: () => boolean;
   log?: (line: string) => void;
 };
 
-export function createSnap({ stops, freeScroll, commitDistance, blocked, log }: Options) {
+export function createSnap({ stops, freeScroll, coastLimits, commitDistance, blocked, log }: Options) {
   const root = document.scrollingElement || document.documentElement;
   const maxScroll = () => root.scrollHeight - root.clientHeight;
 
@@ -38,8 +39,9 @@ export function createSnap({ stops, freeScroll, commitDistance, blocked, log }: 
   let direction = 0; // +1 down, -1 up, 0 unknown
   let origin = window.scrollY; // where the current gesture started
   let held = false; // a finger or button is down
-  let glide: { from: number; to: number; start: number; duration: number; lastSet: number } | null = null;
+  let glide: { from: number; to: number; start: number; duration: number; lastSet: number; coast?: boolean } | null = null;
   let frame = 0;
+  let wheelSpeed = 0; // CSS pixels per millisecond
 
   const input = (dir = 0) => {
     if (glide) {
@@ -78,13 +80,22 @@ export function createSnap({ stops, freeScroll, commitDistance, blocked, log }: 
   function startGlide() {
     const y = window.scrollY;
     pending = false;
-    if (freeScroll(y)) return;
+    if (freeScroll(y)) {
+      const [first, last] = coastLimits();
+      const limit = Math.min((last - first) * 0.12, window.innerHeight * 0.32);
+      const travel = Math.max(-limit, Math.min(limit, wheelSpeed * 200));
+      const to = Math.round(Math.max(first, Math.min(last, y + travel)));
+      wheelSpeed = 0;
+      if (Math.abs(to - y) >= 2) {
+        glide = { from: y, to, start: performance.now(), duration: 760, lastSet: y, coast: true };
+      }
+      return;
+    }
     const to = Math.round(Math.min(maxScroll(), Math.max(0, target(y))));
     direction = 0;
     if (Math.abs(to - y) < 1) return;
     const distance = Math.abs(to - y);
-    // Long enough to read as a soft settle, never a jump: up to 0.9 s across a chapter.
-    const duration = Math.min(900, 340 + Math.sqrt(distance) * 10);
+    const duration = Math.min(1700, 820 + Math.sqrt(distance) * 19);
     glide = { from: y, to, start: performance.now(), duration, lastSet: y };
     log?.(`glide ${Math.round(y)} -> ${to}`);
   }
@@ -93,11 +104,13 @@ export function createSnap({ stops, freeScroll, commitDistance, blocked, log }: 
     frame = 0;
     if (glide) {
       // Someone else moved the page (scrollbar, find-in-page, an anchor): give way.
-      if (Math.abs(window.scrollY - glide.lastSet) > 3) {
+      if (glide.coast && blocked()) {
+        glide = null;
+      } else if (Math.abs(window.scrollY - glide.lastSet) > 3) {
         input();
       } else {
         const t = Math.min(1, (now - glide.start) / glide.duration);
-        const e = t * t * t * (t * (t * 6 - 15) + 10); // smootherstep: gentle at both ends
+        const e = glide.coast ? 1 - (1 - t) ** 3 : t * t * t * (t * (t * 6 - 15) + 10);
         const y = glide.from + (glide.to - glide.from) * e;
         window.scrollTo({ top: y, behavior: "instant" as ScrollBehavior });
         glide.lastSet = window.scrollY;
@@ -105,7 +118,8 @@ export function createSnap({ stops, freeScroll, commitDistance, blocked, log }: 
       }
     } else if (pending) {
       framesSinceInput += 1;
-      if (!held && !blocked() && framesSinceInput >= QUIET_FRAMES && now - lastInput >= QUIET_MS) startGlide();
+      const coasting = wheelSpeed !== 0 && freeScroll(window.scrollY);
+      if (!held && !blocked() && framesSinceInput >= (coasting ? 2 : QUIET_FRAMES) && now - lastInput >= (coasting ? 48 : QUIET_MS)) startGlide();
     }
     if (glide || pending) wake();
   }
@@ -119,22 +133,31 @@ export function createSnap({ stops, freeScroll, commitDistance, blocked, log }: 
     if (e.ctrlKey || e.deltaY === 0) return;
     const now = performance.now();
     const tail = Math.abs(e.deltaY) <= MOMENTUM_TAIL_PX && now - lastWheel < 400;
+    const interval = now - lastWheel;
     lastWheel = now;
+    if (freeScroll(window.scrollY) && !blocked() && !held) {
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1;
+      const speed = e.deltaY * unit / (interval > 130 ? 36 : Math.max(12, interval));
+      wheelSpeed = interval < 130 && Math.sign(speed) === Math.sign(wheelSpeed)
+        ? wheelSpeed * 0.45 + speed * 0.55 : speed;
+    } else wheelSpeed = 0;
     // Momentum stragglers keep the reader's gesture alive but never cancel a glide that has begun.
-    if (tail && glide) return;
+    if (tail && glide && !glide.coast) return;
     input(Math.sign(e.deltaY));
   }, { passive: true });
   window.addEventListener("scroll", () => {
     // Our own glide moves the page too; only count movement we did not make.
     if (glide && Math.abs(window.scrollY - glide.lastSet) <= 3) return;
-    if (!glide && freeScroll(window.scrollY)) { pending = false; return; }
+    if (!glide && freeScroll(window.scrollY)) { if (!wheelSpeed) pending = false; return; }
     if (!pending && !glide) origin = window.scrollY;
     input();
   }, { passive: true });
   window.addEventListener("keydown", (e) => {
+    wheelSpeed = 0;
     if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", " ", "Home", "End"].includes(e.key)) input();
   });
   const press = () => {
+    wheelSpeed = 0;
     held = true;
     input();
   };
@@ -154,12 +177,15 @@ export function createSnap({ stops, freeScroll, commitDistance, blocked, log }: 
   window.addEventListener("touchcancel", release, { passive: true });
   window.addEventListener("blur", () => {
     held = false;
+    wheelSpeed = 0;
+    pending = false;
     glide = null;
   });
 
   return {
     /** Glide to a position chosen by the page (menu, chapter buttons) and rest there. */
     to(y: number) {
+      wheelSpeed = 0;
       pending = false;
       const to = Math.round(Math.min(maxScroll(), Math.max(0, y)));
       const distance = Math.abs(to - window.scrollY);
@@ -169,6 +195,7 @@ export function createSnap({ stops, freeScroll, commitDistance, blocked, log }: 
     },
     /** The range input now owns the page position. */
     cancel() {
+      wheelSpeed = 0;
       glide = null;
       pending = false;
       direction = 0;
