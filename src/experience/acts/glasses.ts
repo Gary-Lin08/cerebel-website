@@ -41,7 +41,7 @@ export function createGlasses(control: HTMLElement): Act {
       parts.push({node,home:node.position.clone(),explode:new THREE.Vector3(...node.userData.explosion_vector as [number,number,number]),materials});
     });
   }).catch(error=>{console.error("Wearable studio model could not load",error);});
-  let yaw=.42;
+  const baseYaw=.42;
   let drag: {id:number;x:number;y:number} | null = null;
   let targetX=0, targetY=0, rotationX=0, rotationY=0;
   const surface=control.querySelector<HTMLElement>(".glasses-drag")!;
@@ -78,11 +78,9 @@ export function createGlasses(control: HTMLElement): Act {
       for(const step of steps)if(ctx.local(step)>0)active=step;
       const intro=ctx.local("glasses-intro");
       const exploded=smooth(.6,1,intro)*.25+smooth(0,.4,ctx.local("g-optical"))*.75;
-      const desired=active==="g-clock"?-.7:active==="g-modular"?.9:.42;
-      yaw=damp(yaw,desired,2.4,ctx.dt);
       rotationX=damp(rotationX,targetX,ctx.reduced?100:10,ctx.dt);
       rotationY=damp(rotationY,targetY,ctx.reduced?100:10,ctx.dt);
-      rig.rotation.set(.18+rotationX,yaw+rotationY,0);
+      rig.rotation.set(.18+rotationX,baseYaw+rotationY,0);
       rig.scale.setScalar(ctx.aspect>1.05?1:.6);
       for(const part of parts){
         part.node.position.copy(part.home).addScaledVector(part.explode,exploded*2.5);

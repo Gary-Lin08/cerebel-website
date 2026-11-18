@@ -248,7 +248,12 @@ export function mountExperience(root: HTMLElement) {
   const jump = (units: number) => {
     const i = Math.max(0, spans.findIndex((s) => units >= s.start && units < s.end));
     const top = pagePosition(RESTS[i]);
-    if (snap && !stage.reduced) snap.to(top);
+    if (spans[i].act === 4 && root.dataset.act === "4") {
+      snap?.cancel();
+      window.scrollTo({ top, behavior: "instant" });
+      u = readUnits();
+      lastU = u;
+    } else if (snap && !stage.reduced) snap.to(top);
     else window.scrollTo({ top, behavior: "auto" });
   };
 
@@ -843,7 +848,11 @@ export function mountExperience(root: HTMLElement) {
       r.arc.style.strokeDashoffset = String(1 - Math.min(1, Math.max(0, (u - r.start) / (r.end - r.start))));
     }
     const active = spans.find((s) => u >= s.start && u < s.end)?.id;
-    for (const h of hots) h.classList.toggle("is-on", h.dataset.hot === active);
+    for (const h of hots) {
+      const selected = h.dataset.hot === active;
+      h.classList.toggle("is-on", selected);
+      h.setAttribute("aria-pressed", String(selected));
+    }
     root.classList.toggle("is-top", u < 0.25);
     const scrubbing = active === "find";
     if (scrubbing !== root.classList.contains("is-scrub")) {

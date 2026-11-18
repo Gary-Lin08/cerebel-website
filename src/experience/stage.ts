@@ -322,6 +322,11 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
 
   const anchorEls = new Map<string, HTMLElement>();
   anchorRoot.querySelectorAll<HTMLElement>("[data-anchor]").forEach((el) => anchorEls.set(el.dataset.anchor!, el));
+  const labelWidths = new Map<HTMLElement, number>();
+  const labelObserver = new ResizeObserver(entries => {
+    for (const entry of entries) labelWidths.set(entry.target.parentElement!, entry.contentRect.width);
+  });
+  anchorRoot.querySelectorAll(".hot span").forEach(label => labelObserver.observe(label));
   const projected = new THREE.Vector3();
 
   function renderAct(index: number, u: number, time: number, dt: number, velocity: number, target: THREE.WebGLRenderTarget) {
@@ -381,6 +386,13 @@ export function createStage(canvas: HTMLCanvasElement, acts: Act[], anchorRoot: 
       const x = (projected.x * 0.5 + 0.5) * width;
       const y = (-projected.y * 0.5 + 0.5) * height;
       el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+      if (el.dataset.hot) {
+        const labelWidth = labelWidths.get(el) ?? 160;
+        const right = width - (width > 860 && width / height > 1.05 ? 145 : 12);
+        const preferred = x + 28 + labelWidth <= right ? x + 28 : x - 28 - labelWidth;
+        const left = Math.max(12, Math.min(right - labelWidth, preferred));
+        el.style.setProperty("--label-x", `${Math.round(left - x)}px`);
+      }
       el.style.visibility = visible && projected.z < 1 ? "visible" : "hidden";
     }
   }
