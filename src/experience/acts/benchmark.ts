@@ -90,17 +90,17 @@ export function createBenchmark(getSeq: () => "32" | "128", onValues: (shown: nu
         const g = smooth(0, 1, Math.min(1, grow * (1.25 - i * 0.07)));
         const len = Math.max(0.001, bar.value * g);
         bar.mesh.scale.set(len, i === 0 ? 0.5 : 0.34, 0.44);
-        (bar.mesh.material as THREE.ShaderMaterial).uniforms.uScan.value = lerp(-1, 9.5, smooth(0.5, 0.75, t));
+        (bar.mesh.material as THREE.ShaderMaterial).uniforms.uScan.value = lerp(-1, 9.5, smooth(0.47, 0.63, t));
         anchors[`bar-${i}`].set(len, 0.2, i * ROW);
         shown[i] = len / MM;
       });
       const lead = bars[0].value;
       const next = bars[1].value;
       gap.position.x = lead;
-      gap.scale.set(Math.max(0.001, (next - lead) * smooth(0.5, 0.7, t)), 1, ROW * 1.9);
-      (gap.material as THREE.MeshBasicMaterial).opacity = 0.34 * smooth(0.5, 0.7, t);
+      gap.scale.set(Math.max(0.001, (next - lead) * smooth(0.46, 0.62, t)), 1, ROW * 1.9);
+      (gap.material as THREE.MeshBasicMaterial).opacity = 0.34 * smooth(0.46, 0.62, t);
       anchors.gap.set((lead + next) / 2, 0.02, ROW * 1.55);
-      onValues(shown, smooth(0.5, 0.7, t));
+      onValues(shown, smooth(0.46, 0.62, t));
 
       // Push in on zero while the tapes start, then pull back until the whole scale is in frame.
       const out = smooth(0.0, 0.6, t);

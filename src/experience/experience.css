@@ -869,3 +869,14 @@
   /* The shorter benchmark copy has five rows; keep the controls and table at the bottom. */
   .ch--bench { grid-template-rows: auto auto auto 1fr auto auto; }
 }
+
+/* Labels can extend to either side while their frame ticks stay fixed. */
+.xp-swinghud__bar div span { padding: 0; }
+.xp-swinghud__bar em { position: absolute; left: 4px; font-style: normal; white-space: nowrap; }
+.xp-swinghud__bar [data-phase="impact"] em { left: auto; right: 4px; }
+@media (min-width: 701px) and (max-width: 1200px) {
+  .xp-swinghud__bar [data-phase="impact"] em { bottom: 26px; }
+}
+.snow-ticks { position: relative; margin: 0 4px; height: 3px; pointer-events: none; }
+.snow-ticks i { position: absolute; height: 3px; border-left: 1px solid var(--muted); }
+.scene-timeline input { touch-action: pan-y; }

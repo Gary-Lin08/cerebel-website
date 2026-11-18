@@ -22,12 +22,13 @@ type Options = {
   /** Rest points in page pixels, ascending. Read every time so a resize is picked up. */
   stops: () => number[];
   freeScroll: (y: number) => boolean;
+  commitDistance: (from: number, gap: number) => number;
   /** True while something else owns the page (menu, drag, reduced motion, not started). */
   blocked: () => boolean;
   log?: (line: string) => void;
 };
 
-export function createSnap({ stops, freeScroll, blocked, log }: Options) {
+export function createSnap({ stops, freeScroll, commitDistance, blocked, log }: Options) {
   const root = document.scrollingElement || document.documentElement;
   const maxScroll = () => root.scrollHeight - root.clientHeight;
 
@@ -69,8 +70,8 @@ export function createSnap({ stops, freeScroll, blocked, log }: Options) {
     // Heading for a stop: commit once COMMIT of the way there. Use the gesture's own direction, not just the
     // last event, so a reader who overshoots and pulls back is read correctly.
     const heading = Math.sign(y - origin) || direction;
-    if (heading > 0) return progress >= COMMIT ? above : below;
-    if (heading < 0) return progress <= 1 - COMMIT ? below : above;
+    if (heading > 0) return y - below >= Math.min((above - below) * COMMIT, commitDistance(below, above - below)) ? above : below;
+    if (heading < 0) return above - y >= Math.min((above - below) * COMMIT, commitDistance(above, above - below)) ? below : above;
     return progress < 0.5 ? below : above;
   }
 

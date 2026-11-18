@@ -204,7 +204,7 @@ function markup() {
     <div><span>Load</span><b class="num" data-ski="load3">1.0</b><em>× BW</em></div>
   </div>
 
-  <nav class="scene-timeline" data-timeline="2" aria-label="Snow chapter navigation"><div class="scene-timeline__top"><span data-timeline-label></span></div><input type="range" min="0" max="1000" step="1" value="0" aria-label="Snow chapter progress"></nav>
+  <nav class="scene-timeline" data-timeline="2" aria-label="Snow chapter navigation"><div class="scene-timeline__top"><span data-timeline-label></span></div><input type="range" min="0" max="1000" step="1" value="0" aria-label="Snow chapter progress"><div class="snow-ticks" aria-hidden="true">${spans.filter(s => s.act === 2).map(s => `<i style="left:${100 * (s.start - snowSpan.start) / (snowSpan.end - snowSpan.start)}%"></i>`).join("")}</div></nav>
   
   <div class="xp-menu" aria-hidden="true">
     <ol>${groups.map((g) => `<li><button class="menu-chapter" type="button" data-group="${g}" data-cursor>${g}</button><nav class="menu-subchapters" aria-label="${g} subchapters">${spans.filter(s=>s.group===g).map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</nav></li>`).join("")}</ol>
@@ -294,7 +294,7 @@ export function mountExperience(root: HTMLElement) {
     bestFrame = sway.values.indexOf(Math.min(...sway.values));
     const last = d.frameCount - 1;
     hudBar.setAttribute("aria-valuemax", String(last));
-    $('[data-hud="phases"]').innerHTML = d.phases.map((p) => `<span style="left:${(p.start / last) * 100}%">${p.label}</span>`).join("");
+    $('[data-hud="phases"]').innerHTML = d.phases.map((p) => `<span style="left:${(p.start / last) * 100}%" data-phase="${p.id}"><em>${p.label}</em></span>`).join("");
   }
   let readouts: { id: string; values: number[]; el: HTMLElement; cell: HTMLElement }[] = [];
   let swayValues: number[] = [];
@@ -354,6 +354,7 @@ export function mountExperience(root: HTMLElement) {
     }
     if (f === lastFrameShown) return;
     lastFrameShown = f;
+    hudBar.setAttribute("aria-valuenow", String(f));
     hudFrame.textContent = `${String(f).padStart(3, "0")} / ${String(last).padStart(3, "0")}`;
     hudPhase.textContent = swing.phases.find((p) => f >= p.start && f <= p.end)?.label ?? "";
   }
@@ -473,7 +474,7 @@ export function mountExperience(root: HTMLElement) {
     const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
     if (!step) return;
     e.preventDefault();
-    scrub = Math.min(swing.frameCount - 1, Math.max(0, (scrub ?? 0) + step));
+    scrub = Math.min(swing.frameCount - 1, Math.max(0, (scrub ?? lastFrameShown) + step));
     hudBar.setAttribute("aria-valuenow", String(Math.round(scrub)));
   });
 
@@ -772,6 +773,7 @@ export function mountExperience(root: HTMLElement) {
   if (!new URLSearchParams(location.search).has("still")) {
     snap = createSnap({
       stops: () => scrollAnchors.map(pagePosition),
+      commitDistance: (from, gap) => Math.abs(from - pagePosition(RESTS[spans.findIndex(s => s.id === "benchmark")])) < 1 ? 80 : gap,
       freeScroll: y => y >= pagePosition(snowSpan.start) && y <= pagePosition(snowSpan.end),
       blocked: () => !started || stage.reduced || timelineDragging || root.classList.contains("is-menu") || !!document.querySelector(".muscle-orbit[open]"),
       log: probe ? (line) => probe.log.push(line) : undefined,
@@ -804,7 +806,7 @@ export function mountExperience(root: HTMLElement) {
       const [first, last] = snowLimits();
       const progress = Math.max(0, Math.min(1, (pagePosition(u) - first) / (last - first)));
       if (!timelineDragging) input.value = String(Math.round(progress * 1000));
-      input.style.setProperty("--progress", `${progress*100}%`);
+      input.style.setProperty("--progress", `calc(${progress * 100}% + ${4 - 8 * progress}px)`);
       label.textContent=activeChapter?chapterLabels[activeChapter.id]:"";
       input.setAttribute("aria-valuetext",label.textContent);
     }

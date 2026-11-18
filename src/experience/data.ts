@@ -26,7 +26,7 @@ export const chapters: Chapter[] = [
   { id: "ski-intro", act: 2, group: "Snow", length: 1.2 },
   { id: "ski-load", act: 2, group: "Snow", length: 1.3 },
   { id: "ski-edge", act: 2, group: "Snow", length: 1.3 },
-  { id: "benchmark", act: 3, group: "Benchmark", length: 1.9, rest: 1.05 }, // every tape has finished growing
+  { id: "benchmark", act: 3, group: "Benchmark", length: 1.9, rest: 1.22 }, // gap, scan and camera settled before the Glasses wipe
   { id: "glasses-intro", act: 4, group: "Glasses", length: 1.1 },
   { id: "g-optical", act: 4, group: "Glasses", length: 1.1 },
   { id: "g-clock", act: 4, group: "Glasses", length: 1.1 },

@@ -332,7 +332,7 @@ export function createSwing(
       act.offset!.x = wide ? 0.19 : 0;
       act.offset!.y = wide ? 0 : 0.16;
       const target = frameFor(ctx);
-      frameNow = damp(frameNow, target, 14, ctx.dt);
+      frameNow = getScrub() === null ? damp(frameNow, target, 14, ctx.dt) : target;
       if (Math.abs(frameNow - target) < 0.01) frameNow = target;
       writePose(frameNow);
       sampler.write(pose, bodyGeometry.attributes.position.array as Float32Array, bodyGeometry.attributes.normal.array as Float32Array);
