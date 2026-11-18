@@ -45,6 +45,7 @@ function markup() {
     </nav>
   </header>
 
+  <div class="xp-stop-progress" role="progressbar" aria-label="Scroll to the next stop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
   <nav class="xp-rail" aria-label="Chapters">
     ${groups.map((g, i) => `<button type="button" data-group="${g}" data-cursor><span>${g}</span><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13"/><circle class="arc" cx="16" cy="16" r="13" pathLength="1"/><circle class="dot" cx="16" cy="16" r="2.2"/></svg><em>${String(i + 1).padStart(2, "0")}</em></button>`).join("")}
   </nav>
@@ -450,6 +451,9 @@ export function mountExperience(root: HTMLElement) {
 
   // ---- Chrome.
   const chEls = $$<HTMLElement>("[data-ch]").map((el) => ({ el, span: spans.find((s) => s.id === el.dataset.ch)! }));
+  const stopProgress = $(".xp-stop-progress");
+  const stopFill = stopProgress.querySelector("i")!;
+  let previousProgress = -1;
   const railEls = $$<HTMLButtonElement>(".xp-rail [data-group]").map((el) => ({ el, arc: el.querySelector<SVGCircleElement>(".arc")!, ...groupSpan(el.dataset.group!) }));
   const hots = $$<HTMLElement>("[data-hot]");
   $$<HTMLElement>("[data-group]").forEach((el) => el.addEventListener("click", () => {
@@ -820,7 +824,18 @@ export function mountExperience(root: HTMLElement) {
   function tick(now: number) {
     const dt = Math.max(0.001, Math.min(0.05, (now - prev) / 1000)) || 0.016;
     prev = now;
-    const target = Math.min(TOTAL - 0.001, Math.max(0, readUnits()));
+    const raw = readUnits();
+    let step = scrollStep(raw);
+    const nearest = Math.round(step);
+    // Native scroll positions can round the exact snap destination by half a pixel.
+    if (Math.abs(window.scrollY - pagePosition(scrollAnchors[nearest])) <= 1) step = nearest;
+    const fraction = step >= scrollAnchors.length - 1 ? 1 : step % 1;
+    if (previousProgress !== fraction) {
+      stopFill.style.transform = `scaleY(${fraction})`;
+      stopProgress.setAttribute("aria-valuenow", String(Math.round(100 * fraction)));
+      previousProgress = fraction;
+    }
+    const target = Math.min(TOTAL - 0.001, Math.max(0, raw));
     u = stage.reduced || timelineDragging ? target : damp(u, target, 14, dt);
     if (Math.abs(u - target) < 0.0005) u = target;
     const velocity = (u - lastU) / dt;

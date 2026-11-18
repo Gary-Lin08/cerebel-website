@@ -911,3 +911,15 @@
     100% { opacity:0; transform:translateY(-50%) scale(1.7); }
   }
 }
+
+.xp-stop-progress {
+  position:absolute; z-index:13; left:max(3px, env(safe-area-inset-left));
+  top:50%; transform:translateY(-50%); height:clamp(72px,17vh,152px); width:2px;
+  background:rgba(255,255,255,.22); overflow:hidden; border-radius:2px;
+  pointer-events:none; visibility:hidden;
+}
+.xp.is-live:not(.is-menu) .xp-stop-progress { visibility:visible; }
+.xp-stop-progress i {
+  display:block; width:100%; height:100%; background:#fff;
+  transform:scaleY(0); transform-origin:top;
+}
