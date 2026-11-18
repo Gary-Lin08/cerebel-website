@@ -39,9 +39,39 @@ export function createSnap({ stops, freeScroll, coastLimits, commitDistance, blo
   let direction = 0; // +1 down, -1 up, 0 unknown
   let origin = window.scrollY; // where the current gesture started
   let held = false; // a finger or button is down
-  let glide: { from: number; to: number; start: number; duration: number; lastSet: number; coast?: boolean } | null = null;
+  let glide: { from: number; to: number; start: number; duration: number; lastSet: number } | null = null;
   let frame = 0;
-  let wheelSpeed = 0; // CSS pixels per millisecond
+  // Extra wheel travel decays while the native gesture is still moving.
+  // Fractional pixels accumulate so high-refresh displays get the same tail.
+  let remaining = 0;
+  let remainder = 0;
+  let coastTime = 0;
+  function stopCoast() {
+    remaining = 0;
+    remainder = 0;
+  }
+
+  function advanceCoast(now: number) {
+    const y = window.scrollY;
+    if (!freeScroll(y) || held || blocked()) {
+      stopCoast();
+      return;
+    }
+    const [first, last] = coastLimits();
+    const dt = Math.min(64, Math.max(0, now - coastTime));
+    coastTime = now;
+    const move = remaining * -Math.expm1(-dt / 430);
+    remaining -= move;
+    remainder += move;
+    const pixels = Math.trunc(remainder);
+    remainder -= pixels;
+    if (pixels) {
+      const next = Math.max(first, Math.min(last, y + pixels));
+      window.scrollTo({ top: next, behavior: "instant" });
+      if (next !== y + pixels) stopCoast();
+    }
+    if (Math.abs(remaining) < 0.5) stopCoast();
+  }
 
   const input = (dir = 0) => {
     if (glide) {
@@ -80,17 +110,7 @@ export function createSnap({ stops, freeScroll, coastLimits, commitDistance, blo
   function startGlide() {
     const y = window.scrollY;
     pending = false;
-    if (freeScroll(y)) {
-      const [first, last] = coastLimits();
-      const limit = Math.min((last - first) * 0.12, window.innerHeight * 0.32);
-      const travel = Math.max(-limit, Math.min(limit, wheelSpeed * 200));
-      const to = Math.round(Math.max(first, Math.min(last, y + travel)));
-      wheelSpeed = 0;
-      if (Math.abs(to - y) >= 2) {
-        glide = { from: y, to, start: performance.now(), duration: 760, lastSet: y, coast: true };
-      }
-      return;
-    }
+    if (freeScroll(y)) return;
     const to = Math.round(Math.min(maxScroll(), Math.max(0, target(y))));
     direction = 0;
     if (Math.abs(to - y) < 1) return;
@@ -102,15 +122,14 @@ export function createSnap({ stops, freeScroll, coastLimits, commitDistance, blo
 
   function step(now: number) {
     frame = 0;
+    if (remaining) advanceCoast(now);
     if (glide) {
       // Someone else moved the page (scrollbar, find-in-page, an anchor): give way.
-      if (glide.coast && blocked()) {
-        glide = null;
-      } else if (Math.abs(window.scrollY - glide.lastSet) > 3) {
+      if (Math.abs(window.scrollY - glide.lastSet) > 3) {
         input();
       } else {
         const t = Math.min(1, (now - glide.start) / glide.duration);
-        const e = glide.coast ? 1 - (1 - t) ** 3 : t * t * t * (t * (t * 6 - 15) + 10);
+        const e = t * t * t * (t * (t * 6 - 15) + 10);
         const y = glide.from + (glide.to - glide.from) * e;
         window.scrollTo({ top: y, behavior: "instant" as ScrollBehavior });
         glide.lastSet = window.scrollY;
@@ -118,10 +137,9 @@ export function createSnap({ stops, freeScroll, coastLimits, commitDistance, blo
       }
     } else if (pending) {
       framesSinceInput += 1;
-      const coasting = wheelSpeed !== 0 && freeScroll(window.scrollY);
-      if (!held && !blocked() && framesSinceInput >= (coasting ? 2 : QUIET_FRAMES) && now - lastInput >= (coasting ? 48 : QUIET_MS)) startGlide();
+      if (!held && !blocked() && framesSinceInput >= QUIET_FRAMES && now - lastInput >= QUIET_MS) startGlide();
     }
-    if (glide || pending) wake();
+    if (glide || pending || remaining) wake();
   }
   function wake() {
     if (!frame) frame = requestAnimationFrame(step);
@@ -133,31 +151,35 @@ export function createSnap({ stops, freeScroll, coastLimits, commitDistance, blo
     if (e.ctrlKey || e.deltaY === 0) return;
     const now = performance.now();
     const tail = Math.abs(e.deltaY) <= MOMENTUM_TAIL_PX && now - lastWheel < 400;
-    const interval = now - lastWheel;
     lastWheel = now;
     if (freeScroll(window.scrollY) && !blocked() && !held) {
       const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1;
-      const speed = e.deltaY * unit / (interval > 130 ? 36 : Math.max(12, interval));
-      wheelSpeed = interval < 130 && Math.sign(speed) === Math.sign(wheelSpeed)
-        ? wheelSpeed * 0.45 + speed * 0.55 : speed;
-    } else wheelSpeed = 0;
-    // Momentum stragglers keep the reader's gesture alive but never cancel a glide that has begun.
-    if (tail && glide && !glide.coast) return;
+      if (Math.sign(remaining) !== Math.sign(e.deltaY)) stopCoast();
+      if (!remaining) coastTime = now;
+      const limit = window.innerHeight * 0.95;
+      remaining = Math.max(-limit, Math.min(limit, remaining + 1.8 * e.deltaY * unit));
+      glide = null;
+      pending = false;
+      wake();
+      return;
+    }
+    stopCoast();
+    if (tail && glide) return;
     input(Math.sign(e.deltaY));
   }, { passive: true });
   window.addEventListener("scroll", () => {
     // Our own glide moves the page too; only count movement we did not make.
     if (glide && Math.abs(window.scrollY - glide.lastSet) <= 3) return;
-    if (!glide && freeScroll(window.scrollY)) { if (!wheelSpeed) pending = false; return; }
+    if (!glide && freeScroll(window.scrollY)) { pending = false; return; }
     if (!pending && !glide) origin = window.scrollY;
     input();
   }, { passive: true });
   window.addEventListener("keydown", (e) => {
-    wheelSpeed = 0;
+    stopCoast();
     if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", " ", "Home", "End"].includes(e.key)) input();
   });
   const press = () => {
-    wheelSpeed = 0;
+    stopCoast();
     held = true;
     input();
   };
@@ -177,7 +199,7 @@ export function createSnap({ stops, freeScroll, coastLimits, commitDistance, blo
   window.addEventListener("touchcancel", release, { passive: true });
   window.addEventListener("blur", () => {
     held = false;
-    wheelSpeed = 0;
+    stopCoast();
     pending = false;
     glide = null;
   });
@@ -185,7 +207,7 @@ export function createSnap({ stops, freeScroll, coastLimits, commitDistance, blo
   return {
     /** Glide to a position chosen by the page (menu, chapter buttons) and rest there. */
     to(y: number) {
-      wheelSpeed = 0;
+      stopCoast();
       pending = false;
       const to = Math.round(Math.min(maxScroll(), Math.max(0, y)));
       const distance = Math.abs(to - window.scrollY);
@@ -195,7 +217,7 @@ export function createSnap({ stops, freeScroll, coastLimits, commitDistance, blo
     },
     /** The range input now owns the page position. */
     cancel() {
-      wheelSpeed = 0;
+      stopCoast();
       glide = null;
       pending = false;
       direction = 0;

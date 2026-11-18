@@ -5,7 +5,7 @@ import { loadBinary } from "../paths";
 import { type Act, damp, smooth } from "../stage";
 
 /** The repository's Blender studio export, with its authored presentation groups. */
-export function createGlasses(control: HTMLElement): Act {
+export function createGlasses(control: HTMLElement) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(32,1,.1,60);
   const rig = new THREE.Group();scene.add(rig);
@@ -44,10 +44,26 @@ export function createGlasses(control: HTMLElement): Act {
   const baseYaw=.42;
   let drag: {id:number;x:number;y:number} | null = null;
   let targetX=0, targetY=0, rotationX=0, rotationY=0;
+  // Pitch and yaw offsets from the assembled three-quarter view (radians).
+  const views: Record<string, [number, number]> = {
+    "g-optical": [-0.10, -0.34],
+    "g-clock": [0.14, -0.85],
+    "g-prep": [0.33, 0.12],
+    "g-modular": [0.08, 0.48],
+  };
+  let framing = false;
+  function focusModule(id: string) {
+    const view = views[id] ?? [0, 0];
+    targetX = view[0];
+    const delta = view[1] - rotationY;
+    targetY = rotationY + Math.atan2(Math.sin(delta), Math.cos(delta));
+    framing = true;
+  }
   const surface=control.querySelector<HTMLElement>(".glasses-drag")!;
   const reset=control.querySelector<HTMLButtonElement>(".glasses-reset")!;
   surface.addEventListener("pointerdown", event=>{
     if(event.button!==0)return;
+    framing=false; targetX=rotationX; targetY=rotationY;
     drag={id:event.pointerId,x:event.clientX,y:event.clientY};
     surface.setPointerCapture(event.pointerId);
     surface.classList.add("is-dragging");
@@ -64,6 +80,7 @@ export function createGlasses(control: HTMLElement): Act {
   surface.addEventListener("keydown", event=>{
     if(!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home"].includes(event.key))return;
     event.preventDefault();
+    framing=false;
     if(event.key==="Home"){targetX=0;targetY=0;}
     else if(event.key==="ArrowLeft")targetY-=.15;
     else if(event.key==="ArrowRight")targetY+=.15;
@@ -78,8 +95,9 @@ export function createGlasses(control: HTMLElement): Act {
       for(const step of steps)if(ctx.local(step)>0)active=step;
       const intro=ctx.local("glasses-intro");
       const exploded=smooth(.6,1,intro)*.25+smooth(0,.4,ctx.local("g-optical"))*.75;
-      rotationX=damp(rotationX,targetX,ctx.reduced?100:10,ctx.dt);
-      rotationY=damp(rotationY,targetY,ctx.reduced?100:10,ctx.dt);
+      const rotationRate = framing ? 5.2 : 10;
+      rotationX=ctx.reduced ? targetX : damp(rotationX,targetX,rotationRate,ctx.dt);
+      rotationY=ctx.reduced ? targetY : damp(rotationY,targetY,rotationRate,ctx.dt);
       rig.rotation.set(.18+rotationX,baseYaw+rotationY,0);
       rig.scale.setScalar(ctx.aspect>1.05?1:.6);
       for(const part of parts){
@@ -95,5 +113,5 @@ export function createGlasses(control: HTMLElement): Act {
       });
       camera.position.set(0,.45,11.5+exploded*2.3);camera.lookAt(0,0,0);
     }};
-  return act;
+  return Object.assign(act, { focusModule });
 }

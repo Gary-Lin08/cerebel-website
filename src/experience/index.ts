@@ -245,10 +245,13 @@ export function mountExperience(root: HTMLElement) {
   window.addEventListener("resize", layout);
   let snap: ReturnType<typeof createSnap> | null = null;
   // Menu and chapter buttons go to the rest point of the chapter they name.
+  let moduleEntry: { id: string; start: number } | null = null;
   const jump = (units: number) => {
     const i = Math.max(0, spans.findIndex((s) => units >= s.start && units < s.end));
     const top = pagePosition(RESTS[i]);
     if (spans[i].act === 4 && root.dataset.act === "4") {
+      glasses.focusModule(spans[i].id);
+      moduleEntry = { id: spans[i].id, start: performance.now() };
       snap?.cancel();
       window.scrollTo({ top, behavior: "instant" });
       u = readUnits();
@@ -420,12 +423,13 @@ export function mountExperience(root: HTMLElement) {
   }
 
   let entranceStartedAt: number | null = null;
+  const glasses = createGlasses($(".glasses-controls"));
   const acts: Act[] = [
     createOrigin(() => entranceStartedAt === null ? 0 : Math.max(0, (performance.now() - entranceStartedAt) / 1200)),
     createSwing(fillSwing, showFrame, () => scrub),
     createSki(showSki),
     createBenchmark(() => seqKey, showBench),
-    createGlasses($(".glasses-controls")),
+    glasses,
     createFlywheel(step => root.querySelectorAll<HTMLButtonElement>("[data-loop]").forEach((button,i)=>button.setAttribute("aria-current",String(i===step)))),
     createField(),
   ];
@@ -849,7 +853,9 @@ export function mountExperience(root: HTMLElement) {
         el.toggleAttribute("inert", !on);
       }
       if (!on) continue;
-      const e = stage.reduced ? 1 : span.start === 0 ? (heroLiveAt === null ? 0 : clamp((now - heroLiveAt) / 1500)) : clamp((u - span.start) / ENTER);
+      const reveal = moduleEntry?.id === span.id ? clamp((now - moduleEntry.start) / 780) : 1;
+      if (moduleEntry && (moduleEntry.id !== span.id || reveal >= 1)) moduleEntry = null;
+      const e = stage.reduced ? 1 : span.start === 0 ? (heroLiveAt === null ? 0 : clamp((now - heroLiveAt) / 1500)) : Math.min(reveal, clamp((u - span.start) / ENTER));
       const x = last || stage.reduced ? 0 : clamp((u - (span.end - EXIT)) / EXIT);
       c.e = e;
       c.x = x;
