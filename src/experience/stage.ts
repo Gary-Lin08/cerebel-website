@@ -64,23 +64,39 @@ export const RESTS = spans.map((s, i) => {
   return s.start + (s.rest ?? Math.max(ENTER + 0.12, sceneChange ? WIPE + 0.06 : 0));
 });
 
-// Scene time. Around every rest point the scene holds completely still for HOLD on either side, and the motion
-// between two rest points runs a little faster to make up the distance. So a page at rest always shows a still
-// picture, and stopping slightly short of or past a rest point looks the same as stopping on it. Copy is not
-// held: it is driven by the raw scroll position (index.ts).
+// Snow occupies a single continuous interval. Its two boundaries are navigation
+// anchors; the three named views remain available through the menu.
+export const snowSpan = actSpans[2];
+export const scrollAnchors = [
+  ...RESTS.filter((_, i) => spans[i].act !== 2),
+  snowSpan.start, snowSpan.end, TOTAL,
+].sort((a, b) => a - b);
+
+export function scrollStep(u: number) {
+  const index = scrollAnchors.findIndex(value => value > u);
+  if (index < 0) return scrollAnchors.length - 1;
+  if (index === 0) return 0;
+  const start = scrollAnchors[index - 1];
+  return index - 1 + (u - start) / (scrollAnchors[index] - start);
+}
+
+export function unitsAtStep(step: number) {
+  const value = Math.max(0, Math.min(scrollAnchors.length - 1, step));
+  const index = Math.floor(value);
+  return lerp(scrollAnchors[index], scrollAnchors[index + 1] ?? TOTAL, value - index);
+}
+
 export const HOLD = 0.1;
+const heldAt = (u: number) => u >= snowSpan.start && u <= snowSpan.end || u === TOTAL ? 0 : HOLD;
 export function sceneTime(u: number) {
-  for (let i = 0; i < RESTS.length; i += 1) {
-    const r = RESTS[i];
-    if (u <= r + HOLD) {
-      if (u >= r - HOLD) return r;
-      if (i === 0) return u;
-      const a = RESTS[i - 1];
-      return a + ((u - (a + HOLD)) / (r - HOLD - (a + HOLD))) * (r - a);
-    }
-  }
-  const last = RESTS[RESTS.length - 1];
-  return last + Math.max(0, u - (last + HOLD));
+  const i = Math.floor(scrollStep(u));
+  const left = scrollAnchors[i];
+  const right = scrollAnchors[i + 1];
+  if (right === undefined) return left;
+  const start = left + heldAt(left);
+  const end = right - heldAt(right);
+  const t = Math.max(0, Math.min(1, (u - start) / (end - start)));
+  return lerp(left, right, t);
 }
 
 const NOISE = /* glsl */ `

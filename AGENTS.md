@@ -168,3 +168,5 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 - November 17 final correction: the broad copy reduction was rejected because it disrupted layout. Keep concise copy ONLY in Golf/Motion (including muscle viewer). Restore all other acts to their pre-copy-pass content and structure; do not simplify those again without a specific request. Keep the explicitly requested lower Benchmark placement and restored home scroll hint.
 
 - November 17 targeted follow-up: user explicitly requested concise Benchmark and Snow copy too. Keep their numbers/charts/controls and short provenance; remove slogans and chart narration. Flywheel dataset size is a single persistent context block across act 5, never repeated/re-entered with every step; keep the full step narratives. Other acts unchanged.
+
+Snow uses one continuous scroll interval and one scrub bar. Let the reader stop anywhere in it. Use equal physical scroll distances between magnetic anchors elsewhere.

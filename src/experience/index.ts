@@ -7,7 +7,7 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "./experience.css";
 import { benchmark, chapters, glassesParts, flywheelSteps, findingCopy } from "./data";
 import { asset, page } from "./paths";
-import { type Act, ENTER, RESTS, TOTAL, createStage, damp, sceneTime, smooth, spans } from "./stage";
+import { type Act, ENTER, RESTS, TOTAL, createStage, damp, sceneTime, scrollAnchors, scrollStep, unitsAtStep, snowSpan, smooth, spans } from "./stage";
 import { createSnap } from "./snap";
 import { createOrigin } from "./acts/origin";
 import { type SwingData, createSwing } from "./acts/swing";
@@ -184,7 +184,7 @@ function markup() {
     <div class="joint" data-anchor="joint"><i></i><div><b class="num" data-joint="value"></b><span data-joint="caption"></span></div></div>
     <div class="tag tag--fig" data-anchor="fig-surface">Body surface</div>
     <div class="tag tag--fig" data-anchor="fig-skeleton">Skeleton + muscles</div>
-    ${glassesParts.map((p) => `<div class="hot" data-anchor="h-${p.id.slice(2)}" data-hot="${p.id}"><i></i><span><b class="num">${p.n}</b>${p.title}</span></div>`).join("")}
+    ${glassesParts.map((p) => `<button type="button" aria-label="${p.title}" class="hot" data-anchor="h-${p.id.slice(2)}" data-hot="${p.id}"><i></i><span><b class="num">${p.n}</b>${p.title}</span></button>`).join("")}
   </div>
 
   <div class="glasses-controls">
@@ -204,7 +204,7 @@ function markup() {
     <div><span>Load</span><b class="num" data-ski="load3">1.0</b><em>× BW</em></div>
   </div>
 
-  ${[2].map(act=>{ const sections=spans.filter(s=>s.act===act); return `<nav class="scene-timeline" data-timeline="${act}" aria-label="Snow chapter navigation"><div class="scene-timeline__top"><span data-timeline-label></span></div><input type="range" min="${sections[0].start+.02}" max="${sections[sections.length-1].end-.08}" step="0.005" value="${sections[0].start+.02}" aria-label="Snow chapter progress"><div class="scene-timeline__stops">${sections.map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</div></nav>`; }).join("")}
+  ${[2].map(act=>{ const sections=spans.filter(s=>s.act===act); return `<nav class="scene-timeline" data-timeline="${act}" aria-label="Snow chapter navigation"><div class="scene-timeline__top"><span data-timeline-label></span></div><input type="range" min="${sections[0].start+.02}" max="${sections[sections.length-1].end-.08}" step="0.005" value="${sections[0].start+.02}" aria-label="Snow chapter progress"></nav>`; }).join("")}
   
   <div class="xp-menu" aria-hidden="true">
     <ol>${groups.map((g) => `<li><button class="menu-chapter" type="button" data-group="${g}" data-cursor>${g}</button><nav class="menu-subchapters" aria-label="${g} subchapters">${spans.filter(s=>s.group===g).map(s=>`<button type="button" data-subchapter="${s.id}" data-jump="${s.start+.3}">${chapterLabels[s.id]}</button>`).join("")}</nav></li>`).join("")}</ol>
@@ -228,12 +228,10 @@ export function mountExperience(root: HTMLElement) {
   const $ = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
   const $$ = <T extends HTMLElement>(sel: string) => [...root.querySelectorAll<T>(sel)];
 
-  // More physical scroll per scene unit makes small wheel and trackpad motions easier to control.
-  // Screens of physical scroll per scene unit. Raised from 2 on November 17 at the user's request (30% less
-  // sensitive). Rest points, the hold around them and glides all scale with it.
-  const scrollDistanceScale = 2 / 0.7;
   let vh = window.innerHeight;
-  const pixelsPerUnit = () => vh * scrollDistanceScale;
+  const stepPixels = () => vh * 2.8;
+  const pagePosition = (units: number) => scrollStep(units) * stepPixels();
+  const readUnits = () => unitsAtStep(window.scrollY / stepPixels());
   let vw = window.innerWidth;
   const layout = () => {
     // Ignore mobile address-bar height changes so the scroll map does not jump.
@@ -241,7 +239,7 @@ export function mountExperience(root: HTMLElement) {
       vw = window.innerWidth;
       vh = window.innerHeight;
     }
-    spacer.style.height = `${TOTAL * pixelsPerUnit() + 0.62 * vh}px`;
+    spacer.style.height = `${pagePosition(TOTAL) + window.innerHeight}px`;
   };
   layout();
   window.addEventListener("resize", layout);
@@ -249,7 +247,7 @@ export function mountExperience(root: HTMLElement) {
   // Menu and chapter buttons go to the rest point of the chapter they name.
   const jump = (units: number) => {
     const i = Math.max(0, spans.findIndex((s) => units >= s.start && units < s.end));
-    const top = RESTS[i] * pixelsPerUnit();
+    const top = pagePosition(RESTS[i]);
     if (snap && !stage.reduced) snap.to(top);
     else window.scrollTo({ top, behavior: "auto" });
   };
@@ -486,7 +484,7 @@ export function mountExperience(root: HTMLElement) {
   for (const {input} of timelines) {
     input.addEventListener("pointerdown",()=>{timelineDragging=true;});
     for(const event of ["pointerup","pointercancel","lostpointercapture"]) input.addEventListener(event,()=>{timelineDragging=false;snap?.settle();});
-    input.addEventListener("input",()=>{scrub=null;u=Number(input.value);window.scrollTo({top:u*pixelsPerUnit(),behavior:"instant"});});
+    input.addEventListener("input",()=>{scrub=null;u=Number(input.value);window.scrollTo({top:pagePosition(u),behavior:"instant"});});
   }
   const subchapterButtons=$$<HTMLElement>("[data-subchapter]");
 
@@ -758,12 +756,13 @@ export function mountExperience(root: HTMLElement) {
 
   // ---- Coming to rest between chapters (snap.ts). Rest points and the scene hold around them live in stage.ts.
   const probe = import.meta.env.DEV ? ((window as unknown as Record<string, unknown>).__xpSnap = {
-    points: () => RESTS.map((r) => Math.round(r * pixelsPerUnit())),
+    points: () => scrollAnchors.map(r => Math.round(pagePosition(r))),
     log: [] as string[],
   }) as { log: string[] } : null;
   if (!new URLSearchParams(location.search).has("still")) {
     snap = createSnap({
-      stops: () => RESTS.map((r) => r * pixelsPerUnit()),
+      stops: () => scrollAnchors.map(pagePosition),
+      freeScroll: y => y >= pagePosition(snowSpan.start) && y <= pagePosition(snowSpan.end),
       blocked: () => !started || stage.reduced || timelineDragging || root.classList.contains("is-menu") || !!document.querySelector(".muscle-orbit[open]"),
       log: probe ? (line) => probe.log.push(line) : undefined,
     });
@@ -772,14 +771,14 @@ export function mountExperience(root: HTMLElement) {
   const skipRender = import.meta.env.DEV && new URLSearchParams(location.search).has("norender");
   const lastFront = 0;
   // ---- Loop.
-  let u = window.scrollY / pixelsPerUnit();
+  let u = readUnits();
   let prev = performance.now();
   let lastU = u;
   function tick(now: number) {
     const dt = Math.max(0.001, Math.min(0.05, (now - prev) / 1000)) || 0.016;
     prev = now;
-    const target = Math.min(TOTAL - 0.001, Math.max(0, window.scrollY / pixelsPerUnit()));
-    u = stage.reduced || timelineDragging ? target : damp(u, target, 8, dt);
+    const target = Math.min(TOTAL - 0.001, Math.max(0, readUnits()));
+    u = stage.reduced || timelineDragging ? target : damp(u, target, 14, dt);
     if (Math.abs(u - target) < 0.0005) u = target;
     const velocity = (u - lastU) / dt;
     lastU = u;

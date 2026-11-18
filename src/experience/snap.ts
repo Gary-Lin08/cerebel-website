@@ -13,20 +13,21 @@
 // Rest points come from stage.ts (RESTS); the scene is held still around each one, so the picture at rest is
 // always settled.
 
-const QUIET_MS = 140;
-const QUIET_FRAMES = 6;
+const QUIET_MS = 105;
+const QUIET_FRAMES = 4;
 const COMMIT = 0.3;
 const MOMENTUM_TAIL_PX = 2; // wheel deltas this small after a gesture are the tail of its momentum
 
 type Options = {
   /** Rest points in page pixels, ascending. Read every time so a resize is picked up. */
   stops: () => number[];
+  freeScroll: (y: number) => boolean;
   /** True while something else owns the page (menu, drag, reduced motion, not started). */
   blocked: () => boolean;
   log?: (line: string) => void;
 };
 
-export function createSnap({ stops, blocked, log }: Options) {
+export function createSnap({ stops, freeScroll, blocked, log }: Options) {
   const root = document.scrollingElement || document.documentElement;
   const maxScroll = () => root.scrollHeight - root.clientHeight;
 
@@ -53,6 +54,7 @@ export function createSnap({ stops, blocked, log }: Options) {
   };
 
   function target(y: number) {
+    if (freeScroll(y)) return y;
     const points = [...stops(), maxScroll()].filter((p) => p <= maxScroll()).sort((a, b) => a - b);
     let below = points[0];
     let above = points[points.length - 1];
@@ -80,8 +82,8 @@ export function createSnap({ stops, blocked, log }: Options) {
     direction = 0;
     if (Math.abs(to - y) < 1) return;
     const distance = Math.abs(to - y);
-    // Long enough to read as a soft settle, never a jump: about 0.6 s for a nudge, up to 1.4 s across a chapter.
-    const duration = Math.min(1400, 560 + Math.sqrt(distance) * 14);
+    // Long enough to read as a soft settle, never a jump: up to 0.9 s across a chapter.
+    const duration = Math.min(900, 340 + Math.sqrt(distance) * 10);
     glide = { from: y, to, start: performance.now(), duration, lastSet: y };
     log?.(`glide ${Math.round(y)} -> ${to}`);
   }

@@ -14,7 +14,8 @@ export function createGlasses(control: HTMLElement): Act {
   lights.forEach(([color,intensity,x,y,z])=>{const light=new THREE.DirectionalLight(color,intensity);light.position.set(x,y,z);scene.add(light);});
   const parts: {node:THREE.Object3D;home:THREE.Vector3;explode:THREE.Vector3;materials:THREE.MeshStandardMaterial[]}[]=[];
   const anchors: Record<string,THREE.Vector3>={"h-optical":new THREE.Vector3(),"h-clock":new THREE.Vector3(),"h-prep":new THREE.Vector3(),"h-modular":new THREE.Vector3()};
-  const groupFor:Record<string,string[]>={"g-optical":["Lenses","Optical_components"],"g-clock":["Capture_module","Electronics"],"g-prep":["Electronics"],"g-modular":["Temple_L","Temple_R"]};
+  const groupFor:Record<string,string[]>={"g-optical":["Lenses","Optical_components"],"g-clock":["Capture_module"],"g-prep":["Electronics"],"g-modular":["Temple_L","Temple_R"]};
+  const violet = new THREE.Color(0xb67aff), mint = new THREE.Color(0x69f6bd), off = new THREE.Color(0);
   const ready=loadBinary("/assets/wearable-studio/cerebel-wearable-v1.glb").then(bytes=>new GLTFLoader().parseAsync(bytes,"")).then(gltf=>{
     const model=gltf.scene;rig.add(model);
     model.traverse(node=>{
@@ -84,9 +85,9 @@ export function createGlasses(control: HTMLElement): Act {
       rig.rotation.set(.18+rotationX,yaw+rotationY,0);
       rig.scale.setScalar(ctx.aspect>1.05?1:.6);
       for(const part of parts){
-        part.node.position.copy(part.home).addScaledVector(part.explode,exploded);
+        part.node.position.copy(part.home).addScaledVector(part.explode,exploded*2.5);
         const selected=groupFor[active]?.includes(part.node.name)??false;
-        for(const material of part.materials){material.emissive.lerp(new THREE.Color(selected?0x57318f:0x000000),1-Math.exp(-5*ctx.dt));material.emissiveIntensity=.24;}
+        for(const material of part.materials){material.emissive.lerp(selected ? (active==="g-clock" || active==="g-modular" ? mint : violet) : off,1-Math.exp(-5*ctx.dt));material.emissiveIntensity=.95;}
       }
       rig.updateMatrixWorld(true);
       const named=["Optical_components","Capture_module","Electronics","Temple_R"];
@@ -94,7 +95,7 @@ export function createGlasses(control: HTMLElement): Act {
         const part=parts.find(p=>p.node.name===named[i]);
         if(part)new THREE.Box3().setFromObject(part.node).getCenter(point);
       });
-      camera.position.set(0,.45,11.5+exploded*1.3);camera.lookAt(0,0,0);
+      camera.position.set(0,.45,11.5+exploded*2.3);camera.lookAt(0,0,0);
     }};
   return act;
 }
