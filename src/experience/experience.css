@@ -345,14 +345,14 @@
 
 /* Corn's local outline lens: the surrounding headline stays solid. */
 /* Rectangular primary actions: a leading strip sweeps underneath the label. */
-.xp .xp-pill{position:relative;isolation:isolate;overflow:hidden;border-radius:0;background:#b8a1ff;color:#11151b;height:54px;width:276px;min-width:276px;padding:0 30px;letter-spacing:.14em;text-transform:uppercase;font-size:12px;justify-content:flex-start;gap:0;box-shadow:none;transition:none}
+.xp .xp-pill{position:relative;isolation:isolate;overflow:hidden;border-radius:0;background:#b8a1ff;color:#11151b;height:42px;width:198px;min-width:0;padding:0 20px;letter-spacing:.14em;text-transform:uppercase;font-size:12px;justify-content:flex-start;gap:0;box-shadow:none;transition:none}
 .xp .xp-pill::before{content:"";position:absolute;z-index:-1;inset:0;background:#f4f5f2;transform:translateX(7px);transition:transform .8s cubic-bezier(.75,0,.25,1) .1s}
 .xp .xp-pill::after{content:"";position:absolute;inset:0;pointer-events:none;border:1px solid #b8a1ff00;transition:border-color .5s}
 .xp-pill__label{display:block;position:relative;white-space:nowrap;transform:translateX(0);transition:transform .5s cubic-bezier(.75,0,.25,1) .1s}
-.xp-pill__line{position:absolute;left:30px;top:calc(50% - .5px);width:26px;height:1px;background:currentColor;transform:translateX(-13px) scaleX(.001);transform-origin:left;transition:transform .5s cubic-bezier(.75,0,.25,1)}
+.xp-pill__line{position:absolute;left:20px;top:calc(50% - .5px);width:16px;height:1px;background:currentColor;transform:translateX(-8px) scaleX(.001);transform-origin:left;transition:transform .5s cubic-bezier(.75,0,.25,1)}
 .xp .xp-pill:hover,.xp .xp-pill:focus-visible{transform:none;box-shadow:none;background:#b8a1ff}
 .xp .xp-pill:is(:hover,:focus-visible)::before{transform:translateX(100%);transition-duration:.5s}
-.xp .xp-pill:is(:hover,:focus-visible) .xp-pill__label{transform:translateX(40px);transition-delay:0s}
+.xp .xp-pill:is(:hover,:focus-visible) .xp-pill__label{transform:translateX(23px);transition-delay:0s}
 .xp .xp-pill:is(:hover,:focus-visible) .xp-pill__line{transform:translateX(0) scaleX(1);transition-delay:.05s}
 .xp .xp-pill:focus-visible{outline:2px solid white;outline-offset:5px}
 .xp .xp-pill:active::after{border-color:#17181a66}
@@ -775,7 +775,9 @@
 
 @media (max-width: 860px), (max-aspect-ratio: 21/20) {
   /* Compact pill: the desktop rule fixes it at 276px wide, which filled the whole bar on a phone. */
-  .xp .xp-pill { width: auto; min-width: 0; padding: 0 14px; }
+  .xp .xp-pill { width: 126px; min-width: 0; height:34px; padding:0 10px; }
+  .xp-pill__line { left:10px; width:10px; }
+  .xp .xp-pill:is(:hover,:focus-visible) .xp-pill__label { transform:translateX(14px); }
   /* Figure names would sit on the copy; the scene reads without them on a small screen. */
   .xp .tag--fig { display: none; }
   /* Joint value tags keep the number and drop the caption that ran off the edge. */
@@ -860,15 +862,21 @@
 /* Dataset context belongs to the whole flywheel, not to each rotating step. */
 .loop-dataset { position: absolute; z-index: 12; left: var(--pad); top: clamp(100px, 16vh, 170px); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .5s, visibility 0s .5s; }
 .xp.is-live[data-act="5"]:not(.is-menu) .loop-dataset { opacity: 1; visibility: visible; transition: opacity .5s; }
-.loop-dataset strong { font-size: clamp(32px, 3.8vw, 54px); font-weight: 400; line-height: 1.1; }
-.loop-dataset strong span { font-size: .4em; color: var(--muted); }
-.loop-dataset p { margin: 8px 0; color: var(--ink); font-size: 13px; }
-.loop-dataset small { color: var(--muted); font-size: 11px; }
+.loop-dataset { width:min(260px,38vw); }
+.loop-dataset strong { display:flex; align-items:baseline; gap:.38em; font-size:clamp(32px,3.25vw,46px); font-weight:500; letter-spacing:-.055em; line-height:1; }
+.loop-dataset strong span { color:var(--muted); font:400 .36em/1 var(--body, sans-serif); letter-spacing:0; }
+.loop-dataset__ratio { height:3px; margin:12px 0 7px; background:linear-gradient(to right,#afdaa1 0 25%,transparent 25% calc(25% + 3px),#a69ac5 calc(25% + 3px) 100%); }
+.loop-dataset__split { display:flex; justify-content:space-between; gap:10px; font-size:12px; color:var(--muted); }
+.loop-dataset__split b { font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
+.loop-dataset small { display:block; margin-top:8px; color:var(--muted); font-size:10px; }
+.ch--contact .orb { width:104px; height:104px; font-size:.75rem; }
 @media (max-width: 860px), (max-aspect-ratio: 21/20) {
-  .loop-dataset { top: 78px; }
-  .loop-dataset strong { font-size: 28px; }
-  .loop-dataset p { margin: 4px 0; font-size: 11px; }
-  .loop-dataset small { font-size: 10px; }
+  .loop-dataset { top:78px; width:min(205px,63vw); }
+  .loop-dataset strong { font-size:28px; }
+  .loop-dataset__ratio { margin-top:7px; }
+  .loop-dataset__split { font-size:11px; }
+  .loop-dataset small { margin-top:4px; }
+  .ch--contact .orb { width:92px; height:92px; }
   /* The shorter benchmark copy has five rows; keep the controls and table at the bottom. */
   .ch--bench { grid-template-rows: auto auto auto 1fr auto auto; }
 }

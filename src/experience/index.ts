@@ -172,7 +172,9 @@ function markup() {
     </section>
   </main>
 
-  <aside class="loop-dataset" aria-label="Dataset size"><strong class="num">20,000<span> h</span></strong><p>5,000 real / 15,000 simulated</p><small>Team-reported · schematic loop</small></aside>
+  <aside class="loop-dataset" aria-label="Dataset size"><strong class="num">20,000 <span>hours</span></strong>
+    <div class="loop-dataset__ratio" aria-hidden="true"></div>
+    <div class="loop-dataset__split"><span><b>5,000</b> real</span><span><b>15,000</b> simulated</span></div><small>Team-reported · schematic loop</small></aside>
 
   <nav class="loop-nav" aria-label="Data flywheel stages">${flywheelSteps.map((step,i)=>`<button data-loop="${i}" data-jump="${spans.find(s=>s.id===`loop-${i}`)!.start+.1}">${step.title}<i>↗</i></button>`).join("")}</nav>
   <div class="xp-anchors" aria-hidden="true">
