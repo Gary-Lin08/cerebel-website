@@ -159,7 +159,13 @@ function markup() {
 
     <section class="ch ch--contact" data-ch="contact">
       <h2>${lines("Built for the", "real world, not", "only the lab.")}</h2>
-      ${orb("Request a demo", "mailto:hello@cerebel.tech?subject=Demo%20request")}
+      <a class="orb demo-orb" href="mailto:hello@cerebel.tech?subject=Demo%20request" data-cursor>
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="demo-orb__ring" cx="60" cy="60" r="53" pathLength="1" transform="rotate(-90 60 60)"/>
+          <g class="demo-orb__tip"><circle cx="60" cy="7" r="2"/></g>
+        </svg>
+        <span>Request a demo</span>
+      </a>
       <footer class="xp-foot">
         <div class="xp-foot__marks">
           <img class="wm" src="${asset("/assets/cerebel-wordmark.png")}" alt="Cerebel" width="595" height="194">
@@ -870,11 +876,15 @@ export function mountExperience(root: HTMLElement) {
         el.classList.toggle("is-on", on);
         el.toggleAttribute("inert", !on);
       }
-      if (!on) continue;
+      if (!on) {
+        if (span.id === "contact") el.classList.remove("show-demo");
+        continue;
+      }
       const reveal = moduleEntry?.id === span.id ? clamp((now - moduleEntry.start) / 780) : 1;
       if (moduleEntry && (moduleEntry.id !== span.id || reveal >= 1)) moduleEntry = null;
       const e = stage.reduced ? 1 : span.start === 0 ? (heroLiveAt === null ? 0 : clamp((now - heroLiveAt) / 1500)) : Math.min(reveal, clamp((u - span.start) / ENTER));
       const x = last || stage.reduced ? 0 : clamp((u - (span.end - EXIT)) / EXIT);
+      if (span.id === "contact") el.classList.toggle("show-demo", e >= .7);
       c.e = e;
       c.x = x;
       el.style.setProperty("--c", ((u - span.start) / (span.end - span.start)).toFixed(3));

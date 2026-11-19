@@ -869,14 +869,14 @@
 .loop-dataset__split { display:flex; justify-content:space-between; gap:10px; font-size:12px; color:var(--muted); }
 .loop-dataset__split b { font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
 .loop-dataset small { display:block; margin-top:8px; color:var(--muted); font-size:10px; }
-.ch--contact .orb { width:104px; height:104px; font-size:.75rem; }
+.ch--contact .orb { width:132px; height:132px; font-size:.8125rem; }
 @media (max-width: 860px), (max-aspect-ratio: 21/20) {
   .loop-dataset { top:78px; width:min(205px,63vw); }
   .loop-dataset strong { font-size:28px; }
   .loop-dataset__ratio { margin-top:7px; }
   .loop-dataset__split { font-size:11px; }
   .loop-dataset small { margin-top:4px; }
-  .ch--contact .orb { width:92px; height:92px; }
+  .ch--contact .orb { width:112px; height:112px; }
   /* The shorter benchmark copy has five rows; keep the controls and table at the bottom. */
   .ch--bench { grid-template-rows: auto auto auto 1fr auto auto; }
 }
@@ -946,3 +946,21 @@
   .ch[data-ch="ski-edge"] .metric { font-size: clamp(3rem, 16vw, 4.4rem); }
   .ch[data-ch="ski-edge"] .h-sm { font-size: clamp(1.4rem, 6.2vw, 1.8rem); }
 }
+
+.demo-orb::before { inset:6%; border:0; background:transparent; backdrop-filter:none; }
+.demo-orb svg { width:100%; height:100%; animation:none; overflow:visible; }
+.demo-orb .demo-orb__ring { stroke:var(--ink); stroke-linecap:round; }
+.demo-orb__tip { transform-origin:60px 60px; }
+.demo-orb__tip circle { fill:#f3edff; stroke:none; filter:drop-shadow(0 0 2px #bd9fff); }
+@media (prefers-reduced-motion:no-preference) {
+  .demo-orb__ring { stroke-dasharray:1; stroke-dashoffset:1; opacity:0; }
+  .demo-orb__tip, .demo-orb span { opacity:0; }
+  .show-demo .demo-orb__ring { animation:demo-ring 850ms 140ms cubic-bezier(.4,0,.18,1) both; }
+  .show-demo .demo-orb__tip { animation:demo-orbit 850ms 140ms cubic-bezier(.4,0,.18,1) both, demo-light 1080ms linear both; }
+  .show-demo .demo-orb span { animation:demo-label 440ms 810ms ease-out both; }
+  @keyframes demo-ring { from { opacity:0; stroke-dashoffset:1; } 2% { opacity:1; } to { opacity:1; stroke-dashoffset:0; } }
+  @keyframes demo-orbit { from { transform:rotate(0); } to { transform:rotate(360deg); } }
+  @keyframes demo-light { 0%,100% { opacity:0; } 10%,88% { opacity:1; } }
+  @keyframes demo-label { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+}
+@media (prefers-reduced-motion:reduce) { .demo-orb__tip { display:none; } }
